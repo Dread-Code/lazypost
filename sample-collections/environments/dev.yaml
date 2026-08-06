@@ -1,0 +1,5 @@
+variables:
+  host: https://zenquotes.io
+  api_key: your-api-key
+  author: albert-einstein
+  keyword: inspirational

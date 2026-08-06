@@ -1,0 +1,6 @@
+name: bulk quotes
+method: GET
+url: "{{host}}/api/quotes"
+headers:
+  - name: Accept
+    value: application/json

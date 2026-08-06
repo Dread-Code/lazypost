@@ -1,0 +1,6 @@
+name: random quote image
+method: GET
+url: "{{host}}/api/image"
+headers:
+  - name: Accept
+    value: application/json

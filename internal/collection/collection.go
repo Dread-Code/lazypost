@@ -1,0 +1,187 @@
+package collection
+
+import (
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+type Header struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
+}
+
+type Auth struct {
+	Type     string `yaml:"type"` // none, basic, bearer, apikey
+	Username string `yaml:"username,omitempty"`
+	Password string `yaml:"password,omitempty"`
+	Token    string `yaml:"token,omitempty"`
+	KeyName  string `yaml:"keyName,omitempty"`
+	KeyValue string `yaml:"keyValue,omitempty"`
+	KeyIn    string `yaml:"keyIn,omitempty"` // header or query
+}
+
+type Request struct {
+	Name    string   `yaml:"name"`
+	Method  string   `yaml:"method"`
+	URL     string   `yaml:"url"`
+	Headers []Header `yaml:"headers,omitempty"`
+	Auth    *Auth    `yaml:"auth,omitempty"`
+	Body    string   `yaml:"body,omitempty"`
+}
+
+type Kind int
+
+const (
+	Dir Kind = iota
+	Req
+)
+
+type Entry struct {
+	Kind  Kind
+	Name  string
+	Depth int
+	Path  string
+	Req   *Request
+}
+
+const environmentsDir = "environments"
+
+func isYAML(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".yaml" || ext == ".yml"
+}
+
+func LoadFile(path string) (*Request, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var r Request
+	if err := yaml.Unmarshal(data, &r); err != nil {
+		return nil, err
+	}
+	if r.Method == "" {
+		r.Method = "GET"
+	}
+	return &r, nil
+}
+
+// Load walks root and returns a flattened, depth-annotated tree of
+// directories and requests in lexical order.
+func Load(root string) ([]Entry, error) {
+	var entries []Entry
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == root {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		depth := strings.Count(rel, string(filepath.Separator))
+		if d.IsDir() {
+			if d.Name() == environmentsDir {
+				return filepath.SkipDir
+			}
+			entries = append(entries, Entry{Kind: Dir, Name: d.Name(), Depth: depth})
+			return nil
+		}
+		if !isYAML(path) {
+			return nil
+		}
+		req, err := LoadFile(path)
+		if err != nil {
+			return fmt.Errorf("loading %s: %w", path, err)
+		}
+		name := req.Name
+		if name == "" {
+			name = strings.TrimSuffix(d.Name(), filepath.Ext(path))
+		}
+		entries = append(entries, Entry{Kind: Req, Name: name, Depth: depth, Path: path, Req: req})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
+var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
+
+func Slug(name string) string {
+	s := strings.ToLower(strings.TrimSpace(name))
+	s = slugRe.ReplaceAllString(s, "-")
+	return strings.Trim(s, "-")
+}
+
+// Save writes r as YAML. If path is empty a path is derived from the
+// request name inside root. The path written to is returned.
+func Save(root, path string, r *Request) (string, error) {
+	if r.Name == "" {
+		return "", fmt.Errorf("request name is required")
+	}
+	if path == "" {
+		path = filepath.Join(root, Slug(r.Name)+".yaml")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	data, err := yaml.Marshal(r)
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+type Environment struct {
+	Variables map[string]string `yaml:"variables"`
+}
+
+// LoadEnvironments reads <root>/environments/*.yaml and returns the
+// variables keyed by environment name plus the sorted list of names.
+func LoadEnvironments(root string) (map[string]map[string]string, []string, error) {
+	dir := filepath.Join(root, environmentsDir)
+	envs := map[string]map[string]string{}
+	items, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return envs, nil, nil
+		}
+		return nil, nil, err
+	}
+	var names []string
+	for _, item := range items {
+		if item.IsDir() || !isYAML(item.Name()) {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, item.Name()))
+		if err != nil {
+			return nil, nil, err
+		}
+		var env Environment
+		if err := yaml.Unmarshal(data, &env); err != nil {
+			return nil, nil, fmt.Errorf("loading environment %s: %w", item.Name(), err)
+		}
+		name := strings.TrimSuffix(item.Name(), filepath.Ext(item.Name()))
+		if env.Variables == nil {
+			env.Variables = map[string]string{}
+		}
+		envs[name] = env.Variables
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return envs, names, nil
+}

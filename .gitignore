@@ -1,0 +1,6 @@
+/postgo
+*.test
+*.out
+coverage.*
+.DS_Store
+.opencode/node_modules

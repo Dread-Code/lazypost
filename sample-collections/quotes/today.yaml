@@ -1,0 +1,6 @@
+name: quote of the day
+method: GET
+url: "{{host}}/api/today"
+headers:
+  - name: Accept
+    value: application/json
