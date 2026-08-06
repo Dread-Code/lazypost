@@ -126,10 +126,10 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 	}
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch {
-		case key.Matches(km, keyCtrlDown):
+		case key.Matches(km, keySectionNext):
 			e.section = Section((int(e.section) + 1) % 4)
 			return e, e.focusSection()
-		case key.Matches(km, keyCtrlUp):
+		case key.Matches(km, keySectionPrev):
 			e.section = Section((int(e.section) + 3) % 4)
 			return e, e.focusSection()
 		case key.Matches(km, keyAltLeft):
@@ -207,7 +207,7 @@ func (e *Editor) View() string {
 	var content string
 	switch e.section {
 	case SecURL:
-		content = HintStyle.Render(TruncateRunes("ctrl+↓ to edit headers, body or auth", e.width-4))
+		content = HintStyle.Render(TruncateRunes("ctrl+n/p to edit headers, body or auth", e.width-4))
 	case SecHeaders:
 		content = e.headers.View()
 	case SecBody:

@@ -78,6 +78,22 @@ func TestLoadRequestIntoEditor(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+func TestSectionNavigation(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "quotes by author", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN})
+	w.waitFor(t, "Accept: application/json", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestCycleEnvironment(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}

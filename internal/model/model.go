@@ -141,15 +141,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "enter":
 			if e := m.sidebar.Selected(); e != nil {
-				cmd := m.editor.SetRequest(e.Req, e.Path)
 				m.setFocus(pEditor)
-				return m, cmd
+				// focusCmd also sets editor.focused; setFocus only blurs
+				return m, tea.Batch(m.editor.SetRequest(e.Req, e.Path), m.focusCmd())
 			}
 			return m, nil
 		case "n":
-			cmd := m.editor.New()
 			m.setFocus(pEditor)
-			return m, cmd
+			return m, tea.Batch(m.editor.New(), m.focusCmd())
 		}
 		var cmd tea.Cmd
 		m.sidebar, cmd = m.sidebar.Update(msg)
@@ -341,7 +340,7 @@ func (m Model) statusBar() string {
 	case pSidebar:
 		help = "↑↓ navigate · enter load · n new · ctrl+e env · tab panes · ctrl+r send · q quit"
 	case pEditor:
-		help = "ctrl+↓↑ field · alt+←→ tab · ctrl+t method/type · ctrl+s save · ctrl+r send"
+		help = "ctrl+n/p field · alt+←→ tab · ctrl+t method/type · ctrl+s save · ctrl+r send"
 	case pResponse:
 		help = "←→ or b/h tabs · ↑↓ scroll · tab panes · q quit"
 	}
