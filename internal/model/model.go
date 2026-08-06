@@ -18,6 +18,7 @@ type pane int
 
 const (
 	pSidebar pane = iota
+	pBar
 	pEditor
 	pResponse
 )
@@ -28,9 +29,12 @@ type errMsg struct{ err error }
 type Model struct {
 	dir      string
 	sidebar  *ui.Sidebar
+	urlbar   *ui.URLBar
 	editor   *ui.Editor
 	response *ui.Response
 	focus    pane
+	// prevFocus is where esc in the URL bar returns to
+	prevFocus pane
 
 	width  int
 	height int
@@ -44,6 +48,8 @@ type Model struct {
 
 	keyTab      key.Binding
 	keyShiftTab key.Binding
+	keyCtrlL    key.Binding
+	keyEnter    key.Binding
 }
 
 func New(dir string, entries []collection.Entry, envs map[string]map[string]string, envNames []string) Model {
@@ -53,11 +59,14 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 		envNames: envNames,
 	}
 	m.sidebar = ui.NewSidebar(entries, 30, 20)
+	m.urlbar = ui.NewURLBar(80)
 	m.editor = ui.NewEditor(60, 15)
 	m.response = ui.NewResponse(60, 15)
 	m.focus = pSidebar
 	m.keyTab = key.NewBinding(key.WithKeys("tab"))
 	m.keyShiftTab = key.NewBinding(key.WithKeys("shift+tab"))
+	m.keyCtrlL = key.NewBinding(key.WithKeys("ctrl+l"))
+	m.keyEnter = key.NewBinding(key.WithKeys("enter"))
 	return m
 }
 
@@ -125,6 +134,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case key.Matches(km, m.keyCtrlL):
+		m.setFocus(pBar)
+		return m, m.focusCmd()
+
 	case key.Matches(km, m.keyTab):
 		m.cycleFocus(1)
 		return m, m.focusCmd()
@@ -141,17 +154,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "enter":
 			if e := m.sidebar.Selected(); e != nil {
-				m.setFocus(pEditor)
-				// focusCmd also sets editor.focused; setFocus only blurs
+				m.urlbar.SetRequest(e.Req.Method, e.Req.URL)
+				m.setFocus(pBar)
 				return m, tea.Batch(m.editor.SetRequest(e.Req, e.Path), m.focusCmd())
 			}
 			return m, nil
 		case "n":
-			m.setFocus(pEditor)
+			m.urlbar.New()
+			m.setFocus(pBar)
 			return m, tea.Batch(m.editor.New(), m.focusCmd())
 		}
 		var cmd tea.Cmd
 		m.sidebar, cmd = m.sidebar.Update(msg)
+		return m, cmd
+
+	case pBar:
+		switch {
+		case key.Matches(km, m.keyEnter):
+			return m.send()
+		case km.Type == tea.KeyEsc:
+			m.setFocus(m.prevFocus)
+			return m, m.focusCmd()
+		}
+		var cmd tea.Cmd
+		m.urlbar, cmd = m.urlbar.Update(msg)
 		return m, cmd
 
 	case pEditor:
@@ -174,6 +200,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) send() (tea.Model, tea.Cmd) {
 	req := m.editor.Request()
+	req.Method = m.urlbar.Method()
+	req.URL = m.urlbar.URL()
 	if req.URL == "" {
 		m.setNotice("URL is required", true)
 		return m, nil
@@ -192,6 +220,8 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 
 func (m *Model) save() (tea.Model, tea.Cmd) {
 	req := m.editor.Request()
+	req.Method = m.urlbar.Method()
+	req.URL = m.urlbar.URL()
 	if req.URL == "" {
 		m.setNotice("nothing to save: URL is empty", true)
 		return m, nil
@@ -219,14 +249,18 @@ func (m *Model) setNotice(s string, isError bool) {
 }
 
 func (m *Model) cycleFocus(n int) {
-	// +3 keeps the result positive for backward steps
-	m.setFocus(pane((int(m.focus) + n + 3) % 3))
+	// +4 keeps the result positive for backward steps
+	m.setFocus(pane((int(m.focus) + n + 4) % 4))
 }
 
 func (m *Model) setFocus(p pane) {
 	if m.focus == p {
 		return
 	}
+	if p == pBar {
+		m.prevFocus = m.focus
+	}
+	m.urlbar.Blur()
 	m.editor.Blur()
 	m.response.Blur()
 	m.focus = p
@@ -234,6 +268,8 @@ func (m *Model) setFocus(p pane) {
 
 func (m *Model) focusCmd() tea.Cmd {
 	switch m.focus {
+	case pBar:
+		return m.urlbar.Focus()
 	case pEditor:
 		return m.editor.Focus()
 	case pResponse:
@@ -254,12 +290,13 @@ func (m *Model) layout() {
 		sidebarW = 40
 	}
 	rightW := m.width - sidebarW - 1
-	contentH := m.height - 2 // title bar + status bar
+	contentH := m.height - 3 // title bar + URL bar + status bar
 
 	editorH := contentH * 55 / 100
 	respH := contentH - editorH
 
 	// -3 per pane: 2 border rows + 1 title row
+	m.urlbar.Resize(m.width)
 	m.sidebar.Resize(sidebarW-2, contentH-3)
 	m.editor.Resize(rightW-2, editorH-3)
 	m.response.Resize(rightW-2, respH-3)
@@ -280,7 +317,7 @@ func (m Model) View() string {
 		sidebarW = 40
 	}
 	rightW := m.width - sidebarW - 1
-	contentH := m.height - 2
+	contentH := m.height - 3
 	editorH := contentH * 55 / 100
 	respH := contentH - editorH
 
@@ -302,6 +339,12 @@ func (m Model) View() string {
 	}
 	titleBar := title + strings.Repeat(" ", gap) + envStyle.Render(envLabel)
 
+	bar := m.urlbar.View()
+	// pad the bar to full width so the frame stays exactly terminal-sized
+	if w := lipgloss.Width(bar); w < m.width {
+		bar += strings.Repeat(" ", m.width-w)
+	}
+
 	sidebar := renderPane("Collection", m.sidebar.View(), m.focus == pSidebar, sidebarW, contentH)
 
 	reqTitle := "Request"
@@ -320,7 +363,7 @@ func (m Model) View() string {
 	content := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right)
 
 	status := m.statusBar()
-	return lipgloss.JoinVertical(lipgloss.Left, titleBar, content, status)
+	return lipgloss.JoinVertical(lipgloss.Left, titleBar, bar, content, status)
 }
 
 func renderPane(title, content string, focused bool, w, h int) string {
@@ -338,9 +381,11 @@ func (m Model) statusBar() string {
 	var help string
 	switch m.focus {
 	case pSidebar:
-		help = "↑↓ navigate · enter load · n new · ctrl+e env · tab panes · ctrl+r send · q quit"
+		help = "↑↓ navigate · enter load · n new · ctrl+e env · ctrl+l url · tab panes · ctrl+r send · q quit"
+	case pBar:
+		help = "ctrl+t method · enter send · esc back · tab panes · ctrl+r send"
 	case pEditor:
-		help = "ctrl+n/p field · alt+←→ tab · ctrl+t method/type · ctrl+s save · ctrl+r send"
+		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+s save · ctrl+r send"
 	case pResponse:
 		help = "←→ or b/h tabs · ↑↓ scroll · tab panes · q quit"
 	}

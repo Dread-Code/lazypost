@@ -82,13 +82,39 @@ func TestSectionNavigation(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
+	// enter loads the request and focuses the URL bar
 	w.waitFor(t, "quotes by author", 3*time.Second)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
 
+	// tab into the editor (Headers section), then ctrl+n to Body;
+	// the empty body renders its placeholder
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN})
-	w.waitFor(t, "Accept: application/json", 3*time.Second)
+	w.waitFor(t, `{"hello": "world"}`, 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestBarEnterSendsAndEscReturns(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "quotes by author", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+
+	// enter in the bar sends; no env active, so the send fails with the
+	// unresolved-placeholder error
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "unresolved placeholder", 3*time.Second)
+
+	// esc returns focus to the pane before the bar (sidebar)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	w.waitFor(t, "enter load", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
