@@ -19,10 +19,28 @@ func (m *Model) enter(p pane) tea.Cmd {
 	return m.focusCmd()
 }
 
-// cycleFocus moves focus n steps (±1) around the pane ring.
+// cycleFocus moves focus n steps (±1) around the pane ring. The URL bar
+// is deliberately excluded: the only ways to reach it are ctrl+l or
+// loading a request from the sidebar, and esc returns to the last focus.
 func (m *Model) cycleFocus(n int) tea.Cmd {
-	// +4 keeps the result positive for backward steps
-	return m.enter(pane((int(m.focus) + n + 4) % 4))
+	order := []pane{pSidebar, pEditor, pResponse}
+	i := 0
+	for idx, p := range order {
+		if p == m.focus {
+			i = idx
+			break
+		}
+	}
+	// when the bar is focused, forward goes to the editor, backward to the
+	// sidebar, so tab keeps flowing through the body panes
+	if m.focus == pBar && n > 0 {
+		return m.enter(pEditor)
+	}
+	if m.focus == pBar && n < 0 {
+		return m.enter(pSidebar)
+	}
+	i = (i + n + len(order)) % len(order)
+	return m.enter(order[i])
 }
 
 func (m *Model) setFocus(p pane) {

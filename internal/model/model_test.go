@@ -220,6 +220,20 @@ func TestCommandPalette(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+func TestTabCyclesBodyPanesOnly(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "Collection", 3*time.Second)
+
+	// initial focus is the sidebar; tab moves to the editor (skipping the bar)
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+	w.waitFor(t, "ctrl+n/p field", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestCycleEnvironment(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
