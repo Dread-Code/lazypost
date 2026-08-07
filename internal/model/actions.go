@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/base64"
+	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -146,7 +147,8 @@ func (m *Model) minPaletteHeight(n int) int {
 }
 
 // updateNamer routes a key while the namer is open: enter creates the
-// request, esc cancels. Everything else feeds the text input.
+// request (or a folder when the name starts with /), esc cancels.
+// Everything else feeds the text input.
 func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch {
@@ -157,15 +159,33 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(km, m.keyEnter):
 			name := m.namer.Value()
 			if name == "" {
-				m.setNotice("request name is required", true)
+				m.setNotice("name is required", true)
 				return m, nil
 			}
 			m.namerOpen = false
+			if m.namer.IsFolder() {
+				return m.createFolderIn(m.namerDir, name)
+			}
 			return m.createRequestIn(m.namerDir, name)
 		}
 	}
 	cmd := m.namer.Update(msg)
 	return m, cmd
+}
+
+// createFolderIn makes a new directory under dir and reloads the tree.
+func (m *Model) createFolderIn(dir, name string) (tea.Model, tea.Cmd) {
+	path := filepath.Join(dir, collection.Slug(name))
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		m.setNotice("create failed: "+err.Error(), true)
+		return m, nil
+	}
+	entries, err := collection.Load(m.dir)
+	if err == nil {
+		m.sidebar.SetEntries(entries)
+	}
+	m.setNotice("created "+rel(m.dir, path), false)
+	return m, nil
 }
 
 // createRequestIn writes a blank named request under dir, reloads the

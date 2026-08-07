@@ -8,16 +8,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Namer is a small modal that asks for a new request's name, opened with
-// `a` over a folder in the sidebar. It renders as a centered overlay like
-// the palette; enter confirms, esc cancels.
+// Namer is a small modal that asks for a new entry's name, opened with `a`
+// over a folder in the sidebar. Typing a leading `/` switches it from "new
+// request" to "new collection" mode, so enter creates a folder instead of
+// a request. It renders as a centered overlay like the palette.
 type Namer struct {
 	input textinput.Model
-	label string
 }
 
 func NewNamer() *Namer {
-	n := &Namer{label: "new request name"}
+	n := &Namer{}
 	n.input = textinput.New()
 	n.input.Prompt = "› "
 	n.input.Placeholder = "e.g. list things"
@@ -36,8 +36,21 @@ func (n *Namer) Open() tea.Cmd {
 	return n.input.Focus()
 }
 
-// Value returns the trimmed name the user typed.
-func (n *Namer) Value() string { return strings.TrimSpace(n.input.Value()) }
+// IsFolder reports whether the user typed a leading /, meaning they want a
+// new collection (folder) rather than a request.
+func (n *Namer) IsFolder() bool {
+	return strings.HasPrefix(n.input.Value(), "/")
+}
+
+// Value returns the trimmed name the user typed, without the folder-mode
+// leading slash.
+func (n *Namer) Value() string {
+	v := strings.TrimSpace(n.input.Value())
+	if strings.HasPrefix(v, "/") {
+		v = strings.TrimPrefix(v, "/")
+	}
+	return v
+}
 
 func (n *Namer) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
@@ -46,6 +59,10 @@ func (n *Namer) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (n *Namer) View() string {
-	label := lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render(n.label)
-	return label + "\n" + n.input.View()
+	label := "new request name"
+	if n.IsFolder() {
+		label = "new collection name"
+	}
+	l := lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render(label)
+	return l + "\n" + n.input.View()
 }

@@ -340,6 +340,39 @@ func TestAddRequestOnRequestInFolder(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+func TestAddFolderWithSlash(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "authors"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := collection.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "authors", 3*time.Second)
+
+	// cursor on the collection root; open the namer and type a leading /
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	w.waitFor(t, "new request name", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/v2")})
+	w.waitFor(t, "new collection name", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "created ", 3*time.Second)
+
+	// the folder exists at the collection root
+	dir := filepath.Join(root, "v2")
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		t.Fatalf("expected created folder %s: %v", dir, err)
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestCycleEnvironment(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
