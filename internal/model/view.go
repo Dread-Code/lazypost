@@ -81,19 +81,19 @@ func (m Model) View() string {
 		bar += strings.Repeat(" ", m.width-w)
 	}
 
-	sidebar := renderPane("Collection", m.sidebar.View(), m.focus == pSidebar, sidebarW, contentH)
+	sidebar := renderPane("Collection", m.sidebar.View(), m.focus == pSidebar, sidebarW, contentH, true)
 
 	reqTitle := "Request"
 	if p := m.editor.ActivePath(); p != "" {
 		reqTitle += " · " + rel(m.dir, p)
 	}
-	editor := renderPane(reqTitle, m.editor.View(), m.focus == pEditor, rightW, editorH)
+	editor := renderPane(reqTitle, m.editor.View(), m.focus == pEditor, rightW, editorH, false)
 
 	respTitle := "Response"
 	if s := m.response.StatusLine(); s != "" {
 		respTitle += " · " + s
 	}
-	response := renderPane(respTitle, m.response.View(), m.focus == pResponse, rightW, respH)
+	response := renderPane(respTitle, m.response.View(), m.focus == pResponse, rightW, respH, false)
 
 	right := lipgloss.JoinVertical(lipgloss.Left, editor, response)
 	content := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right)
@@ -149,15 +149,48 @@ func overlayPalette(frame, paletteView string, termW, termH int) string {
 	return strings.ReplaceAll(cellbuf.Render(buf), "\r\n", "\n")
 }
 
-func renderPane(title, content string, focused bool, w, h int) string {
+// renderPane draws a fieldset-style pane: the title sits on the top
+// border, which splits into two dash runs around it (like an HTML
+// fieldset legend). The legend hugs the left when legendLeft is set,
+// otherwise it's centered. lipgloss's top border is disabled and rebuilt
+// by hand so the title shares the border line.
+func renderPane(title, content string, focused bool, w, h int, legendLeft bool) string {
 	style := ui.PaneStyle
 	if focused {
 		style = ui.ActivePaneStyle
 	}
 	title = ui.TruncateRunes(title, w-4)
-	titleLine := lipgloss.NewStyle().Bold(true).Foreground(ui.ColorMuted).Render(title)
-	inner := lipgloss.JoinVertical(lipgloss.Left, titleLine, content)
-	return style.Width(w - 2).Height(h - 2).Render(inner)
+
+	border := style.GetBorderStyle()
+	borderStyle := lipgloss.NewStyle()
+	if c := style.GetBorderTopForeground(); c != nil {
+		borderStyle = borderStyle.Foreground(c)
+	}
+	titleStyled := lipgloss.NewStyle().Bold(true).Foreground(ui.ColorMuted).Render(" " + title + " ")
+	titleW := lipgloss.Width(titleStyled)
+
+	// reserve the label width; split the rest of the top edge into two
+	// dash runs (1 col each for the corners). legendLeft puts the label at
+	// the front with all the slack on the right.
+	avail := (w - 2) - titleW
+	if avail < 0 {
+		avail = 0
+	}
+	var left, right int
+	if legendLeft {
+		left = 1
+		right = avail - 1
+	} else {
+		left = avail / 2
+		right = avail - avail/2
+	}
+	topLine := borderStyle.Render(border.TopLeft+strings.Repeat(border.Top, left)) +
+		titleStyled +
+		borderStyle.Render(strings.Repeat(border.Top, right)+border.TopRight)
+
+	// body: no top border (the legend line takes its place)
+	body := style.Border(border, false, true, true, true).Width(w - 2).Height(h - 2).Render(content)
+	return lipgloss.JoinVertical(lipgloss.Left, topLine, body)
 }
 
 func (m Model) statusBar() string {
