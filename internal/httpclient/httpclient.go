@@ -26,10 +26,13 @@ type Response struct {
 var client = &http.Client{Timeout: 30 * time.Second}
 
 // Exec builds and executes the HTTP request described by req after
-// interpolating vars, and returns the raw response.
+// interpolating vars, and returns the raw response. Transport errors
+// (dial/TLS/timeout) are errors; HTTP error statuses are not.
 func Exec(req collection.Request, vars map[string]string) (*Response, error) {
 	req = render.Request(req, vars)
 
+	// a leftover placeholder in the URL can never succeed — fail loudly
+	// with an actionable message instead of a cryptic transport error
 	if missing := render.Unresolved(req.URL); len(missing) > 0 {
 		return nil, fmt.Errorf("unresolved placeholder {{%s}} in URL — activate an environment with ctrl+e",
 			strings.Join(missing, "}}, {{"))
@@ -47,6 +50,7 @@ func Exec(req collection.Request, vars map[string]string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Header.Add keeps duplicate header names rather than replacing
 	for _, h := range req.Headers {
 		httpReq.Header.Add(h.Name, h.Value)
 	}
@@ -115,6 +119,8 @@ func (r *Response) FormattedHeaders() string {
 	return b.String()
 }
 
+// Summary renders the one-line "Status · size · duration" for the pane
+// title, colored by status class in the response pane.
 func (r *Response) Summary() string {
 	return fmt.Sprintf("%s · %s · %s",
 		r.Status,

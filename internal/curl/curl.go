@@ -64,9 +64,11 @@ func Parse(cmdline string) (*collection.Request, error) {
 
 	req := &collection.Request{Method: "GET"}
 	var body []string
-	methodSet := false
-	hasContentType := false
+	methodSet := false      // did the user pass -X explicitly?
+	hasContentType := false // did any -H set Content-Type?
 
+	// nextArg returns the token after the current one, advancing the
+	// loop index so the value isn't mistaken for a flag.
 	nextArg := func(i *int, flag string) (string, error) {
 		if *i+1 >= len(toks) {
 			return "", fmt.Errorf("flag %s needs a value", flag)
@@ -107,6 +109,7 @@ func Parse(cmdline string) (*collection.Request, error) {
 			if err != nil {
 				return nil, err
 			}
+			// curl joins repeated -d payloads with '&'
 			body = append(body, v)
 
 		case t == "--data-urlencode":
@@ -135,6 +138,7 @@ func Parse(cmdline string) (*collection.Request, error) {
 			// harmless for request building; skip
 
 		case strings.HasPrefix(t, "--") && valueFlags[t]:
+			// long value-taking flag: consume and drop its value
 			if _, err := nextArg(&i, t); err != nil {
 				return nil, err
 			}
@@ -143,6 +147,7 @@ func Parse(cmdline string) (*collection.Request, error) {
 			// e.g. -sSL: fine only when every flag in the cluster is ignorable
 
 		case valueFlags[t]:
+			// short value-taking flag: consume and drop its value
 			if _, err := nextArg(&i, t); err != nil {
 				return nil, err
 			}
@@ -164,9 +169,11 @@ func Parse(cmdline string) (*collection.Request, error) {
 	if len(body) > 0 {
 		req.Body = strings.Join(body, "&")
 		if !methodSet {
+			// curl's default: a body without -X becomes a POST
 			req.Method = "POST"
 		}
 		if !hasContentType {
+			// mirror curl's implicit form content-type
 			req.Headers = append(req.Headers, collection.Header{
 				Name:  "Content-Type",
 				Value: "application/x-www-form-urlencoded",
@@ -176,6 +183,8 @@ func Parse(cmdline string) (*collection.Request, error) {
 	return req, nil
 }
 
+// isShortFlagCluster reports whether t is a short-flag bundle (like -sSL)
+// in which every character is a harmless no-arg flag.
 func isShortFlagCluster(t string) bool {
 	if len(t) < 2 || t[0] != '-' || t[1] == '-' {
 		return false
@@ -263,8 +272,9 @@ func tokenize(s string) ([]string, error) {
 	return toks, nil
 }
 
-// Format renders req as a curl one-liner. Placeholders like {{host}} are
-// kept raw so the receiver notices unresolved variables.
+// Format renders req as a curl one-liner. Known {{vars}} are expected to
+// have been interpolated by the caller; any that remain are kept raw so
+// the receiver notices unresolved variables.
 func Format(req collection.Request) string {
 	parts := []string{"curl"}
 	method := strings.ToUpper(req.Method)
@@ -274,6 +284,7 @@ func Format(req collection.Request) string {
 
 	urlStr := req.URL
 	if req.Auth != nil && req.Auth.Type == "apikey" && strings.EqualFold(req.Auth.KeyIn, "query") {
+		// apikey-as-query has no header form; append it to the URL
 		sep := "?"
 		if strings.Contains(urlStr, "?") {
 			sep = "&"
@@ -303,6 +314,8 @@ func Format(req collection.Request) string {
 	return strings.Join(parts, " ")
 }
 
+// shquote wraps s in single quotes, escaping embedded single quotes the
+// shell way ('\”), so the output is safe to paste into a shell.
 func shquote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

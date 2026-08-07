@@ -11,6 +11,7 @@ import (
 
 var Methods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
 
+// cycleMethod returns the method n steps around the Methods ring.
 func cycleMethod(cur string, n int) string {
 	for i, m := range Methods {
 		if m == cur {
@@ -40,6 +41,8 @@ func NewURLBar(width int) *URLBar {
 	return u
 }
 
+// resize gives the text input as much room as possible: total width minus
+// the "METHOD " prefix, and minus the hint while the bar is focused.
 func (u *URLBar) resize() {
 	urlW := u.width - len(u.method) - 1 // "METHOD " prefix
 	if u.url.Focused() {
@@ -84,6 +87,8 @@ func (u *URLBar) View() string {
 func (u *URLBar) Method() string { return u.method }
 func (u *URLBar) URL() string    { return strings.TrimSpace(u.url.Value()) }
 
+// SetRequest loads a method + URL into the bar (from a request load or a
+// curl import). Empty method falls back to GET.
 func (u *URLBar) SetRequest(method, url string) {
 	if method == "" {
 		method = "GET"

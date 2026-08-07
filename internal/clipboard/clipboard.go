@@ -31,6 +31,8 @@ func Write(text string) error {
 	return ErrNoTool
 }
 
+// candidates lists clipboard commands per OS, in preference order; the
+// first one that exists and runs successfully wins.
 func candidates() [][]string {
 	switch runtime.GOOS {
 	case "darwin":

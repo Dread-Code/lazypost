@@ -10,6 +10,9 @@ import (
 	"postgo/internal/ui"
 )
 
+// layout recomputes pane geometry from the current terminal size. It
+// mirrors the arithmetic in View() so panes are sized and rendered from
+// the same numbers.
 func (m *Model) layout() {
 	if m.width < 10 || m.height < 6 {
 		return
@@ -143,6 +146,8 @@ func rel(dir, path string) string {
 	return strings.TrimPrefix(path, dir+"/")
 }
 
+// defaultName derives a request name from the last URL path segment when
+// the user hasn't provided one (e.g. ".../posts/42" → "42").
 func defaultName(rawURL string) string {
 	u, err := neturl.Parse(rawURL)
 	if err == nil && u.Path != "" && u.Path != "/" {

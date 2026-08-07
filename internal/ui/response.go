@@ -35,6 +35,8 @@ type Response struct {
 	height  int
 }
 
+// NewResponse wires a dot spinner plus two viewports (body, headers);
+// only the active tab's viewport is rendered and scrollable.
 func NewResponse(width, height int) *Response {
 	r := &Response{width: width, height: height}
 	r.spinner = spinner.New()
@@ -106,6 +108,7 @@ func (r *Response) SetError(err error) {
 func (r *Response) Update(msg tea.Msg) (*Response, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok && r.focused {
 		switch km.String() {
+		// letters chosen because the viewports own the arrow keys
 		case "left", "b":
 			r.tab = 0
 			return r, nil
@@ -114,6 +117,7 @@ func (r *Response) Update(msg tea.Msg) (*Response, tea.Cmd) {
 			return r, nil
 		}
 	}
+	// spinner ticks must keep ticking even while the pane is unfocused
 	switch r.state {
 	case stLoading:
 		var cmd tea.Cmd

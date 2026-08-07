@@ -33,6 +33,8 @@ type Editor struct {
 	height     int
 }
 
+// NewEditor builds the three-section editor. Method and URL are not
+// here — they live in the URLBar ([[ADR-0010]]).
 func NewEditor(width, height int) *Editor {
 	e := &Editor{width: width, height: height}
 
@@ -109,12 +111,14 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 	}
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch {
+		// ctrl+n/p move across sections; modulo keeps the cycle wrapping
 		case key.Matches(km, keySectionNext):
 			e.section = Section((int(e.section) + 1) % 3)
 			return e, e.focusSection()
 		case key.Matches(km, keySectionPrev):
 			e.section = Section((int(e.section) + 2) % 3)
 			return e, e.focusSection()
+		// alt+arrows cycle within the three tabs only
 		case key.Matches(km, keyAltLeft):
 			e.section = SecHeaders + Section((int(e.section)-int(SecHeaders)+2)%3)
 			return e, e.focusSection()

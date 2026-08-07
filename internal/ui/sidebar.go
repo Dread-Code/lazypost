@@ -79,6 +79,9 @@ type Sidebar struct {
 	entries []collection.Entry
 }
 
+// NewSidebar builds a dumb tree view: filtering, help, pagination, status
+// bar, and quit keys are all disabled — the collection pane only
+// navigates and selects.
 func NewSidebar(entries []collection.Entry, width, height int) *Sidebar {
 	s := &Sidebar{entries: entries}
 	s.list = list.New(s.items(), delegate{}, width, height)
@@ -106,7 +109,8 @@ func (s *Sidebar) SetEntries(entries []collection.Entry) {
 	_ = s.list.SetItems(s.items())
 }
 
-// Selected returns the currently highlighted request entry, or nil.
+// Selected returns the currently highlighted request entry, or nil when
+// the cursor is on a directory or nothing is selected.
 func (s *Sidebar) Selected() *collection.Entry {
 	it, ok := s.list.SelectedItem().(item)
 	if !ok || it.entry.Kind != collection.Req {

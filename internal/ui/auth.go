@@ -26,6 +26,8 @@ type AuthEditor struct {
 	height   int
 }
 
+// NewAuthEditor wires five text inputs plus a header/query toggle; only
+// the ones relevant to the current auth type are rendered and focused.
 func NewAuthEditor() AuthEditor {
 	newInput := func(placeholder string) textinput.Model {
 		ti := textinput.New()
@@ -60,6 +62,8 @@ func (a *AuthEditor) SetWidth(w int) {
 
 func (a *AuthEditor) SetHeight(_ int) {}
 
+// inputs returns the fields visible for the current auth type; nil for
+// "none". The apikey keyIn toggle row is tracked separately by field.
 func (a *AuthEditor) inputs() []*textinput.Model {
 	switch a.authType {
 	case "basic":
@@ -98,6 +102,8 @@ func (a *AuthEditor) Blur() {
 	}
 }
 
+// CycleType advances the auth type (none → basic → …), resetting the
+// cursor to the first field of the new type.
 func (a *AuthEditor) CycleType(n int) {
 	for i, t := range authTypes {
 		if t == a.authType {

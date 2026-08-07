@@ -12,6 +12,9 @@ import (
 	"postgo/internal/render"
 )
 
+// send composes the request (URL/method from the bar, the rest from the
+// editor), then runs the HTTP call off the render loop in a closure;
+// the result comes back as responseMsg or errMsg.
 func (m *Model) send() (tea.Model, tea.Cmd) {
 	req := m.editor.Request()
 	req.Method = m.urlbar.Method()
@@ -32,6 +35,8 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 	return m, tea.Batch(m.response.StartLoading(), cmd)
 }
 
+// save persists the composed request to disk, then reloads the sidebar
+// so the new/changed file appears in the tree.
 func (m *Model) save() (tea.Model, tea.Cmd) {
 	req := m.editor.Request()
 	req.Method = m.urlbar.Method()
@@ -128,5 +133,6 @@ func (m *Model) activeVars() map[string]string {
 	if name := m.activeEnvName(); name != "" {
 		return m.envs[name]
 	}
+	// nil vars makes interpolation a pass-through
 	return nil
 }

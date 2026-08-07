@@ -6,6 +6,7 @@ import (
 	"postgo/internal/collection"
 )
 
+// pattern matches {{name}} with optional inner whitespace, e.g. {{ host }}.
 var pattern = regexp.MustCompile(`\{\{\s*([a-zA-Z0-9_.\-]+)\s*\}\}`)
 
 // Apply substitutes {{name}} placeholders in s using vars. Unknown
@@ -33,7 +34,8 @@ func Unresolved(s string) []string {
 	return names
 }
 
-// Request returns a copy of req with all placeholders resolved.
+// Request returns a copy of req with all placeholders resolved. The
+// original is never mutated; only the fields it owns are interpolated.
 func Request(req collection.Request, vars map[string]string) collection.Request {
 	out := req
 	out.URL = Apply(req.URL, vars)
@@ -48,6 +50,7 @@ func Request(req collection.Request, vars map[string]string) collection.Request 
 		}
 	}
 	if req.Auth != nil {
+		// copy the Auth value so the original struct stays untouched
 		a := *req.Auth
 		a.Username = Apply(a.Username, vars)
 		a.Password = Apply(a.Password, vars)

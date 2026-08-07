@@ -43,6 +43,8 @@ const (
 	Req
 )
 
+// Entry is one node of the collection tree: a directory or a request,
+// with its nesting depth and on-disk path.
 type Entry struct {
 	Kind  Kind
 	Name  string
@@ -58,6 +60,8 @@ func isYAML(path string) bool {
 	return ext == ".yaml" || ext == ".yml"
 }
 
+// LoadFile reads and parses a single request file, defaulting the method
+// to GET when omitted.
 func LoadFile(path string) (*Request, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -90,6 +94,7 @@ func Load(root string) ([]Entry, error) {
 		}
 		depth := strings.Count(rel, string(filepath.Separator))
 		if d.IsDir() {
+			// environments/ holds variable sets, not requests — skip it
 			if d.Name() == environmentsDir {
 				return filepath.SkipDir
 			}
@@ -105,6 +110,7 @@ func Load(root string) ([]Entry, error) {
 		}
 		name := req.Name
 		if name == "" {
+			// fall back to the filename so anonymous files still show up
 			name = strings.TrimSuffix(d.Name(), filepath.Ext(path))
 		}
 		entries = append(entries, Entry{Kind: Req, Name: name, Depth: depth, Path: path, Req: req})
@@ -118,6 +124,8 @@ func Load(root string) ([]Entry, error) {
 
 var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
 
+// Slug lowercases name and collapses runs of non-alphanumerics into a
+// single dash, yielding a safe filename (e.g. "create post" → "create-post").
 func Slug(name string) string {
 	s := strings.ToLower(strings.TrimSpace(name))
 	s = slugRe.ReplaceAllString(s, "-")
@@ -133,6 +141,7 @@ func Save(root, path string, r *Request) (string, error) {
 	if path == "" {
 		path = filepath.Join(root, Slug(r.Name)+".yaml")
 	}
+	// make parent dirs so nested saves (and first-time saves) succeed
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err
 	}

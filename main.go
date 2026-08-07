@@ -20,6 +20,8 @@ func main() {
 		root = defaultDir()
 	}
 
+	// Load the collection tree and environments once, up front; the
+	// model treats them as immutable snapshots.
 	entries, err := collection.Load(root)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "postgo: cannot load collection %q: %v\n", root, err)
@@ -38,6 +40,8 @@ func main() {
 	}
 }
 
+// defaultDir picks the first existing collection directory; falls back
+// to "collections" so a fresh clone still starts cleanly.
 func defaultDir() string {
 	for _, d := range []string{"sample-collections", "collections"} {
 		if info, err := os.Stat(d); err == nil && info.IsDir() {
