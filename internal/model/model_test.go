@@ -442,8 +442,8 @@ func TestSessionSnapshot(t *testing.T) {
 	if st.Env != "prod" {
 		t.Errorf("expected env prod, got %q", st.Env)
 	}
-	if len(st.Collapsed) != 2 {
-		t.Errorf("expected both dirs collapsed, got %v", st.Collapsed)
+	if len(st.Collapsed) != 3 {
+		t.Errorf("expected all top-level dirs collapsed, got %v", st.Collapsed)
 	}
 }
 
