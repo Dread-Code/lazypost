@@ -14,6 +14,7 @@ import (
 	"postgo/internal/curl"
 	"postgo/internal/httpclient"
 	"postgo/internal/render"
+	"postgo/internal/session"
 	"postgo/internal/ui"
 )
 
@@ -32,10 +33,10 @@ type Action struct {
 var globalActions = []Action{
 	{Title: "Send request", Shortcut: "ctrl+r", Keys: []string{"ctrl+r"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m.send() }},
 	{Title: "Save request", Shortcut: "ctrl+s", Keys: []string{"ctrl+s"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m.save() }},
-	{Title: "Cycle environment", Shortcut: "ctrl+e", Keys: []string{"ctrl+e"}, Run: func(m *Model) (tea.Model, tea.Cmd) { m.cycleEnv(); return m, nil }},
+	{Title: "Cycle environment", Shortcut: "ctrl+e", Keys: []string{"ctrl+e"}, Run: func(m *Model) (tea.Model, tea.Cmd) { m.cycleEnv(); return m, m.saveState() }},
 	{Title: "Focus URL bar", Shortcut: "ctrl+l", Keys: []string{"ctrl+l"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m, m.enter(pBar) }},
 	{Title: "Copy as curl", Shortcut: "ctrl+g", Keys: []string{"ctrl+g"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m.exportCurl() }},
-	{Title: "Quit", Shortcut: "ctrl+c", Keys: []string{"ctrl+c"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m, tea.Quit }},
+	{Title: "Quit", Shortcut: "ctrl+c", Keys: []string{"ctrl+c"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m, m.quit() }},
 }
 
 // paletteActions returns every command the palette offers: the global
@@ -267,6 +268,39 @@ func (m *Model) cycleEnv() {
 		m.setNotice("environment: "+name, false)
 	} else {
 		m.setNotice("environment: none", false)
+	}
+}
+
+// quit persists state synchronously (the program is about to exit, so an
+// async save could be cut off) then quits.
+func (m *Model) quit() tea.Cmd {
+	_ = session.Save(m.dir, m.snapshot())
+	return tea.Quit
+}
+
+// snapshot captures the persisted UI state (env, active request, collapsed
+// dirs) without writing it.
+func (m *Model) snapshot() session.State {
+	st := m.state
+	st.Env = m.activeEnvName()
+	if e := m.sidebar.Selected(); e != nil {
+		if rel, err := filepath.Rel(m.dir, e.Path); err == nil {
+			st.ActivePath = rel
+		}
+	}
+	st.Collapsed = m.sidebar.CollapsedPaths(m.dir)
+	return st
+}
+
+// saveState snapshots the persisted UI state (env, active request,
+// collapsed dirs) to disk off the render loop.
+func (m *Model) saveState() tea.Cmd {
+	st := m.snapshot()
+	return func() tea.Msg {
+		if err := session.Save(m.dir, st); err != nil {
+			return errMsg{err}
+		}
+		return nil
 	}
 }
 

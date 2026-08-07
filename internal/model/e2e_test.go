@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest"
 
 	"postgo/internal/collection"
+	"postgo/internal/session"
 )
 
 func TestSendRequestEndToEnd(t *testing.T) {
@@ -21,6 +22,8 @@ func TestSendRequestEndToEnd(t *testing.T) {
 		w.Write([]byte(`{"message":"hello-from-e2e"}`))
 	}))
 	defer srv.Close()
+
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	root := t.TempDir()
 	req := collection.Request{
@@ -39,7 +42,7 @@ func TestSendRequestEndToEnd(t *testing.T) {
 	envs, names, _ := collection.LoadEnvironments(root)
 	_ = os.Unsetenv("http_proxy")
 
-	tm := teatest.NewTestModel(t, New(root, entries, envs, names), teatest.WithInitialTermSize(120, 40))
+	tm := teatest.NewTestModel(t, New(root, entries, envs, names, session.State{}), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
 	w.waitFor(t, "e2e", 3*time.Second)

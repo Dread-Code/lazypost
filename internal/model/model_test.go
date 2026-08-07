@@ -12,10 +12,12 @@ import (
 	"github.com/charmbracelet/x/exp/teatest"
 
 	"postgo/internal/collection"
+	"postgo/internal/session"
 )
 
 func loadSample(t *testing.T) Model {
 	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	entries, err := collection.Load("../../sample-collections")
 	if err != nil {
 		t.Fatalf("load sample collections: %v", err)
@@ -24,7 +26,7 @@ func loadSample(t *testing.T) Model {
 	if err != nil {
 		t.Fatalf("load environments: %v", err)
 	}
-	return New("../../sample-collections", entries, envs, names)
+	return New("../../sample-collections", entries, envs, names, session.State{})
 }
 
 // watcher accumulates program output across waitFor calls, since the
@@ -258,6 +260,7 @@ func TestSidebarEnterTogglesDir(t *testing.T) {
 
 func TestAddRequestInFolder(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	if err := os.MkdirAll(filepath.Join(root, "authors"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +271,7 @@ func TestAddRequestInFolder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tm := teatest.NewTestModel(t, New(root, entries, nil, nil), teatest.WithInitialTermSize(120, 40))
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
 	w.waitFor(t, "authors", 3*time.Second)
@@ -303,6 +306,7 @@ func TestAddRequestInFolder(t *testing.T) {
 
 func TestAddRequestOnRequestInFolder(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	if err := os.MkdirAll(filepath.Join(root, "authors"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -314,7 +318,7 @@ func TestAddRequestOnRequestInFolder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tm := teatest.NewTestModel(t, New(root, entries, nil, nil), teatest.WithInitialTermSize(120, 40))
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
 	w.waitFor(t, "list authors", 3*time.Second)
@@ -342,6 +346,7 @@ func TestAddRequestOnRequestInFolder(t *testing.T) {
 
 func TestAddFolderWithSlash(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	if err := os.MkdirAll(filepath.Join(root, "authors"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +354,7 @@ func TestAddFolderWithSlash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tm := teatest.NewTestModel(t, New(root, entries, nil, nil), teatest.WithInitialTermSize(120, 40))
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
 	w.waitFor(t, "authors", 3*time.Second)
@@ -371,6 +376,53 @@ func TestAddFolderWithSlash(t *testing.T) {
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestRestoreSessionState(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	entries, err := collection.Load("../../sample-collections")
+	if err != nil {
+		t.Fatal(err)
+	}
+	envs, names, err := collection.LoadEnvironments("../../sample-collections")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := session.State{
+		Env:        "prod",
+		ActivePath: "quotes/random.yaml",
+		Collapsed:  []string{"authors"},
+	}
+	tm := teatest.NewTestModel(t, New("../../sample-collections", entries, envs, names, st), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	// environment restored
+	w.waitFor(t, "env: prod", 3*time.Second)
+	// collapsed folder: authors subtree hidden
+	w.waitFor(t, "authors", 3*time.Second)
+	if strings.Contains(w.buf.String(), "quotes by author") {
+		t.Errorf("collapsed authors should hide its requests")
+	}
+	// active request restored into the editor
+	w.waitFor(t, "{{host}}/api/random", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestSessionSnapshot(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	m := loadSample(t)
+	m.cycleEnv() // none -> dev
+	m.cycleEnv() // dev -> prod
+	m.sidebar.ToggleCollapsed()
+	st := m.snapshot()
+	if st.Env != "prod" {
+		t.Errorf("expected env prod, got %q", st.Env)
+	}
+	if len(st.Collapsed) != 2 {
+		t.Errorf("expected both dirs collapsed, got %v", st.Collapsed)
+	}
 }
 
 func TestCycleEnvironment(t *testing.T) {

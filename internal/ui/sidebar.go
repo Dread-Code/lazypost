@@ -192,6 +192,40 @@ func (s *Sidebar) SetEntries(entries []collection.Entry) {
 	_ = s.list.SetItems(s.items())
 }
 
+// CollapsedPaths returns the collapsed directory paths relative to the
+// collection root (for persistence).
+func (s *Sidebar) CollapsedPaths(root string) []string {
+	var out []string
+	for p := range s.collapsed {
+		if rel, err := filepath.Rel(root, p); err == nil {
+			out = append(out, rel)
+		}
+	}
+	return out
+}
+
+// SetCollapsed restores a set of collapsed dirs from relative paths.
+func (s *Sidebar) SetCollapsed(root string, rel []string) {
+	for _, r := range rel {
+		s.collapsed[filepath.Join(root, r)] = true
+	}
+	_ = s.list.SetItems(s.items())
+}
+
+// SelectPath highlights the request whose path equals path (absolute). It
+// returns false when no visible entry matches (e.g. it lives under a
+// collapsed dir).
+func (s *Sidebar) SelectPath(path string) bool {
+	for i, it := range s.list.VisibleItems() {
+		e, ok := it.(item)
+		if ok && e.entry.Path == path {
+			s.list.Select(i)
+			return true
+		}
+	}
+	return false
+}
+
 // Selected returns the currently highlighted request entry, or nil when
 // the cursor is on a directory or nothing is selected.
 func (s *Sidebar) Selected() *collection.Entry {

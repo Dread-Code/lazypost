@@ -10,6 +10,7 @@ import (
 
 	"postgo/internal/collection"
 	"postgo/internal/httpclient"
+	"postgo/internal/session"
 	"postgo/internal/ui"
 )
 
@@ -43,6 +44,8 @@ type Model struct {
 	envNames []string
 	envIdx   int // 0 = none
 
+	state session.State
+
 	notice      string
 	noticeError bool
 
@@ -52,11 +55,12 @@ type Model struct {
 	keyEnter    key.Binding
 }
 
-func New(dir string, entries []collection.Entry, envs map[string]map[string]string, envNames []string) Model {
+func New(dir string, entries []collection.Entry, envs map[string]map[string]string, envNames []string, st session.State) Model {
 	m := Model{
 		dir:      dir,
 		envs:     envs,
 		envNames: envNames,
+		state:    st,
 	}
 	m.sidebar = ui.NewSidebar(entries, dir, 30, 20)
 	m.urlbar = ui.NewURLBar(80)
@@ -70,7 +74,32 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	// ctrl+/ is delivered as ctrl+_ (0x1F) by terminals; accept both
 	m.keyPalette = key.NewBinding(key.WithKeys("ctrl+_", "ctrl+/"))
 	m.keyEnter = key.NewBinding(key.WithKeys("enter"))
+	m.restore(st)
 	return m
+}
+
+// restore applies persisted session state: active environment, collapsed
+// folders, and the last selected request.
+func (m *Model) restore(st session.State) {
+	if idx := indexOf(st.Env, m.envNames); idx >= 0 {
+		m.envIdx = idx + 1
+	}
+	m.sidebar.SetCollapsed(m.dir, st.Collapsed)
+	if st.ActivePath != "" && m.sidebar.SelectPath(filepath.Join(m.dir, st.ActivePath)) {
+		if e := m.sidebar.Selected(); e != nil {
+			m.urlbar.SetRequest(e.Req.Method, e.Req.URL)
+			m.editor.SetRequest(e.Req, e.Path)
+		}
+	}
+}
+
+func indexOf(s string, list []string) int {
+	for i, v := range list {
+		if v == s {
+			return i
+		}
+	}
+	return -1
 }
 
 func (m Model) Init() tea.Cmd { return nil }
@@ -141,17 +170,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pSidebar:
 		switch km.String() {
 		case "q":
-			return m, tea.Quit
+			return m, m.quit()
 		case "enter":
 			// enter on a directory collapses/expands it; on a request it loads
 			if m.sidebar.ToggleCollapsed() {
-				return m, nil
+				return m, m.saveState()
 			}
 			if e := m.sidebar.Selected(); e != nil {
 				m.urlbar.SetRequest(e.Req.Method, e.Req.URL)
-				return m, tea.Batch(m.editor.SetRequest(e.Req, e.Path), m.enter(pBar))
+				return m, tea.Batch(m.editor.SetRequest(e.Req, e.Path), m.enter(pBar), m.saveState())
 			}
 			return m, nil
+
 		case "a":
 			// add a new request under the highlighted folder, or inside
 			// the parent folder of the highlighted request; the namer
@@ -197,7 +227,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pResponse:
 		switch km.String() {
 		case "q":
-			return m, tea.Quit
+			return m, m.quit()
 		}
 		var cmd tea.Cmd
 		m.response, cmd = m.response.Update(msg)

@@ -9,6 +9,7 @@ import (
 
 	"postgo/internal/collection"
 	"postgo/internal/model"
+	"postgo/internal/session"
 )
 
 func main() {
@@ -33,7 +34,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	p := tea.NewProgram(model.New(root, entries, envs, envNames), tea.WithAltScreen())
+	// Restore UI state (env, last request, collapsed folders) from the
+	// previous run; a missing state file yields defaults.
+	st, err := session.Load(root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "postgo: cannot load session state: %v\n", err)
+		os.Exit(1)
+	}
+
+	p := tea.NewProgram(model.New(root, entries, envs, envNames, st), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "postgo: %v\n", err)
 		os.Exit(1)
