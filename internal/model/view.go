@@ -113,13 +113,13 @@ func (m Model) statusBar() string {
 	var help string
 	switch m.focus {
 	case pSidebar:
-		help = "↑↓ navigate · enter load · n new · ctrl+e env · ctrl+l url · tab panes · ctrl+r send · q quit"
+		help = "↑↓ navigate · enter load · n new · ctrl+e env · ctrl+l url · ctrl+g curl · tab panes · ctrl+r send · q quit"
 	case pBar:
 		help = "ctrl+t method · enter send · esc back · paste curl to import · ctrl+g export curl · ctrl+r send"
 	case pEditor:
-		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+s save · ctrl+r send"
+		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+g curl · ctrl+s save · ctrl+r send"
 	case pResponse:
-		help = "←→ or b/h tabs · ↑↓ scroll · tab panes · q quit"
+		help = "←→ or b/h tabs · ↑↓ scroll · ctrl+g curl · tab panes · q quit"
 	}
 
 	right := ""

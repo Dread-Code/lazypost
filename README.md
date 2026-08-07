@@ -24,6 +24,7 @@ An API client that lives in your terminal — a [Posting](https://posting.sh)-in
 - **Collections** — requests stored as readable, version-control-friendly YAML files in a directory tree
 - **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from environment files
 - **Response viewer** — status/time/size summary, pretty-printed JSON, headers tab
+- **curl import/export** — paste a `curl` command into the URL bar to import it; `ctrl+g` copies the current request as curl
 
 ## Install
 
@@ -44,15 +45,19 @@ Requires Go 1.23+.
 
 | Key            | Action                                        |
 | -------------- | --------------------------------------------- |
-| `tab`/`shift+tab` | switch panes (collection / request / response) |
+| `tab`/`shift+tab` | switch panes (collection / URL bar / request / response) |
 | `ctrl+r`       | send request                                  |
 | `ctrl+s`       | save request to collection                    |
 | `ctrl+e`       | cycle environment                             |
-| `enter`        | load highlighted request (collection pane)    |
+| `ctrl+l`       | jump to the URL bar                           |
+| `ctrl+g`       | copy current request as curl (clipboard)      |
+| paste `curl …` | import a curl command (URL bar)               |
+| `enter`        | load highlighted request (collection pane) / send (URL bar) |
+| `esc`          | leave the URL bar                             |
 | `n`            | new request (collection pane)                 |
-| `ctrl+↓`/`ctrl+↑` | move between URL / headers / body / auth   |
+| `ctrl+n`/`ctrl+p` | move between headers / body / auth         |
 | `alt+←`/`alt+→` | switch headers / body / auth tabs            |
-| `ctrl+t`       | cycle HTTP method (URL field) or auth type    |
+| `ctrl+t`       | cycle HTTP method (URL bar) or auth type      |
 | `b` / `h`      | body / headers tab (response pane)            |
 | `q`            | quit (collection or response pane)            |
 | `ctrl+c`       | quit                                          |
@@ -106,7 +111,6 @@ go test ./...
 
 ## Roadmap ideas
 
-- curl import/export
 - command palette & jump mode
 - themes & custom keymaps
 - pre/post-request scripting

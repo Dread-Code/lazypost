@@ -5,9 +5,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"postgo/internal/clipboard"
 	"postgo/internal/collection"
 	"postgo/internal/curl"
 	"postgo/internal/httpclient"
+	"postgo/internal/render"
 )
 
 func (m *Model) send() (tea.Model, tea.Cmd) {
@@ -84,7 +86,9 @@ func (m *Model) importCurl(text string) (tea.Model, tea.Cmd) {
 }
 
 // exportCurl writes the current request as a curl one-liner to the
-// clipboard via OSC52. Raw {{vars}} are preserved, not interpolated.
+// clipboard, interpolated with the active environment. Uses the platform
+// tool (pbcopy etc.); falls back to OSC52, which Terminal.app ignores but
+// iTerm2/Ghostty/kitty/wezterm honor.
 func (m *Model) exportCurl() (tea.Model, tea.Cmd) {
 	req := m.editor.Request()
 	req.Method = m.urlbar.Method()
@@ -93,9 +97,19 @@ func (m *Model) exportCurl() (tea.Model, tea.Cmd) {
 		m.setNotice("nothing to export: URL is empty", true)
 		return m, nil
 	}
+	line := curlExportLine(*req, m.activeVars())
 	m.setNotice("curl copied to clipboard", false)
-	seq := "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(curl.Format(*req))) + "\a"
-	return m, tea.Printf("%s", seq)
+	if err := clipboard.Write(line); err != nil {
+		seq := "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(line)) + "\a"
+		return m, tea.Printf("%s", seq)
+	}
+	return m, nil
+}
+
+// curlExportLine renders req as a curl command with {{vars}} interpolated
+// from vars (unknown placeholders pass through, per ADR-0006).
+func curlExportLine(req collection.Request, vars map[string]string) string {
+	return curl.Format(render.Request(req, vars))
 }
 
 func (m *Model) setNotice(s string, isError bool) {
