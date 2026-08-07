@@ -31,8 +31,12 @@ type Editor struct {
 	focused bool
 
 	activePath string
-	width      int
-	height     int
+	// pre/post are opaque Lua hook sources ([[Design - scripting hooks]]).
+	// They have no UI section yet — carried verbatim between load and save.
+	pre    string
+	post   string
+	width  int
+	height int
 }
 
 // NewEditor builds the four-section editor. Method and URL are not
@@ -182,6 +186,8 @@ func (e *Editor) Request() *collection.Request {
 		Headers: parseHeaders(e.headers.Value()),
 		Auth:    e.auth.Auth(),
 		Body:    e.body.Value(),
+		Pre:     e.pre,
+		Post:    e.post,
 	}
 }
 
@@ -240,6 +246,8 @@ func parseParams(s string) []collection.Param {
 // requests. Focus is decided by the caller; widgets are blurred here.
 func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 	e.activePath = path
+	e.pre = req.Pre
+	e.post = req.Post
 
 	var qb strings.Builder
 	for _, p := range req.Query {
@@ -263,6 +271,8 @@ func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 // New resets the editor to a blank request.
 func (e *Editor) New() tea.Cmd {
 	e.activePath = ""
+	e.pre = ""
+	e.post = ""
 	e.query.SetValue("")
 	e.headers.SetValue("")
 	e.body.SetValue("")

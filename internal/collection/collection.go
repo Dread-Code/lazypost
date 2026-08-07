@@ -42,6 +42,8 @@ type Request struct {
 	Headers []Header `yaml:"headers,omitempty"`
 	Auth    *Auth    `yaml:"auth,omitempty"`
 	Body    string   `yaml:"body,omitempty"`
+	Pre     string   `yaml:"pre,omitempty"`
+	Post    string   `yaml:"post,omitempty"`
 }
 
 type Kind int

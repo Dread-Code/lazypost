@@ -1,0 +1,19 @@
+name: random quote with signature
+method: GET
+url: "{{host}}/api/random"
+headers:
+  - name: Accept
+    value: application/json
+pre: |
+  -- add a dynamic timestamp header and inject a var used below
+  req.headers["X-Timestamp"] = os.time()
+  return { sig = "lua-demo-" .. os.time() }
+post: |
+  -- assert the response is a 2xx and not empty
+  if response.status_code < 200 or response.status_code >= 300 then
+    return "expected 2xx, got " .. response.status_code
+  end
+  if response.body == "" then
+    return "response body is empty"
+  end
+  return true

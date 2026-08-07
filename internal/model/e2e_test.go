@@ -59,3 +59,44 @@ func TestSendRequestEndToEnd(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
+
+func TestPreHookAddsHeader(t *testing.T) {
+	got := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got <- r.Header.Get("X-Hook")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := t.TempDir()
+	req := collection.Request{
+		Name:   "hooked",
+		Method: "GET",
+		URL:    srv.URL + "/ping",
+		Pre:    `req.headers["X-Hook"] = "from-lua"`,
+	}
+	if _, err := collection.Save(root, filepath.Join(root, "hooked.yaml"), &req); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := collection.Load(root)
+
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+	w.waitFor(t, "hooked", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})  // onto the request
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // load it
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR}) // send
+	select {
+	case v := <-got:
+		if v != "from-lua" {
+			t.Errorf("expected X-Hook from-lua, got %q", v)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for request")
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}

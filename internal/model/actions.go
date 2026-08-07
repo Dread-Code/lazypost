@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/base64"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -14,6 +15,7 @@ import (
 	"postgo/internal/curl"
 	"postgo/internal/httpclient"
 	"postgo/internal/render"
+	"postgo/internal/script"
 	"postgo/internal/session"
 	"postgo/internal/ui"
 )
@@ -304,8 +306,8 @@ func (m *Model) createRequestIn(dir, name string) (tea.Model, tea.Cmd) {
 }
 
 // send composes the request (URL/method from the bar, the rest from the
-// editor), then runs the HTTP call off the render loop in a closure;
-// the result comes back as responseMsg or errMsg.
+// editor), runs the pre-hook, then the HTTP call off the render loop, and
+// finally the post-hook. Results come back as responseMsg or errMsg.
 func (m *Model) send() (tea.Model, tea.Cmd) {
 	req := m.editor.Request()
 	req.Method = m.urlbar.Method()
@@ -316,14 +318,45 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 	}
 	m.setNotice("", false)
 	vars := m.activeVars()
+
+	if req.Pre != "" {
+		extra, err := script.Pre(req.Pre, req, vars)
+		if err != nil {
+			m.setNotice(err.Error(), true)
+			return m, nil
+		}
+		vars = mergeVars(vars, extra)
+	}
+
+	preReq := *req // snapshot for the post-hook (post sees the request as sent)
 	cmd := func() tea.Msg {
-		res, err := httpclient.Exec(*req, vars)
+		res, err := httpclient.Exec(preReq, vars)
 		if err != nil {
 			return errMsg{err}
+		}
+		if preReq.Post != "" {
+			if fail, err := script.Post(preReq.Post, &preReq, vars,
+				res.Status, res.StatusCode, res.Headers, string(res.Body)); err != nil {
+				return errMsg{err}
+			} else if fail != "" {
+				return errMsg{fmt.Errorf("post hook: %s", fail)}
+			}
 		}
 		return responseMsg{res}
 	}
 	return m, tea.Batch(m.response.StartLoading(), cmd)
+}
+
+// mergeVars layers extra over base (extra wins).
+func mergeVars(base, extra map[string]string) map[string]string {
+	out := make(map[string]string, len(base)+len(extra))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range extra {
+		out[k] = v
+	}
+	return out
 }
 
 // save persists the composed request to disk, then reloads the sidebar
