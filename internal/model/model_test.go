@@ -301,6 +301,45 @@ func TestAddRequestInFolder(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+func TestAddRequestOnRequestInFolder(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "authors"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	seed := &collection.Request{Name: "list authors", Method: "GET", URL: "https://api.test/authors"}
+	if _, err := collection.Save(root, filepath.Join(root, "authors", "list.yaml"), seed); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := collection.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "list authors", 3*time.Second)
+
+	// tree: collection root, authors/, list authors. Cursor on the root;
+	// move onto the request inside authors
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	w.waitFor(t, "new request name", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("create post")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "created ", 3*time.Second)
+
+	// the new request lands in the same folder as the highlighted request
+	path := filepath.Join(root, "authors", "create-post.yaml")
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected created request file in authors/: %v", err)
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestCycleEnvironment(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -152,14 +153,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "a":
-			// add a new request under the highlighted folder (or the
-			// collection root); the namer asks for its name
+			// add a new request under the highlighted folder, or inside
+			// the parent folder of the highlighted request; the namer
+			// asks for its name
 			if d := m.sidebar.SelectedDir(); d != nil {
 				m.namerDir = d.Path
-				m.namerOpen = true
-				return m, m.namer.Open()
+			} else if e := m.sidebar.Selected(); e != nil {
+				m.namerDir = filepath.Dir(e.Path)
+			} else {
+				return m, nil
 			}
-			return m, nil
+			m.namerOpen = true
+			return m, m.namer.Open()
 		case "n":
 			m.urlbar.New()
 			return m, tea.Batch(m.editor.New(), m.enter(pBar))
