@@ -30,6 +30,11 @@ type Model struct {
 	// palettePrev is the pane to restore when the palette closes
 	palettePrev pane
 
+	namer     *ui.Namer
+	namerOpen bool
+	// namerDir is the folder the new request will be created in
+	namerDir string
+
 	width  int
 	height int
 
@@ -57,6 +62,7 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.editor = ui.NewEditor(60, 15)
 	m.response = ui.NewResponse(60, 15)
 	m.palette = ui.NewPalette(40, 10)
+	m.namer = ui.NewNamer()
 	m.focus = pSidebar
 	m.keyTab = key.NewBinding(key.WithKeys("tab"))
 	m.keyShiftTab = key.NewBinding(key.WithKeys("shift+tab"))
@@ -96,6 +102,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// goes to it while open.
 	if m.paletteOpen {
 		return m.updatePalette(msg)
+	}
+
+	// Namer is modal too: while asking for a name, every key goes to it.
+	if m.namerOpen {
+		return m.updateNamer(msg)
 	}
 
 	km, isKey := msg.(tea.KeyMsg)
@@ -138,6 +149,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if e := m.sidebar.Selected(); e != nil {
 				m.urlbar.SetRequest(e.Req.Method, e.Req.URL)
 				return m, tea.Batch(m.editor.SetRequest(e.Req, e.Path), m.enter(pBar))
+			}
+			return m, nil
+		case "a":
+			// add a new request under the highlighted folder (or the
+			// collection root); the namer asks for its name
+			if d := m.sidebar.SelectedDir(); d != nil {
+				m.namerDir = d.Path
+				m.namerOpen = true
+				return m, m.namer.Open()
 			}
 			return m, nil
 		case "n":

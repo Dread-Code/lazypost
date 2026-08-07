@@ -2,6 +2,8 @@ package model
 
 import (
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -249,6 +251,51 @@ func TestSidebarEnterTogglesDir(t *testing.T) {
 	// help for the sidebar still shows)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "enter load", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestAddRequestInFolder(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "authors"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "quotes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := collection.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "authors", 3*time.Second)
+
+	// cursor starts on the collection root; move onto the authors folder
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	// press a to open the namer
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	w.waitFor(t, "new request name", 3*time.Second)
+
+	// type the name and confirm
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("create post")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "created ", 3*time.Second)
+
+	// the file exists with the request name and focus moved to the URL bar
+	path := filepath.Join(root, "authors", "create-post.yaml")
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected created request file: %v", err)
+	}
+	req, err := collection.LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Name != "create post" {
+		t.Errorf("expected name 'create post', got %q", req.Name)
+	}
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))

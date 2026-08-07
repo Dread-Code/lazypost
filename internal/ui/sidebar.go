@@ -202,6 +202,16 @@ func (s *Sidebar) Selected() *collection.Entry {
 	return &it.entry
 }
 
+// SelectedDir returns the currently highlighted directory entry (a real
+// folder or the collection root), or nil when the cursor is elsewhere.
+func (s *Sidebar) SelectedDir() *collection.Entry {
+	it, ok := s.list.SelectedItem().(item)
+	if !ok || it.entry.Kind != collection.Dir {
+		return nil
+	}
+	return &it.entry
+}
+
 func (s *Sidebar) Resize(width, height int) {
 	s.list.SetSize(width, height)
 }

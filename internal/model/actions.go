@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/base64"
+	"path/filepath"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -131,6 +132,8 @@ func (m *Model) paletteWidth(items []ui.PaletteItem) int {
 	return w
 }
 
+// minPaletteHeight sizes the palette dialog to its items (+ the filter
+// row + border), capped so it never swallows the terminal.
 func (m *Model) minPaletteHeight(n int) int {
 	h := n + 2 // +2 for the filter row + border
 	if h < 4 {
@@ -140,6 +143,47 @@ func (m *Model) minPaletteHeight(n int) int {
 		return 10
 	}
 	return h
+}
+
+// updateNamer routes a key while the namer is open: enter creates the
+// request, esc cancels. Everything else feeds the text input.
+func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if km, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case km.String() == "esc":
+			m.namerOpen = false
+			return m, nil
+
+		case key.Matches(km, m.keyEnter):
+			name := m.namer.Value()
+			if name == "" {
+				m.setNotice("request name is required", true)
+				return m, nil
+			}
+			m.namerOpen = false
+			return m.createRequestIn(m.namerDir, name)
+		}
+	}
+	cmd := m.namer.Update(msg)
+	return m, cmd
+}
+
+// createRequestIn writes a blank named request under dir, reloads the
+// tree, and loads it into the editor so the user can fill it in.
+func (m *Model) createRequestIn(dir, name string) (tea.Model, tea.Cmd) {
+	req := &collection.Request{Name: name, Method: "GET"}
+	path := filepath.Join(dir, collection.Slug(name)+".yaml")
+	if _, err := collection.Save(m.dir, path, req); err != nil {
+		m.setNotice("create failed: "+err.Error(), true)
+		return m, nil
+	}
+	entries, err := collection.Load(m.dir)
+	if err == nil {
+		m.sidebar.SetEntries(entries)
+	}
+	m.urlbar.SetRequest(req.Method, req.URL)
+	m.setNotice("created "+rel(m.dir, path), false)
+	return m, tea.Batch(m.editor.SetRequest(req, path), m.enter(pBar))
 }
 
 // send composes the request (URL/method from the bar, the rest from the
