@@ -36,6 +36,13 @@ func (n *Namer) Open() tea.Cmd {
 	return n.input.Focus()
 }
 
+// OpenPrefilled opens the input with name already in it (used by rename).
+func (n *Namer) OpenPrefilled(name string) tea.Cmd {
+	n.input.SetValue(name)
+	n.input.CursorEnd()
+	return n.input.Focus()
+}
+
 // IsFolder reports whether the user typed a leading /, meaning they want a
 // new collection (folder) rather than a request.
 func (n *Namer) IsFolder() bool {

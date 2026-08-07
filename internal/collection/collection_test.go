@@ -120,6 +120,28 @@ func TestLoadEnvironments(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	root := t.TempDir()
+	if _, err := Save(root, filepath.Join(root, "a.yaml"), &Request{Name: "a", Method: "GET"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Delete(root, filepath.Join(root, "a.yaml")); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a.yaml")); !os.IsNotExist(err) {
+		t.Error("file should be gone")
+	}
+
+	// protected paths are refused
+	if err := Delete(root, root); err == nil {
+		t.Error("expected error deleting the collection root")
+	}
+	os.MkdirAll(filepath.Join(root, "environments"), 0o755)
+	if err := Delete(root, filepath.Join(root, "environments")); err == nil {
+		t.Error("expected error deleting environments/")
+	}
+}
+
 func TestSlug(t *testing.T) {
 	cases := map[string]string{
 		"Create Post!":  "create-post",

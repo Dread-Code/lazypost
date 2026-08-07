@@ -425,6 +425,146 @@ func TestSessionSnapshot(t *testing.T) {
 	}
 }
 
+func TestDeleteRequest(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	seed := &collection.Request{Name: "list authors", Method: "GET", URL: "https://api.test/authors"}
+	if _, err := collection.Save(root, filepath.Join(root, "list.yaml"), seed); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := collection.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "list authors", 3*time.Second)
+
+	// tree: collection root, list authors. Move onto the request, press d,
+	// confirm with y.
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+	w.waitFor(t, "delete request", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	w.waitFor(t, "deleted ", 3*time.Second)
+
+	if _, err := os.Stat(filepath.Join(root, "list.yaml")); !os.IsNotExist(err) {
+		t.Errorf("expected request file deleted: %v", err)
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestDeleteCancelKeepsRequest(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	seed := &collection.Request{Name: "list authors", Method: "GET", URL: "https://api.test/authors"}
+	if _, err := collection.Save(root, filepath.Join(root, "list.yaml"), seed); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := collection.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "list authors", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+	w.waitFor(t, "delete request", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	w.waitFor(t, "y yes · n no", 3*time.Second) // confirm modal closed
+
+	if _, err := os.Stat(filepath.Join(root, "list.yaml")); err != nil {
+		t.Errorf("expected request file kept after cancel: %v", err)
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestDeleteFolder(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	if err := os.MkdirAll(filepath.Join(root, "authors"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	seed := &collection.Request{Name: "list authors", Method: "GET", URL: "https://api.test/authors"}
+	if _, err := collection.Save(root, filepath.Join(root, "authors", "list.yaml"), seed); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := collection.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "authors", 3*time.Second)
+
+	// cursor starts on the collection root; move onto the authors folder,
+	// press d, confirm with y
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+	w.waitFor(t, "delete folder", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	w.waitFor(t, "deleted ", 3*time.Second)
+
+	if fi, err := os.Stat(filepath.Join(root, "authors")); !os.IsNotExist(err) {
+		t.Errorf("expected authors folder gone, got %v", fi)
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestRenameRequest(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	seed := &collection.Request{Name: "list authors", Method: "GET", URL: "https://api.test/authors"}
+	if _, err := collection.Save(root, filepath.Join(root, "list.yaml"), seed); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := collection.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "list authors", 3*time.Second)
+
+	// move onto the request, press r, confirm the pre-filled name
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	w.waitFor(t, "new request name", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // clear pre-filled value
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("renamed thing")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "renamed ", 3*time.Second)
+
+	if _, err := os.Stat(filepath.Join(root, "renamed-thing.yaml")); err != nil {
+		t.Fatalf("expected renamed file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "list.yaml")); !os.IsNotExist(err) {
+		t.Errorf("expected old file gone: %v", err)
+	}
+	req, err := collection.LoadFile(filepath.Join(root, "renamed-thing.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Name != "renamed thing" {
+		t.Errorf("expected name 'renamed thing', got %q", req.Name)
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestCycleEnvironment(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}

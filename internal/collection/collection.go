@@ -1,6 +1,7 @@
 package collection
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -160,6 +161,34 @@ func Save(root, path string, r *Request) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+// ErrProtected is returned when Delete is asked to remove something that
+// must never be deleted from the UI (the collection root, environments/).
+var ErrProtected = errors.New("refusing to delete a protected path")
+
+// Delete removes a request file or a directory subtree (a folder in the
+// collection). The collection root and environments/ are protected.
+func Delete(root, path string) error {
+	clean := filepath.Clean(path)
+	if clean == filepath.Clean(root) {
+		return ErrProtected
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return err
+	}
+	if rel == environmentsDir || strings.HasPrefix(rel, environmentsDir+string(filepath.Separator)) {
+		return ErrProtected
+	}
+	fi, err := os.Stat(clean)
+	if err != nil {
+		return err
+	}
+	if fi.IsDir() {
+		return os.RemoveAll(clean)
+	}
+	return os.Remove(clean)
 }
 
 type Environment struct {

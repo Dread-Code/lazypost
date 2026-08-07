@@ -106,6 +106,9 @@ func (m Model) View() string {
 	if m.namerOpen {
 		frame = overlayPalette(frame, m.namer.View(), m.width, m.height)
 	}
+	if m.confirmOpen {
+		frame = overlayPalette(frame, m.confirm.View(), m.width, m.height)
+	}
 	return frame
 }
 
@@ -197,7 +200,7 @@ func (m Model) statusBar() string {
 	var help string
 	switch m.focus {
 	case pSidebar:
-		help = "↑↓ navigate · enter load · a add · n new · ctrl+e env · ctrl+l url · ctrl+/ palette · ctrl+r send · q quit"
+		help = "↑↓ nav · enter load · a add · d del · r rename · ctrl+e env · ctrl+l url · ctrl+/ palette · ctrl+r send · q quit"
 	case pBar:
 		help = "ctrl+t method · enter send · esc back · ctrl+/ palette · ctrl+g export curl · ctrl+r send"
 	case pEditor:

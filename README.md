@@ -58,6 +58,8 @@ Requires Go 1.23+.
 | `esc`          | leave the URL bar                             |
 | `n`            | new request (collection pane)                 |
 | `a`            | add a request in the highlighted folder; lead with `/` to create a folder (collection pane) |
+| `d`            | delete the highlighted request/folder (confirm with `y`, cancel with `n`) |
+| `r`            | rename the highlighted request (collection pane)   |
 | `ctrl+n`/`ctrl+p` | move between headers / body / auth         |
 | `alt+←`/`alt+→` | switch headers / body / auth tabs            |
 | `ctrl+t`       | cycle HTTP method (URL bar) or auth type      |

@@ -147,14 +147,15 @@ func (m *Model) minPaletteHeight(n int) int {
 	return h
 }
 
-// updateNamer routes a key while the namer is open: enter creates the
-// request (or a folder when the name starts with /), esc cancels.
-// Everything else feeds the text input.
+// updateNamer routes a key while the namer is open: enter creates (or
+// renames) the request or folder, esc cancels. Everything else feeds the
+// text input.
 func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch {
 		case km.String() == "esc":
 			m.namerOpen = false
+			m.namerRename = false
 			return m, nil
 
 		case key.Matches(km, m.keyEnter):
@@ -162,6 +163,17 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if name == "" {
 				m.setNotice("name is required", true)
 				return m, nil
+			}
+			// renaming is only valid for requests, so a leading / (folder
+			// mode) is not allowed
+			if m.namerRename {
+				if m.namer.IsFolder() {
+					m.setNotice("rename cannot create a folder", true)
+					return m, nil
+				}
+				m.namerOpen = false
+				m.namerRename = false
+				return m.renameRequest(m.namerOld, name)
 			}
 			m.namerOpen = false
 			if m.namer.IsFolder() {
@@ -172,6 +184,90 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cmd := m.namer.Update(msg)
 	return m, cmd
+}
+
+// openDeleteConfirm shows the confirm modal for deleting e (a request or
+// a folder). The actual delete only runs if the user confirms.
+func (m *Model) openDeleteConfirm(e *collection.Entry) tea.Cmd {
+	kind := "request"
+	if e.Kind == collection.Dir {
+		kind = "folder"
+	}
+	label := "delete " + kind + " " + ui.TruncateRunes(e.Name, 30) + "?"
+	m.confirm.Ask(label)
+	m.confirmOpen = true
+	m.confirmTarget = e
+	return nil
+}
+
+// updateConfirm routes keys while the confirm modal is open: y/enter runs
+// the pending delete, n/esc cancels.
+func (m *Model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if km, ok := msg.(tea.KeyMsg); ok {
+		switch km.String() {
+		case "y", "enter":
+			if m.confirmTarget != nil {
+				target := m.confirmTarget
+				m.confirmTarget = nil
+				m.confirmOpen = false
+				return m, m.doDelete(target)
+			}
+		case "n", "esc", "q":
+			m.confirmOpen = false
+			m.confirmTarget = nil
+		}
+	}
+	return m, nil
+}
+
+// doDelete removes the highlighted entry (file or folder) and reloads the
+// tree. If it was the active request the editor is reset.
+func (m *Model) doDelete(e *collection.Entry) tea.Cmd {
+	if err := collection.Delete(m.dir, e.Path); err != nil {
+		m.setNotice("delete failed: "+err.Error(), true)
+		return nil
+	}
+	if e.Path == m.editor.ActivePath() {
+		m.urlbar.New()
+		m.editor.New()
+	}
+	entries, err := collection.Load(m.dir)
+	if err == nil {
+		m.sidebar.SetEntries(entries)
+	}
+	m.setNotice("deleted "+rel(m.dir, e.Path), false)
+	return m.saveState()
+}
+
+// renameRequest rewrites the request at oldPath under its new slug path
+// and removes the old file.
+func (m *Model) renameRequest(oldPath, name string) (tea.Model, tea.Cmd) {
+	req, err := collection.LoadFile(oldPath)
+	if err != nil {
+		m.setNotice("rename failed: "+err.Error(), true)
+		return m, nil
+	}
+	req.Name = name
+	newPath := filepath.Join(filepath.Dir(oldPath), collection.Slug(name)+".yaml")
+	if _, err := collection.Save(m.dir, newPath, req); err != nil {
+		m.setNotice("rename failed: "+err.Error(), true)
+		return m, nil
+	}
+	if err := os.Remove(oldPath); err != nil {
+		m.setNotice("rename failed: "+err.Error(), true)
+		return m, nil
+	}
+	entries, err := collection.Load(m.dir)
+	if err == nil {
+		m.sidebar.SetEntries(entries)
+	}
+	if oldPath == m.editor.ActivePath() {
+		m.editor.SetActivePath(newPath)
+		m.urlbar.SetRequest(req.Method, req.URL)
+		m.editor.SetRequest(req, newPath)
+	}
+	m.setNotice("renamed "+rel(m.dir, oldPath)+" → "+rel(m.dir, newPath), false)
+	return m, m.saveState()
 }
 
 // createFolderIn makes a new directory under dir and reloads the tree.

@@ -36,6 +36,16 @@ type Model struct {
 	namerOpen bool
 	// namerDir is the folder the new request will be created in
 	namerDir string
+	// namerRename is set while renaming an existing request (instead of
+	// creating a new one); namerOld holds its path
+	namerRename bool
+	namerOld    string
+
+	confirm     *ui.Confirm
+	confirmOpen bool
+	// confirmTarget is the entry to delete if the user confirms; kept as
+	// data (not a closure) so the delete runs on the *current* model
+	confirmTarget *collection.Entry
 
 	width  int
 	height int
@@ -68,6 +78,7 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.response = ui.NewResponse(60, 15)
 	m.palette = ui.NewPalette(40, 10)
 	m.namer = ui.NewNamer()
+	m.confirm = ui.NewConfirm()
 	m.focus = pSidebar
 	m.keyTab = key.NewBinding(key.WithKeys("tab"))
 	m.keyShiftTab = key.NewBinding(key.WithKeys("shift+tab"))
@@ -139,6 +150,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateNamer(msg)
 	}
 
+	// Confirm modal: while asking yes/no, every key goes to it.
+	if m.confirmOpen {
+		return m.updateConfirm(msg)
+	}
+
 	km, isKey := msg.(tea.KeyMsg)
 	if !isKey {
 		return m, nil
@@ -195,6 +211,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.namerOpen = true
 			return m, m.namer.Open()
+		case "d":
+			// deleting is destructive: confirm first. Folders and requests
+			// both get the modal, with the folder case expanded in Delete.
+			if e := m.sidebar.Selected(); e != nil {
+				return m, m.openDeleteConfirm(e)
+			}
+			if d := m.sidebar.SelectedDir(); d != nil {
+				return m, m.openDeleteConfirm(d)
+			}
+			return m, nil
+		case "r":
+			if e := m.sidebar.Selected(); e != nil {
+				m.namerRename = true
+				m.namerOld = e.Path
+				m.namerDir = filepath.Dir(e.Path)
+				m.namerOpen = true
+				return m, m.namer.OpenPrefilled(e.Req.Name)
+			}
+			return m, nil
 		case "n":
 			m.urlbar.New()
 			return m, tea.Batch(m.editor.New(), m.enter(pBar))
