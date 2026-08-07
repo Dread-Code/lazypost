@@ -50,6 +50,18 @@ func Exec(req collection.Request, vars map[string]string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Merge query params: URL-string params first, then explicit params,
+	// then apikey-in-query which overrides any colliding key.
+	q := httpReq.URL.Query()
+	for _, p := range req.Query {
+		q.Add(p.Name, p.Value)
+	}
+	if req.Auth != nil && strings.EqualFold(req.Auth.Type, "apikey") && strings.EqualFold(req.Auth.KeyIn, "query") {
+		q.Set(req.Auth.KeyName, req.Auth.KeyValue)
+	}
+	httpReq.URL.RawQuery = q.Encode()
+
 	// Header.Add keeps duplicate header names rather than replacing
 	for _, h := range req.Headers {
 		httpReq.Header.Add(h.Name, h.Value)
@@ -61,11 +73,7 @@ func Exec(req collection.Request, vars map[string]string) (*Response, error) {
 		case "bearer":
 			httpReq.Header.Set("Authorization", "Bearer "+req.Auth.Token)
 		case "apikey":
-			if strings.EqualFold(req.Auth.KeyIn, "query") {
-				q := httpReq.URL.Query()
-				q.Set(req.Auth.KeyName, req.Auth.KeyValue)
-				httpReq.URL.RawQuery = q.Encode()
-			} else {
+			if !strings.EqualFold(req.Auth.KeyIn, "query") {
 				httpReq.Header.Set(req.Auth.KeyName, req.Auth.KeyValue)
 			}
 		}

@@ -283,6 +283,21 @@ func Format(req collection.Request) string {
 	}
 
 	urlStr := req.URL
+
+	// explicit query params are appended so the exported curl is faithful;
+	// duplicates of URL-string params are kept
+	if len(req.Query) > 0 {
+		vals := url.Values{}
+		for _, p := range req.Query {
+			vals.Add(p.Name, p.Value)
+		}
+		sep := "?"
+		if strings.Contains(urlStr, "?") {
+			sep = "&"
+		}
+		urlStr += sep + vals.Encode()
+	}
+
 	if req.Auth != nil && req.Auth.Type == "apikey" && strings.EqualFold(req.Auth.KeyIn, "query") {
 		// apikey-as-query has no header form; append it to the URL
 		sep := "?"

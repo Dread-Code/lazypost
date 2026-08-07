@@ -72,6 +72,61 @@ func TestExecAPIKeyInQuery(t *testing.T) {
 	}
 }
 
+func TestExecMergesQueryParams(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if q.Get("from_url") != "1" {
+			t.Errorf("from_url = %q", q.Get("from_url"))
+		}
+		// explicit params are added (duplicates kept)
+		if got := q.Get("tag"); got != "news" {
+			t.Errorf("tag = %q", got)
+		}
+		// apikey-in-query overrides the colliding explicit param
+		if got := q.Get("api_key"); got != "secret" {
+			t.Errorf("api_key = %q, want apikey to override", got)
+		}
+		w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	req := collection.Request{
+		Method: "GET",
+		URL:    srv.URL + "/x?from_url=1",
+		Query: []collection.Param{
+			{Name: "tag", Value: "news"},
+			{Name: "api_key", Value: "shadowed"},
+		},
+		Auth: &collection.Auth{Type: "apikey", KeyName: "api_key", KeyValue: "secret", KeyIn: "query"},
+	}
+	res, err := Exec(req, nil)
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if string(res.Body) != "ok" {
+		t.Errorf("body = %q", res.Body)
+	}
+}
+
+func TestExecInterpolatesQueryParams(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("id"); got != "42" {
+			t.Errorf("id = %q, want interpolated 42", got)
+		}
+		w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	req := collection.Request{
+		Method: "GET",
+		URL:    srv.URL + "/x",
+		Query:  []collection.Param{{Name: "id", Value: "{{user_id}}"}},
+	}
+	if _, err := Exec(req, map[string]string{"user_id": "42"}); err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+}
+
 func TestExecUnresolvedURLPlaceholder(t *testing.T) {
 	req := collection.Request{Method: "GET", URL: "{{host}}/api/today"}
 	_, err := Exec(req, nil)

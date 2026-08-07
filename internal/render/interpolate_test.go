@@ -58,6 +58,9 @@ func TestRequest(t *testing.T) {
 	req := collection.Request{
 		Method: "POST",
 		URL:    "{{host}}/posts",
+		Query: []collection.Param{
+			{Name: "tag", Value: "{{tag}}"},
+		},
 		Headers: []collection.Header{
 			{Name: "X-Token", Value: "{{token}}"},
 			{Name: "Static", Value: "yes"},
@@ -69,12 +72,16 @@ func TestRequest(t *testing.T) {
 		"host":  "https://api.test",
 		"token": "abc123",
 		"id":    "7",
+		"tag":   "news",
 	}
 
 	out := Request(req, vars)
 
 	if out.URL != "https://api.test/posts" {
 		t.Errorf("URL = %q", out.URL)
+	}
+	if out.Query[0].Value != "news" {
+		t.Errorf("Query[0].Value = %q", out.Query[0].Value)
 	}
 	if out.Headers[0].Value != "abc123" || out.Headers[1].Value != "yes" {
 		t.Errorf("Headers = %+v", out.Headers)
@@ -91,5 +98,8 @@ func TestRequest(t *testing.T) {
 	}
 	if req.Auth.Token != "{{token}}" {
 		t.Error("original auth was mutated")
+	}
+	if req.Query[0].Value != "{{tag}}" {
+		t.Error("original query was mutated")
 	}
 }

@@ -88,11 +88,30 @@ func TestSectionNavigation(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
 
-	// tab into the editor (Headers section), then ctrl+n to Body;
-	// the empty body renders its placeholder
+	// tab into the editor (Query section by default), then ctrl+n twice
+	// to Body; the empty body renders its placeholder
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN})
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN})
 	w.waitFor(t, `{"hello": "world"}`, 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestQueryTab(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "quotes by author", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+
+	// tab into the editor lands on the first tab (Query); the empty
+	// query textarea shows its placeholder
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+	w.waitFor(t, "tag: news", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))

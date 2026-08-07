@@ -40,6 +40,12 @@ func Request(req collection.Request, vars map[string]string) collection.Request 
 	out := req
 	out.URL = Apply(req.URL, vars)
 	out.Body = Apply(req.Body, vars)
+	if len(req.Query) > 0 {
+		out.Query = make([]collection.Param, len(req.Query))
+		for i, p := range req.Query {
+			out.Query[i] = collection.Param{Name: Apply(p.Name, vars), Value: Apply(p.Value, vars)}
+		}
+	}
 	if len(req.Headers) > 0 {
 		out.Headers = make([]collection.Header, len(req.Headers))
 		for i, h := range req.Headers {

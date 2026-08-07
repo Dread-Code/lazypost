@@ -14,14 +14,16 @@ import (
 type Section int
 
 const (
-	SecHeaders Section = iota
+	SecQuery Section = iota
+	SecHeaders
 	SecBody
 	SecAuth
 )
 
-var sectionTabs = []string{"Headers", "Body", "Auth"}
+var sectionTabs = []string{"Query", "Headers", "Body", "Auth"}
 
 type Editor struct {
+	query   textarea.Model
 	headers textarea.Model
 	body    textarea.Model
 	auth    AuthEditor
@@ -33,10 +35,16 @@ type Editor struct {
 	height     int
 }
 
-// NewEditor builds the three-section editor. Method and URL are not
+// NewEditor builds the four-section editor. Method and URL are not
 // here — they live in the URLBar ([[ADR-0010]]).
 func NewEditor(width, height int) *Editor {
 	e := &Editor{width: width, height: height}
+
+	e.query = textarea.New()
+	e.query.Placeholder = "tag: news\n# one Name: Value per line"
+	e.query.Prompt = ""
+	e.query.ShowLineNumbers = false
+	e.query.CharLimit = -1
 
 	e.headers = textarea.New()
 	e.headers.Placeholder = "Content-Type: application/json\nAuthorization: Bearer ..."
@@ -60,6 +68,7 @@ func (e *Editor) resize() {
 	if inner < 10 {
 		inner = 10
 	}
+	e.query.SetWidth(inner)
 	e.headers.SetWidth(inner)
 	e.body.SetWidth(inner)
 	e.auth.SetWidth(inner)
@@ -68,6 +77,7 @@ func (e *Editor) resize() {
 	if contentH < 1 {
 		contentH = 1
 	}
+	e.query.SetHeight(contentH)
 	e.headers.SetHeight(contentH)
 	e.body.SetHeight(contentH)
 	e.auth.SetHeight(contentH)
@@ -85,16 +95,20 @@ func (e *Editor) Focus() tea.Cmd {
 
 func (e *Editor) Blur() {
 	e.focused = false
+	e.query.Blur()
 	e.headers.Blur()
 	e.body.Blur()
 	e.auth.Blur()
 }
 
 func (e *Editor) focusSection() tea.Cmd {
+	e.query.Blur()
 	e.headers.Blur()
 	e.body.Blur()
 	e.auth.Blur()
 	switch e.section {
+	case SecQuery:
+		return e.query.Focus()
 	case SecHeaders:
 		return e.headers.Focus()
 	case SecBody:
@@ -111,19 +125,13 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 	}
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch {
-		// ctrl+n/p move across sections; modulo keeps the cycle wrapping
-		case key.Matches(km, keySectionNext):
-			e.section = Section((int(e.section) + 1) % 3)
+		// ctrl+n/p and alt+arrows all cycle across the four tabs
+		// (sections == tabs since URL left the editor in ADR-0010)
+		case key.Matches(km, keySectionNext) || key.Matches(km, keyAltRight):
+			e.section = Section((int(e.section) + 1) % 4)
 			return e, e.focusSection()
-		case key.Matches(km, keySectionPrev):
-			e.section = Section((int(e.section) + 2) % 3)
-			return e, e.focusSection()
-		// alt+arrows cycle within the three tabs only
-		case key.Matches(km, keyAltLeft):
-			e.section = SecHeaders + Section((int(e.section)-int(SecHeaders)+2)%3)
-			return e, e.focusSection()
-		case key.Matches(km, keyAltRight):
-			e.section = SecHeaders + Section((int(e.section)-int(SecHeaders)+1)%3)
+		case key.Matches(km, keySectionPrev) || key.Matches(km, keyAltLeft):
+			e.section = Section((int(e.section) + 3) % 4)
 			return e, e.focusSection()
 		case key.Matches(km, keyCtrlT):
 			if e.section == SecAuth {
@@ -135,6 +143,8 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 
 	var cmd tea.Cmd
 	switch e.section {
+	case SecQuery:
+		e.query, cmd = e.query.Update(msg)
 	case SecHeaders:
 		e.headers, cmd = e.headers.Update(msg)
 	case SecBody:
@@ -150,6 +160,8 @@ func (e *Editor) View() string {
 
 	var content string
 	switch e.section {
+	case SecQuery:
+		content = e.query.View()
 	case SecHeaders:
 		content = e.headers.View()
 	case SecBody:
@@ -166,6 +178,7 @@ func (e *Editor) View() string {
 func (e *Editor) Request() *collection.Request {
 	return &collection.Request{
 		Name:    e.name(),
+		Query:   parseParams(e.query.Value()),
 		Headers: parseHeaders(e.headers.Value()),
 		Auth:    e.auth.Auth(),
 		Body:    e.body.Value(),
@@ -202,10 +215,37 @@ func parseHeaders(s string) []collection.Header {
 	return out
 }
 
+// parseParams parses query params from one "Name: Value" per line,
+// mirroring the headers format.
+func parseParams(s string) []collection.Param {
+	var out []collection.Param
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		i := strings.Index(line, ":")
+		if i <= 0 {
+			continue
+		}
+		out = append(out, collection.Param{
+			Name:  strings.TrimSpace(line[:i]),
+			Value: strings.TrimSpace(line[i+1:]),
+		})
+	}
+	return out
+}
+
 // SetRequest loads req into the editor. path may be empty for unsaved
 // requests. Focus is decided by the caller; widgets are blurred here.
 func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 	e.activePath = path
+
+	var qb strings.Builder
+	for _, p := range req.Query {
+		qb.WriteString(p.Name + ": " + p.Value + "\n")
+	}
+	e.query.SetValue(strings.TrimSuffix(qb.String(), "\n"))
 
 	var b strings.Builder
 	for _, h := range req.Headers {
@@ -215,7 +255,7 @@ func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 	e.body.SetValue(req.Body)
 	e.auth.SetAuth(req.Auth)
 
-	e.section = SecHeaders
+	e.section = SecQuery
 	e.Blur()
 	return nil
 }
@@ -223,10 +263,11 @@ func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 // New resets the editor to a blank request.
 func (e *Editor) New() tea.Cmd {
 	e.activePath = ""
+	e.query.SetValue("")
 	e.headers.SetValue("")
 	e.body.SetValue("")
 	e.auth.SetAuth(nil)
-	e.section = SecHeaders
+	e.section = SecQuery
 	e.Blur()
 	return nil
 }

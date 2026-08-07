@@ -17,6 +17,12 @@ type Header struct {
 	Value string `yaml:"value"`
 }
 
+// Param is one name/value query parameter.
+type Param struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
+}
+
 type Auth struct {
 	Type     string `yaml:"type"` // none, basic, bearer, apikey
 	Username string `yaml:"username,omitempty"`
@@ -31,6 +37,7 @@ type Request struct {
 	Name    string   `yaml:"name"`
 	Method  string   `yaml:"method"`
 	URL     string   `yaml:"url"`
+	Query   []Param  `yaml:"query,omitempty"`
 	Headers []Header `yaml:"headers,omitempty"`
 	Auth    *Auth    `yaml:"auth,omitempty"`
 	Body    string   `yaml:"body,omitempty"`

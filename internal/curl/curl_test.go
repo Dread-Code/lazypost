@@ -3,6 +3,8 @@ package curl
 import (
 	"strings"
 	"testing"
+
+	"postgo/internal/collection"
 )
 
 func TestParse(t *testing.T) {
@@ -173,6 +175,20 @@ func TestFormatBearerAndAPIKey(t *testing.T) {
 	}
 	if got := Format(*parsed); !strings.Contains(got, "-H 'Authorization: Bearer tok'") {
 		t.Errorf("Format = %q", got)
+	}
+}
+
+func TestFormatAppendsQueryParams(t *testing.T) {
+	req, err := Parse(`curl 'https://api.test/search'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Query = []collection.Param{{Name: "q", Value: "hello world"}, {Name: "tag", Value: "news"}}
+
+	got := Format(*req)
+	if !strings.Contains(got, "'https://api.test/search?q=hello+world&tag=news'") &&
+		!strings.Contains(got, "'https://api.test/search?tag=news&q=hello+world'") {
+		t.Errorf("Format = %q, want query params in URL", got)
 	}
 }
 
