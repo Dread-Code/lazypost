@@ -188,6 +188,38 @@ func TestCurlExportLineInterpolates(t *testing.T) {
 	}
 }
 
+func TestCommandPalette(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "Collection", 3*time.Second)
+
+	// ctrl+/ arrives as ctrl+_ (0x1F); opens the palette
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	w.waitFor(t, "Send request", 3*time.Second)
+
+	// navigate with arrows (the Filtering state otherwise routes every key
+	// to the filter input)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	w.waitFor(t, "▸ Cycle environment", 3*time.Second)
+
+	// filter narrows the list
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("curl")})
+	w.waitFor(t, "Copy as curl", 3*time.Second)
+
+	// clear filter, pick "Focus response", enter runs it
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("response")})
+	// filtering is async (FilterMatchesMsg); give it a beat before enter
+	time.Sleep(250 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "scroll", 3*time.Second) // response pane status-bar help
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestCycleEnvironment(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}

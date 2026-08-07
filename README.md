@@ -25,6 +25,7 @@ An API client that lives in your terminal — a [Posting](https://posting.sh)-in
 - **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from environment files
 - **Response viewer** — status/time/size summary, pretty-printed JSON, headers tab
 - **curl import/export** — paste a `curl` command into the URL bar to import it; `ctrl+g` copies the current request as curl
+- **Command palette** — `ctrl+/` to filter and run any action
 
 ## Install
 
@@ -50,6 +51,7 @@ Requires Go 1.23+.
 | `ctrl+s`       | save request to collection                    |
 | `ctrl+e`       | cycle environment                             |
 | `ctrl+l`       | jump to the URL bar                           |
+| `ctrl+/`       | open the command palette                     |
 | `ctrl+g`       | copy current request as curl (clipboard)      |
 | paste `curl …` | import a curl command (URL bar)               |
 | `enter`        | load highlighted request (collection pane) / send (URL bar) |

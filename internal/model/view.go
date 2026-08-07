@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/cellbuf"
 
 	"postgo/internal/collection"
 	"postgo/internal/ui"
@@ -98,7 +99,51 @@ func (m Model) View() string {
 	content := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right)
 
 	status := m.statusBar()
-	return lipgloss.JoinVertical(lipgloss.Left, titleBar, bar, content, status)
+	frame := lipgloss.JoinVertical(lipgloss.Left, titleBar, bar, content, status)
+	if m.paletteOpen {
+		frame = overlayPalette(frame, m.palette.View(), m.width, m.height)
+	}
+	return frame
+}
+
+// overlayPalette draws the palette box over the frame with an ANSI-aware
+// cell buffer, so the frame content beside the box survives. The box hugs
+// its content width and drops from the top (like a quick-open), so it never
+// cuts the panes in two or sprawls across the pane borders.
+func overlayPalette(frame, paletteView string, termW, termH int) string {
+	contentW := 0
+	for _, l := range strings.Split(paletteView, "\n") {
+		if w := lipgloss.Width(l); w > contentW {
+			contentW = w
+		}
+	}
+	// lipgloss Width(w) is the *content* width; the two border columns are
+	// added on top, so the rendered box is contentW+2 wide.
+	box := ui.PaneStyle.Width(contentW).Render(paletteView)
+	boxLines := strings.Split(box, "\n")
+	boxW := lipgloss.Width(boxLines[0])
+	boxH := len(boxLines)
+	if boxW+4 >= termW {
+		boxW = termW - 4
+	}
+
+	pad := (termW - boxW) / 2
+	if pad < 0 {
+		pad = 0
+	}
+
+	buf := cellbuf.NewBuffer(termW, termH)
+	cellbuf.SetContent(buf, frame)
+
+	start := (termH - boxH) / 2
+	if start < 1 {
+		start = 1
+	}
+	if start+boxH > termH {
+		start = termH - boxH
+	}
+	cellbuf.SetContentRect(buf, box, cellbuf.Rect(pad, start, boxW, boxH))
+	return strings.ReplaceAll(cellbuf.Render(buf), "\r\n", "\n")
 }
 
 func renderPane(title, content string, focused bool, w, h int) string {
@@ -116,13 +161,13 @@ func (m Model) statusBar() string {
 	var help string
 	switch m.focus {
 	case pSidebar:
-		help = "↑↓ navigate · enter load · n new · ctrl+e env · ctrl+l url · ctrl+g curl · tab panes · ctrl+r send · q quit"
+		help = "↑↓ navigate · enter load · n new · ctrl+e env · ctrl+l url · ctrl+/ palette · ctrl+r send · q quit"
 	case pBar:
-		help = "ctrl+t method · enter send · esc back · paste curl to import · ctrl+g export curl · ctrl+r send"
+		help = "ctrl+t method · enter send · esc back · ctrl+/ palette · ctrl+g export curl · ctrl+r send"
 	case pEditor:
-		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+g curl · ctrl+s save · ctrl+r send"
+		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+/ palette · ctrl+s save · ctrl+r send"
 	case pResponse:
-		help = "←→ or b/h tabs · ↑↓ scroll · ctrl+g curl · tab panes · q quit"
+		help = "←→ or b/h tabs · ↑↓ scroll · ctrl+/ palette · ctrl+g curl · q quit"
 	}
 
 	right := ""

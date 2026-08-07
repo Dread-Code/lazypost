@@ -25,6 +25,11 @@ type Model struct {
 	// prevFocus is where esc in the URL bar returns to
 	prevFocus pane
 
+	palette     *ui.Palette
+	paletteOpen bool
+	// palettePrev is the pane to restore when the palette closes
+	palettePrev pane
+
 	width  int
 	height int
 
@@ -37,8 +42,7 @@ type Model struct {
 
 	keyTab      key.Binding
 	keyShiftTab key.Binding
-	keyCtrlL    key.Binding
-	keyCtrlG    key.Binding
+	keyPalette  key.Binding
 	keyEnter    key.Binding
 }
 
@@ -52,11 +56,12 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.urlbar = ui.NewURLBar(80)
 	m.editor = ui.NewEditor(60, 15)
 	m.response = ui.NewResponse(60, 15)
+	m.palette = ui.NewPalette(40, 10)
 	m.focus = pSidebar
 	m.keyTab = key.NewBinding(key.WithKeys("tab"))
 	m.keyShiftTab = key.NewBinding(key.WithKeys("shift+tab"))
-	m.keyCtrlL = key.NewBinding(key.WithKeys("ctrl+l"))
-	m.keyCtrlG = key.NewBinding(key.WithKeys("ctrl+g"))
+	// ctrl+/ is delivered as ctrl+_ (0x1F) by terminals; accept both
+	m.keyPalette = key.NewBinding(key.WithKeys("ctrl+_", "ctrl+/"))
 	m.keyEnter = key.NewBinding(key.WithKeys("enter"))
 	return m
 }
@@ -87,36 +92,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	// Palette is modal: every message (keys, filter matches, spinner)
+	// goes to it while open.
+	if m.paletteOpen {
+		return m.updatePalette(msg)
+	}
+
 	km, isKey := msg.(tea.KeyMsg)
 	if !isKey {
 		return m, nil
 	}
 
-	// Global keys, handled before any pane sees them.
-	switch {
-	case key.Matches(km, key.NewBinding(key.WithKeys("ctrl+c"))):
-		return m, tea.Quit
+	// Toggle the command palette.
+	if key.Matches(km, m.keyPalette) {
+		return m.openPalette()
+	}
 
-	case key.Matches(km, key.NewBinding(key.WithKeys("ctrl+r"))):
-		return m.send()
+	// Global keys, handled before any pane sees them. Driven by the
+	// action registry so the palette and keybindings can't drift.
+	for _, a := range globalActions {
+		if a.matches(km) {
+			return a.Run(&m)
+		}
+	}
 
-	case key.Matches(km, key.NewBinding(key.WithKeys("ctrl+s"))):
-		return m.save()
-
-	case key.Matches(km, key.NewBinding(key.WithKeys("ctrl+e"))):
-		m.cycleEnv()
-		return m, nil
-
-	case key.Matches(km, m.keyCtrlG):
-		return m.exportCurl()
-
-	case key.Matches(km, m.keyCtrlL):
-		return m, m.enter(pBar)
-
-	case key.Matches(km, m.keyTab):
+	// Pane cycling is focus routing, not a command.
+	if key.Matches(km, m.keyTab) {
 		return m, m.cycleFocus(1)
-
-	case key.Matches(km, m.keyShiftTab):
+	}
+	if key.Matches(km, m.keyShiftTab) {
 		return m, m.cycleFocus(-1)
 	}
 

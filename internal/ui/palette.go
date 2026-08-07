@@ -1,0 +1,145 @@
+package ui
+
+import (
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+// PaletteItem is one selectable command in the palette.
+type PaletteItem struct {
+	Title    string
+	Shortcut string
+}
+
+func (i PaletteItem) FilterValue() string { return i.Title }
+
+type paletteDelegate struct{}
+
+func (d paletteDelegate) Height() int  { return 1 }
+func (d paletteDelegate) Spacing() int { return 0 }
+
+func (d paletteDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+
+func (d paletteDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
+	it, ok := li.(PaletteItem)
+	if !ok {
+		return
+	}
+	selected := index == m.Index()
+
+	avail := m.Width() - 2
+	if avail < 10 {
+		avail = 10
+	}
+
+	// budget: cursor(2) + title + shortcut(12)
+	titleW := avail - 12
+	if titleW < 4 {
+		titleW = 4
+	}
+	title := TruncateRunes(it.Title, titleW)
+	shortcut := lipgloss.NewStyle().Foreground(ColorMuted).Render(it.Shortcut)
+
+	cursor := "  "
+	if selected {
+		cursor = lipgloss.NewStyle().Foreground(ColorPrimary).Render("▸ ")
+		title = lipgloss.NewStyle().Foreground(ColorPrimary).Render(title)
+	}
+	line := cursor + title + strings.Repeat(" ", avail-lipgloss.Width(title)-lipgloss.Width(shortcut)) + shortcut
+	fmt.Fprint(w, line)
+}
+
+// Palette is a fuzzy-filterable command overlay: a bubbles list with
+// filtering enabled, rendered over the current frame (Design - command
+// palette).
+type Palette struct {
+	list   list.Model
+	items  []PaletteItem
+	width  int
+	height int
+}
+
+func NewPalette(width, height int) *Palette {
+	p := &Palette{width: width, height: height}
+	p.list = list.New(nil, paletteDelegate{}, width, height)
+	p.list.SetShowTitle(false)
+	p.list.SetShowFilter(true)
+	p.list.SetShowHelp(false)
+	p.list.SetShowPagination(false)
+	p.list.SetShowStatusBar(false)
+	p.list.SetFilteringEnabled(true)
+	p.list.DisableQuitKeybindings()
+	p.list.FilterInput.Prompt = "› "
+	p.list.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(ColorPrimary)
+	p.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(ColorPrimary)
+	p.list.FilterInput.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	p.list.FilterInput.PlaceholderStyle = lipgloss.NewStyle().Foreground(ColorMuted)
+	// the default TitleBar pads 1 line under the filter; kill it so the
+	// typed query sits flush above the items
+	p.list.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 0, 1)
+	return p
+}
+
+func (p *Palette) SetItems(items []PaletteItem) {
+	p.items = items
+	li := make([]list.Item, len(items))
+	for i, it := range items {
+		li[i] = it
+	}
+	_ = p.list.SetItems(li)
+	if len(items) > 0 {
+		p.list.Select(0)
+	}
+}
+
+func (p *Palette) Resize(width, height int) {
+	p.width, p.height = width, height
+	p.list.SetSize(width, height)
+}
+
+// Open shows all items and focuses the filter input so typing filters
+// live. SetFilterText seeds the filtered set (state FilterApplied), then
+// SetFilterState(Filtering) switches to live-editing without clearing it.
+func (p *Palette) Open() {
+	p.list.SetFilterText("")
+	p.list.SetFilterState(list.Filtering)
+}
+
+func (p *Palette) Update(msg tea.Msg) (tea.Cmd, *PaletteItem) {
+	var cmd tea.Cmd
+	p.list, cmd = p.list.Update(msg)
+	// An async FilterMatchesMsg narrows the list without clamping the
+	// cursor (bubbles only GoToStart on the synchronous SetFilterText
+	// path), which can leave the selection out of bounds. Reset to the top
+	// on every filter result, like a real command palette.
+	if _, ok := msg.(list.FilterMatchesMsg); ok {
+		p.list.GoToStart()
+	}
+	return cmd, p.Selected()
+}
+
+// Selected returns the currently highlighted item, if any.
+func (p *Palette) Selected() *PaletteItem {
+	it, ok := p.list.SelectedItem().(PaletteItem)
+	if !ok {
+		return nil
+	}
+	return &it
+}
+
+// CursorUp and CursorDown move the selection. They work even while the
+// filter is being edited, which bubbles' Filtering state otherwise blocks.
+func (p *Palette) CursorUp() {
+	p.list.CursorUp()
+}
+
+func (p *Palette) CursorDown() {
+	p.list.CursorDown()
+}
+
+func (p *Palette) View() string { return p.list.View() }

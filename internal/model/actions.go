@@ -3,14 +3,144 @@ package model
 import (
 	"encoding/base64"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"postgo/internal/clipboard"
 	"postgo/internal/collection"
 	"postgo/internal/curl"
 	"postgo/internal/httpclient"
 	"postgo/internal/render"
+	"postgo/internal/ui"
 )
+
+// Action is one selectable command: the palette lists all of them, and
+// globalActions are also bound to their shortcut keys. It is the single
+// source of truth for global keybindings ([[Design - command palette]]).
+type Action struct {
+	Title    string
+	Shortcut string
+	Keys     []string
+	Run      func(m *Model) (tea.Model, tea.Cmd)
+}
+
+// globalActions are the key-bound commands handled by the root model
+// before any pane sees a key.
+var globalActions = []Action{
+	{Title: "Send request", Shortcut: "ctrl+r", Keys: []string{"ctrl+r"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m.send() }},
+	{Title: "Save request", Shortcut: "ctrl+s", Keys: []string{"ctrl+s"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m.save() }},
+	{Title: "Cycle environment", Shortcut: "ctrl+e", Keys: []string{"ctrl+e"}, Run: func(m *Model) (tea.Model, tea.Cmd) { m.cycleEnv(); return m, nil }},
+	{Title: "Focus URL bar", Shortcut: "ctrl+l", Keys: []string{"ctrl+l"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m, m.enter(pBar) }},
+	{Title: "Copy as curl", Shortcut: "ctrl+g", Keys: []string{"ctrl+g"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m.exportCurl() }},
+	{Title: "Quit", Shortcut: "ctrl+c", Keys: []string{"ctrl+c"}, Run: func(m *Model) (tea.Model, tea.Cmd) { return m, tea.Quit }},
+}
+
+// paletteActions returns every command the palette offers: the global
+// actions plus navigation commands that are only reachable from it.
+func (m *Model) paletteActions() []Action {
+	return append(globalActions,
+		Action{Title: "New request", Run: func(m *Model) (tea.Model, tea.Cmd) {
+			m.urlbar.New()
+			return m, tea.Batch(m.editor.New(), m.enter(pBar))
+		}},
+		Action{Title: "Focus editor", Run: func(m *Model) (tea.Model, tea.Cmd) { return m, m.enter(pEditor) }},
+		Action{Title: "Focus response", Run: func(m *Model) (tea.Model, tea.Cmd) { return m, m.enter(pResponse) }},
+	)
+}
+
+// matches reports whether km hits any of the action's shortcut keys.
+func (a Action) matches(km tea.KeyMsg) bool {
+	if len(a.Keys) == 0 {
+		return false
+	}
+	b := key.NewBinding(key.WithKeys(a.Keys...))
+	return key.Matches(km, b)
+}
+
+// openPalette shows the command palette over the current frame.
+func (m *Model) openPalette() (tea.Model, tea.Cmd) {
+	actions := m.paletteActions()
+	items := make([]ui.PaletteItem, len(actions))
+	for i, a := range actions {
+		items[i] = ui.PaletteItem{Title: a.Title, Shortcut: a.Shortcut}
+	}
+	m.palette.SetItems(items)
+	m.palette.Resize(m.paletteWidth(items), m.minPaletteHeight(len(items)))
+	m.palette.Open()
+	m.palettePrev = m.focus
+	m.paletteOpen = true
+	return m, nil
+}
+
+// updatePalette routes a key while the palette is open: enter runs the
+// selected action, esc/q close it. Non-key messages (e.g. the list's
+// FilterMatchesMsg) are passed through so async filtering works.
+func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if km, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case km.String() == "esc" || km.String() == "q":
+			m.paletteOpen = false
+			return m, m.enter(m.palettePrev)
+
+		// bubbles routes every key to the filter input in Filtering state
+		// and disables its nav bindings, so move the cursor ourselves. j/k
+		// stay free for the filter query.
+		case km.String() == "up" || km.String() == "ctrl+p":
+			m.palette.CursorUp()
+			return m, nil
+		case km.String() == "down" || km.String() == "ctrl+n":
+			m.palette.CursorDown()
+			return m, nil
+
+		case key.Matches(km, m.keyEnter):
+			actions := m.paletteActions()
+			if it := m.palette.Selected(); it != nil {
+				for _, a := range actions {
+					if a.Title == it.Title {
+						m.paletteOpen = false
+						return a.Run(m)
+					}
+				}
+			}
+			return m, nil
+		}
+	}
+	cmd, _ := m.palette.Update(msg)
+	return m, cmd
+}
+
+// paletteWidth sizes the palette to its widest item (+ shortcut), capped so
+// the dialog stays tight and centered instead of sprawling across the pane
+// borders ([[Design - command palette]]).
+func (m *Model) paletteWidth(items []ui.PaletteItem) int {
+	w := m.width - 8
+	longest := 0
+	for _, it := range items {
+		l := lipgloss.Width(it.Title) + lipgloss.Width(it.Shortcut)
+		if l > longest {
+			longest = l
+		}
+	}
+	if longest+8 < w {
+		w = longest + 8
+	}
+	if w < 20 {
+		w = 20
+	}
+	return w
+}
+
+func (m *Model) minPaletteHeight(n int) int {
+	h := n + 2 // +2 for the filter row + border
+	if h < 4 {
+		return 4
+	}
+	if h > 10 {
+		return 10
+	}
+	return h
+}
 
 // send composes the request (URL/method from the bar, the rest from the
 // editor), then runs the HTTP call off the render loop in a closure;
