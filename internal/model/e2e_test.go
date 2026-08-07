@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -99,4 +100,74 @@ func TestPreHookAddsHeader(t *testing.T) {
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestChainStoreAcrossSends(t *testing.T) {
+	var mu sync.Mutex
+	var headers []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		headers = append(headers, r.Header.Get("X-Chain"))
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := t.TempDir()
+	req := collection.Request{
+		Name:   "chain",
+		Method: "GET",
+		URL:    srv.URL + "/ping",
+		// pre reads the store; post writes it
+		Pre:  `if store.get("token") ~= nil then req.headers["X-Chain"] = store.get("token") end`,
+		Post: `store.set("token", "chained-value") return true`,
+	}
+	if _, err := collection.Save(root, filepath.Join(root, "chain.yaml"), &req); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := collection.Load(root)
+
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+	w.waitFor(t, "chain", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})  // onto the request
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // load it
+	// send, wait for it to reach the server, then send again so the second
+	// sees the store populated by the first's post hook
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR})
+	waitForN(t, &mu, &headers, 1, 5*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR})
+	waitForN(t, &mu, &headers, 2, 5*time.Second)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(headers) != 2 {
+		t.Fatalf("expected 2 requests, got %d", len(headers))
+	}
+	if headers[0] != "" {
+		t.Errorf("first request should have no X-Chain, got %q", headers[0])
+	}
+	if headers[1] != "chained-value" {
+		t.Errorf("second request should carry the chained value, got %q", headers[1])
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func waitForN(t *testing.T, mu *sync.Mutex, headers *[]string, n int, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		c := len(*headers)
+		mu.Unlock()
+		if c >= n {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("timeout waiting for %d requests", n)
 }

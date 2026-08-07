@@ -51,6 +51,11 @@ func (m *Model) paletteActions() []Action {
 		}},
 		Action{Title: "Focus editor", Run: func(m *Model) (tea.Model, tea.Cmd) { return m, m.enter(pEditor) }},
 		Action{Title: "Focus response", Run: func(m *Model) (tea.Model, tea.Cmd) { return m, m.enter(pResponse) }},
+		Action{Title: "Clear chain store", Run: func(m *Model) (tea.Model, tea.Cmd) {
+			m.store = map[string]string{}
+			m.setNotice("chain store cleared", false)
+			return m, nil
+		}},
 	)
 }
 
@@ -307,7 +312,8 @@ func (m *Model) createRequestIn(dir, name string) (tea.Model, tea.Cmd) {
 
 // send composes the request (URL/method from the bar, the rest from the
 // editor), runs the pre-hook, then the HTTP call off the render loop, and
-// finally the post-hook. Results come back as responseMsg or errMsg.
+// finally the post-hook. Results come back as responseMsg or errMsg; both
+// carry any store writes made by the hooks.
 func (m *Model) send() (tea.Model, tea.Cmd) {
 	req := m.editor.Request()
 	req.Method = m.urlbar.Method()
@@ -318,9 +324,10 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 	}
 	m.setNotice("", false)
 	vars := m.activeVars()
+	store := cloneVars(m.store)
 
 	if req.Pre != "" {
-		extra, err := script.Pre(req.Pre, req, vars)
+		extra, err := script.Pre(req.Pre, req, vars, store)
 		if err != nil {
 			m.setNotice(err.Error(), true)
 			return m, nil
@@ -328,23 +335,35 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 		vars = mergeVars(vars, extra)
 	}
 
+	// interpolation precedence: env → store → pre-returned vars
+	vars = mergeVars(vars, store)
+
 	preReq := *req // snapshot for the post-hook (post sees the request as sent)
 	cmd := func() tea.Msg {
 		res, err := httpclient.Exec(preReq, vars)
 		if err != nil {
-			return errMsg{err}
+			return errMsg{err: err, store: store}
 		}
 		if preReq.Post != "" {
-			if fail, err := script.Post(preReq.Post, &preReq, vars,
+			if fail, err := script.Post(preReq.Post, &preReq, vars, store,
 				res.Status, res.StatusCode, res.Headers, string(res.Body)); err != nil {
-				return errMsg{err}
+				return errMsg{err: err, store: store}
 			} else if fail != "" {
-				return errMsg{fmt.Errorf("post hook: %s", fail)}
+				return errMsg{err: fmt.Errorf("post hook: %s", fail), store: store}
 			}
 		}
-		return responseMsg{res}
+		return responseMsg{res: res, store: store}
 	}
 	return m, tea.Batch(m.response.StartLoading(), cmd)
+}
+
+// cloneVars returns a shallow copy of vars (nil-safe).
+func cloneVars(vars map[string]string) map[string]string {
+	out := make(map[string]string, len(vars))
+	for k, v := range vars {
+		out[k] = v
+	}
+	return out
 }
 
 // mergeVars layers extra over base (extra wins).
@@ -427,7 +446,7 @@ func (m *Model) saveState() tea.Cmd {
 	st := m.snapshot()
 	return func() tea.Msg {
 		if err := session.Save(m.dir, st); err != nil {
-			return errMsg{err}
+			return errMsg{err: err}
 		}
 		return nil
 	}

@@ -10,7 +10,7 @@ func TestPreReturnsVars(t *testing.T) {
 	req := &collection.Request{Method: "GET", URL: "https://api.test/things"}
 	vars, err := Pre(`
 		return { token = "abc123" }
-	`, req, map[string]string{"host": "https://api.test"})
+	`, req, map[string]string{"host": "https://api.test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func TestPreMutatesRequest(t *testing.T) {
 	_, err := Pre(`
 		req.headers["X-Timestamp"] = os.time()
 		req.body = "hello"
-	`, req, nil)
+	`, req, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestPreEnvsAvailable(t *testing.T) {
 	req := &collection.Request{URL: "https://{{host}}/things"}
 	vars, err := Pre(`
 		return { resolved = env["host"] }
-	`, req, map[string]string{"host": "api.test"})
+	`, req, map[string]string{"host": "api.test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,14 +55,41 @@ func TestPreEnvsAvailable(t *testing.T) {
 
 func TestPreBlocksDangerousLibs(t *testing.T) {
 	req := &collection.Request{URL: "https://api.test"}
-	_, err := Pre(`os.execute("rm -rf /")`, req, nil)
+	_, err := Pre(`os.execute("rm -rf /")`, req, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for dangerous os.execute")
 	}
 }
 
+func TestStoreGetSet(t *testing.T) {
+	req := &collection.Request{URL: "https://api.test"}
+	store := map[string]string{"token": "seed"}
+	if _, err := Pre(`
+		store.set("other", "xyz")
+		if store.get("token") ~= "seed" then
+			error("expected seed token")
+		end
+	`, req, nil, store); err != nil {
+		t.Fatal(err)
+	}
+	if store["other"] != "xyz" {
+		t.Errorf("store.set did not persist: %v", store)
+	}
+
+	msg, err := Post(`
+		store.set("session", "abc")
+		return true
+	`, req, nil, store, "200 OK", 200, nil, "")
+	if err != nil || msg != "" {
+		t.Fatalf("post: %q %v", msg, err)
+	}
+	if store["session"] != "abc" {
+		t.Errorf("post store.set did not persist: %v", store)
+	}
+}
+
 func TestPostPasses(t *testing.T) {
-	msg, err := Post(`return response.status_code == 201`, &collection.Request{}, nil,
+	msg, err := Post(`return response.status_code == 201`, &collection.Request{}, nil, nil,
 		"201 Created", 201, nil, "")
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +100,7 @@ func TestPostPasses(t *testing.T) {
 }
 
 func TestPostFails(t *testing.T) {
-	msg, err := Post(`return response.status_code == 200`, &collection.Request{}, nil,
+	msg, err := Post(`return response.status_code == 200`, &collection.Request{}, nil, nil,
 		"500 Internal", 500, nil, "")
 	if err != nil {
 		t.Fatal(err)
@@ -89,11 +116,28 @@ func TestPostSeesBody(t *testing.T) {
 			return "body contains error"
 		end
 		return true
-	`, &collection.Request{}, nil, "200 OK", 200, nil, `{"error": "boom"}`)
+	`, &collection.Request{}, nil, nil, "200 OK", 200, nil, `{"error": "boom"}`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if msg == "" {
 		t.Error("expected failure for error body")
+	}
+}
+
+func TestPostWritesStoreEvenOnFailure(t *testing.T) {
+	store := map[string]string{}
+	msg, err := Post(`
+		store.set("extracted", "yes")
+		return false
+	`, &collection.Request{}, nil, store, "500 Internal", 500, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg == "" {
+		t.Error("expected failure message")
+	}
+	if store["extracted"] != "yes" {
+		t.Errorf("expected extraction to persist despite failure: %v", store)
 	}
 }

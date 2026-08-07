@@ -8,15 +8,34 @@ import (
 	"postgo/internal/collection"
 )
 
-// setup populates the sandbox globals for a hook: env (active vars) and
-// req (a table mirroring the request). When res is non-nil it is exposed
-// as the response table for post hooks.
-func setup(ls *lua.LState, req *collection.Request, vars map[string]string, res *lua.LTable) {
+// setup populates the sandbox globals for a hook: env (active vars), req
+// (a table mirroring the request), and store (get/set functions reading
+// and writing the given map — mutations are written back in place). When
+// res is non-nil it is exposed as the response table for post hooks.
+func setup(ls *lua.LState, req *collection.Request, vars map[string]string, store map[string]string, res *lua.LTable) {
 	env := ls.NewTable()
 	for k, v := range vars {
 		env.RawSetString(k, lua.LString(v))
 	}
 	ls.SetGlobal("env", env)
+
+	storeTbl := ls.NewTable()
+	ls.SetField(storeTbl, "get", ls.NewFunction(func(L *lua.LState) int {
+		key := L.CheckString(1)
+		if v, ok := store[key]; ok {
+			L.Push(lua.LString(v))
+		} else {
+			L.Push(lua.LNil)
+		}
+		return 1
+	}))
+	ls.SetField(storeTbl, "set", ls.NewFunction(func(L *lua.LState) int {
+		key := L.CheckString(1)
+		val := L.CheckString(2)
+		store[key] = val
+		return 0
+	}))
+	ls.SetGlobal("store", storeTbl)
 
 	reqTbl := ls.NewTable()
 	reqTbl.RawSetString("method", lua.LString(req.Method))

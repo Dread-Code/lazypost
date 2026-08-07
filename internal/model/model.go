@@ -14,8 +14,14 @@ import (
 	"postgo/internal/ui"
 )
 
-type responseMsg struct{ res *httpclient.Response }
-type errMsg struct{ err error }
+type responseMsg struct {
+	res   *httpclient.Response
+	store map[string]string // post-hook store writes to merge
+}
+type errMsg struct {
+	err   error
+	store map[string]string // store writes even when the send fails
+}
 
 type Model struct {
 	dir      string
@@ -53,6 +59,10 @@ type Model struct {
 	envs     map[string]map[string]string
 	envNames []string
 	envIdx   int // 0 = none
+
+	// store holds values chained between requests by script hooks
+	// ([[Design - request chaining store]]); memory-only per session.
+	store map[string]string
 
 	state session.State
 
@@ -127,10 +137,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case responseMsg:
 		m.response.SetResponse(msg.res)
+		m.store = mergeVars(m.store, msg.store)
 		return m, nil
 
 	case errMsg:
 		m.response.SetError(msg.err)
+		m.store = mergeVars(m.store, msg.store)
 		return m, nil
 
 	case spinner.TickMsg:

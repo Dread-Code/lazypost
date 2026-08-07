@@ -49,15 +49,16 @@ func run(ls *lua.LState, ctx context.Context, src string) (lua.LValue, error) {
 	return ls.Get(-1), nil
 }
 
-// Pre evaluates a pre-request hook. The hook sees req as a Lua table and
-// env as its active vars; it may mutate req's headers/query/body (on the
-// copy passed in — the caller owns it) or return a table of vars that
-// get merged into interpolation. It applies any mutations back to req and
-// returns the extra vars map.
-func Pre(src string, req *collection.Request, vars map[string]string) (map[string]string, error) {
+// Pre evaluates a pre-request hook. The hook sees req as a Lua table, env
+// as its active vars, and store as a get/set table over the given map
+// (mutations write back in place). It may mutate req's headers/query/body
+// (on the copy passed in — the caller owns it) or return a table of vars
+// that get merged into interpolation. It applies any mutations back to
+// req and returns the extra vars map.
+func Pre(src string, req *collection.Request, vars, store map[string]string) (map[string]string, error) {
 	ls := newState()
 	defer ls.Close()
-	setup(ls, req, vars, nil)
+	setup(ls, req, vars, store, nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -115,12 +116,13 @@ func tableParams(v lua.LValue) []collection.Param {
 
 // Post evaluates a post-request hook against the response. It returns ""
 // on pass, or a non-empty message when the hook returned falsy or an
-// error string.
-func Post(src string, req *collection.Request, vars map[string]string, statusText string, statusCode int, headers map[string][]string, body string) (string, error) {
+// error string. Store mutations made by the hook are applied to store in
+// place.
+func Post(src string, req *collection.Request, vars, store map[string]string, statusText string, statusCode int, headers map[string][]string, body string) (string, error) {
 	ls := newState()
 	defer ls.Close()
 	body = truncate(body, maxPostBody)
-	setup(ls, req, vars, responseTable(ls, statusText, statusCode, headers, body))
+	setup(ls, req, vars, store, responseTable(ls, statusText, statusCode, headers, body))
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
