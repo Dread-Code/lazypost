@@ -105,7 +105,7 @@ func Load(root string) ([]Entry, error) {
 			if d.Name() == environmentsDir {
 				return filepath.SkipDir
 			}
-			entries = append(entries, Entry{Kind: Dir, Name: d.Name(), Depth: depth})
+			entries = append(entries, Entry{Kind: Dir, Name: d.Name(), Depth: depth, Path: path})
 			return nil
 		}
 		if !isYAML(path) {

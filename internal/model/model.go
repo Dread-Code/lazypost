@@ -131,6 +131,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q":
 			return m, tea.Quit
 		case "enter":
+			// enter on a directory collapses/expands it; on a request it loads
+			if m.sidebar.ToggleCollapsed() {
+				return m, nil
+			}
 			if e := m.sidebar.Selected(); e != nil {
 				m.urlbar.SetRequest(e.Req.Method, e.Req.URL)
 				return m, tea.Batch(m.editor.SetRequest(e.Req, e.Path), m.enter(pBar))

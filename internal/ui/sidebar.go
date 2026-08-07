@@ -75,15 +75,17 @@ func pad(s string, n int) string {
 }
 
 type Sidebar struct {
-	list    list.Model
-	entries []collection.Entry
+	list      list.Model
+	entries   []collection.Entry
+	collapsed map[string]bool
 }
 
 // NewSidebar builds a dumb tree view: filtering, help, pagination, status
 // bar, and quit keys are all disabled — the collection pane only
-// navigates and selects.
+// navigates and selects. Directories can be collapsed with enter; the set
+// of collapsed paths starts empty.
 func NewSidebar(entries []collection.Entry, width, height int) *Sidebar {
-	s := &Sidebar{entries: entries}
+	s := &Sidebar{entries: entries, collapsed: make(map[string]bool)}
 	s.list = list.New(s.items(), delegate{}, width, height)
 	s.list.SetShowTitle(false)
 	s.list.SetShowFilter(false)
@@ -96,12 +98,45 @@ func NewSidebar(entries []collection.Entry, width, height int) *Sidebar {
 	return s
 }
 
+// items returns the visible entries as list items: anything under a
+// collapsed directory is skipped, so collapsing hides a whole subtree.
 func (s *Sidebar) items() []list.Item {
 	items := make([]list.Item, 0, len(s.entries))
 	for _, e := range s.entries {
+		if s.hidden(e) {
+			continue
+		}
 		items = append(items, item{entry: e})
 	}
 	return items
+}
+
+// hidden reports whether e lives under a collapsed directory. Dirs
+// themselves stay visible so they can be re-expanded.
+func (s *Sidebar) hidden(e collection.Entry) bool {
+	for p := range s.collapsed {
+		if p != e.Path && strings.HasPrefix(e.Path, p+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// ToggleCollapsed collapses/expands the directory under the cursor. It
+// returns false when the cursor isn't on a directory (caller treats that
+// as "load request").
+func (s *Sidebar) ToggleCollapsed() bool {
+	it, ok := s.list.SelectedItem().(item)
+	if !ok || it.entry.Kind != collection.Dir {
+		return false
+	}
+	path := it.entry.Path
+	s.collapsed[path] = !s.collapsed[path]
+	if !s.collapsed[path] {
+		delete(s.collapsed, path)
+	}
+	_ = s.list.SetItems(s.items())
+	return true
 }
 
 func (s *Sidebar) SetEntries(entries []collection.Entry) {
