@@ -54,7 +54,7 @@ Requires Go 1.23+.
 | `ctrl+/`       | open the command palette                     |
 | `ctrl+g`       | copy current request as curl (clipboard)      |
 | paste `curl …` | import a curl command (URL bar)               |
-| `enter`        | load highlighted request (collection pane) / send (URL bar) |
+| `enter`        | load highlighted request / toggle folder (collection pane) / send (URL bar) |
 | `esc`          | leave the URL bar                             |
 | `n`            | new request (collection pane)                 |
 | `ctrl+n`/`ctrl+p` | move between headers / body / auth         |
