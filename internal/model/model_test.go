@@ -120,6 +120,30 @@ func TestBarEnterSendsAndEscReturns(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+func TestPasteCurlImportAndExport(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "Collection", 3*time.Second)
+
+	// jump to the URL bar, paste a curl command — it is imported
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlL})
+	tm.Send(tea.KeyMsg{
+		Type:  tea.KeyRunes,
+		Runes: []rune(`curl -X POST -H 'X-Token: abc' -d '{"a":1}' https://api.test/things`),
+		Paste: true,
+	})
+	w.waitFor(t, "https://api.test/things", 3*time.Second)
+	w.waitFor(t, "imported curl request", 3*time.Second)
+
+	// ctrl+g exports the current request as curl to the clipboard
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlG})
+	w.waitFor(t, "curl copied to clipboard", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestCycleEnvironment(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}

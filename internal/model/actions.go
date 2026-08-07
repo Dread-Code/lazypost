@@ -1,9 +1,12 @@
 package model
 
 import (
+	"encoding/base64"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"postgo/internal/collection"
+	"postgo/internal/curl"
 	"postgo/internal/httpclient"
 )
 
@@ -64,6 +67,35 @@ func (m *Model) cycleEnv() {
 	} else {
 		m.setNotice("environment: none", false)
 	}
+}
+
+// importCurl parses a pasted curl command into the bar and editor,
+// replacing whatever was there ([[Design - curl import export]]).
+func (m *Model) importCurl(text string) (tea.Model, tea.Cmd) {
+	req, err := curl.Parse(text)
+	if err != nil {
+		m.setNotice("curl import failed: "+err.Error(), true)
+		return m, nil
+	}
+	m.urlbar.SetRequest(req.Method, req.URL)
+	m.editor.SetRequest(req, "")
+	m.setNotice("imported curl request", false)
+	return m, nil
+}
+
+// exportCurl writes the current request as a curl one-liner to the
+// clipboard via OSC52. Raw {{vars}} are preserved, not interpolated.
+func (m *Model) exportCurl() (tea.Model, tea.Cmd) {
+	req := m.editor.Request()
+	req.Method = m.urlbar.Method()
+	req.URL = m.urlbar.URL()
+	if req.URL == "" {
+		m.setNotice("nothing to export: URL is empty", true)
+		return m, nil
+	}
+	m.setNotice("curl copied to clipboard", false)
+	seq := "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(curl.Format(*req))) + "\a"
+	return m, tea.Printf("%s", seq)
 }
 
 func (m *Model) setNotice(s string, isError bool) {

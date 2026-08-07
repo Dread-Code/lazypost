@@ -1,6 +1,8 @@
 package model
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -36,6 +38,7 @@ type Model struct {
 	keyTab      key.Binding
 	keyShiftTab key.Binding
 	keyCtrlL    key.Binding
+	keyCtrlG    key.Binding
 	keyEnter    key.Binding
 }
 
@@ -53,6 +56,7 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.keyTab = key.NewBinding(key.WithKeys("tab"))
 	m.keyShiftTab = key.NewBinding(key.WithKeys("shift+tab"))
 	m.keyCtrlL = key.NewBinding(key.WithKeys("ctrl+l"))
+	m.keyCtrlG = key.NewBinding(key.WithKeys("ctrl+g"))
 	m.keyEnter = key.NewBinding(key.WithKeys("enter"))
 	return m
 }
@@ -103,6 +107,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cycleEnv()
 		return m, nil
 
+	case key.Matches(km, m.keyCtrlG):
+		return m.exportCurl()
+
 	case key.Matches(km, m.keyCtrlL):
 		return m, m.enter(pBar)
 
@@ -139,6 +146,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.send()
 		case km.Type == tea.KeyEsc:
 			return m, m.enter(m.prevFocus)
+		case km.Paste:
+			// a pasted curl command is imported; other pastes insert
+			if text := strings.TrimSpace(string(km.Runes)); strings.HasPrefix(text, "curl ") || text == "curl" {
+				return m.importCurl(text)
+			}
 		}
 		var cmd tea.Cmd
 		m.urlbar, cmd = m.urlbar.Update(msg)

@@ -115,7 +115,7 @@ func (m Model) statusBar() string {
 	case pSidebar:
 		help = "↑↓ navigate · enter load · n new · ctrl+e env · ctrl+l url · tab panes · ctrl+r send · q quit"
 	case pBar:
-		help = "ctrl+t method · enter send · esc back · tab panes · ctrl+r send"
+		help = "ctrl+t method · enter send · esc back · paste curl to import · ctrl+g export curl · ctrl+r send"
 	case pEditor:
 		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+s save · ctrl+r send"
 	case pResponse:
