@@ -46,7 +46,7 @@ Requires Go 1.23+.
 
 | Key            | Action                                        |
 | -------------- | --------------------------------------------- |
-| `tab`/`shift+tab` | switch panes (collection / URL bar / request / response) |
+| `tab`/`shift+tab` | switch panes (collection / request / response; the URL bar is reached with `ctrl+l` or `enter` on a request) |
 | `ctrl+r`       | send request                                  |
 | `ctrl+s`       | save request to collection                    |
 | `ctrl+e`       | cycle environment                             |
