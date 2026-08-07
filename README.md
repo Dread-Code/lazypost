@@ -57,6 +57,7 @@ Requires Go 1.23+.
 | `enter`        | load request / toggle folder or all folders on the collection root (collection pane) / send (URL bar) |
 | `esc`          | leave the URL bar                             |
 | `n`            | new request (collection pane)                 |
+| `a`            | add a request in the highlighted folder (collection pane) |
 | `ctrl+n`/`ctrl+p` | move between headers / body / auth         |
 | `alt+←`/`alt+→` | switch headers / body / auth tabs            |
 | `ctrl+t`       | cycle HTTP method (URL bar) or auth type      |
