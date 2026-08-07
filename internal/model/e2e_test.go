@@ -44,6 +44,8 @@ func TestSendRequestEndToEnd(t *testing.T) {
 
 	w.waitFor(t, "e2e", 3*time.Second)
 
+	// the sidebar now leads with the collection root; move to the request
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, srv.URL+"/ping", 3*time.Second)
 

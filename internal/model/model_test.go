@@ -70,6 +70,7 @@ func TestLoadRequestIntoEditor(t *testing.T) {
 	w.waitFor(t, "quotes by author", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
 	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
@@ -84,6 +85,7 @@ func TestSectionNavigation(t *testing.T) {
 
 	// enter loads the request and focuses the URL bar
 	w.waitFor(t, "quotes by author", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
@@ -105,6 +107,7 @@ func TestQueryTab(t *testing.T) {
 
 	w.waitFor(t, "quotes by author", 3*time.Second)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
 
@@ -122,6 +125,7 @@ func TestBarEnterSendsAndEscReturns(t *testing.T) {
 	w := &watcher{r: tm.Output()}
 
 	w.waitFor(t, "quotes by author", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)

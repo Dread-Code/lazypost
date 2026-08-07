@@ -52,7 +52,7 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 		envs:     envs,
 		envNames: envNames,
 	}
-	m.sidebar = ui.NewSidebar(entries, 30, 20)
+	m.sidebar = ui.NewSidebar(entries, dir, 30, 20)
 	m.urlbar = ui.NewURLBar(80)
 	m.editor = ui.NewEditor(60, 15)
 	m.response = ui.NewResponse(60, 15)
