@@ -60,8 +60,8 @@ Requires Go 1.23+.
 | `a`            | add a request in the highlighted folder; lead with `/` to create a folder (collection pane) |
 | `d`            | delete the highlighted request/folder (confirm with `y`, cancel with `n`) |
 | `r`            | rename the highlighted request (collection pane)   |
-| `ctrl+n`/`ctrl+p` | move between headers / body / auth         |
-| `alt+←`/`alt+→` | switch headers / body / auth tabs            |
+| `ctrl+n`/`ctrl+p` | move between query / headers / body / auth / scripts |
+| `alt+←`/`alt+→` | switch query / headers / body / auth / scripts tabs |
 | `ctrl+t`       | cycle HTTP method (URL bar) or auth type      |
 | `b` / `h`      | body / headers tab (response pane)            |
 | `q`            | quit (collection or response pane)            |
@@ -118,5 +118,5 @@ go test ./...
 
 - command palette & jump mode
 - themes & custom keymaps
-- pre/post-request scripting
-- query params editor, cookies & trace tabs
+- shared collection scripts & request chaining
+- cookies & trace tabs

@@ -18,25 +18,26 @@ const (
 	SecHeaders
 	SecBody
 	SecAuth
+	SecScripts
 )
 
-var sectionTabs = []string{"Query", "Headers", "Body", "Auth"}
+var sectionTabs = []string{"Query", "Headers", "Body", "Auth", "Scripts"}
 
 type Editor struct {
 	query   textarea.Model
 	headers textarea.Model
 	body    textarea.Model
 	auth    AuthEditor
+	pre     textarea.Model
+	post    textarea.Model
 	section Section
+	// field selects which script textarea (0=pre, 1=post) has focus
+	field   int
 	focused bool
 
 	activePath string
-	// pre/post are opaque Lua hook sources ([[Design - scripting hooks]]).
-	// They have no UI section yet — carried verbatim between load and save.
-	pre    string
-	post   string
-	width  int
-	height int
+	width      int
+	height     int
 }
 
 // NewEditor builds the four-section editor. Method and URL are not
@@ -62,6 +63,18 @@ func NewEditor(width, height int) *Editor {
 	e.body.ShowLineNumbers = true
 	e.body.CharLimit = -1
 
+	e.pre = textarea.New()
+	e.pre.Placeholder = "-- runs before the request"
+	e.pre.Prompt = ""
+	e.pre.ShowLineNumbers = true
+	e.pre.CharLimit = -1
+
+	e.post = textarea.New()
+	e.post.Placeholder = "-- runs after the response"
+	e.post.Prompt = ""
+	e.post.ShowLineNumbers = true
+	e.post.CharLimit = -1
+
 	e.auth = NewAuthEditor()
 	e.resize()
 	return e
@@ -75,15 +88,24 @@ func (e *Editor) resize() {
 	e.query.SetWidth(inner)
 	e.headers.SetWidth(inner)
 	e.body.SetWidth(inner)
+	e.pre.SetWidth(inner)
+	e.post.SetWidth(inner)
 	e.auth.SetWidth(inner)
 
 	contentH := e.height - 1 // tab row
 	if contentH < 1 {
 		contentH = 1
 	}
+	// the Scripts tab shows one hook at a time below a toggle row
+	scriptH := contentH - 1
+	if scriptH < 1 {
+		scriptH = 1
+	}
 	e.query.SetHeight(contentH)
 	e.headers.SetHeight(contentH)
 	e.body.SetHeight(contentH)
+	e.pre.SetHeight(scriptH)
+	e.post.SetHeight(scriptH)
 	e.auth.SetHeight(contentH)
 }
 
@@ -102,6 +124,8 @@ func (e *Editor) Blur() {
 	e.query.Blur()
 	e.headers.Blur()
 	e.body.Blur()
+	e.pre.Blur()
+	e.post.Blur()
 	e.auth.Blur()
 }
 
@@ -109,6 +133,8 @@ func (e *Editor) focusSection() tea.Cmd {
 	e.query.Blur()
 	e.headers.Blur()
 	e.body.Blur()
+	e.pre.Blur()
+	e.post.Blur()
 	e.auth.Blur()
 	switch e.section {
 	case SecQuery:
@@ -119,6 +145,11 @@ func (e *Editor) focusSection() tea.Cmd {
 		return e.body.Focus()
 	case SecAuth:
 		return e.auth.Focus()
+	case SecScripts:
+		if e.field == 1 {
+			return e.post.Focus()
+		}
+		return e.pre.Focus()
 	}
 	return nil
 }
@@ -129,18 +160,24 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 	}
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch {
-		// ctrl+n/p and alt+arrows all cycle across the four tabs
-		// (sections == tabs since URL left the editor in ADR-0010)
+		// ctrl+n/p and alt+arrows cycle the tabs (sections == tabs since
+		// URL left the editor in ADR-0010)
 		case key.Matches(km, keySectionNext) || key.Matches(km, keyAltRight):
-			e.section = Section((int(e.section) + 1) % 4)
+			e.section = Section((int(e.section) + 1) % len(sectionTabs))
 			return e, e.focusSection()
 		case key.Matches(km, keySectionPrev) || key.Matches(km, keyAltLeft):
-			e.section = Section((int(e.section) + 3) % 4)
+			e.section = Section((int(e.section) - 1 + len(sectionTabs)) % len(sectionTabs))
 			return e, e.focusSection()
 		case key.Matches(km, keyCtrlT):
-			if e.section == SecAuth {
+			switch e.section {
+			case SecAuth:
 				e.auth.CycleType(1)
 				return e, nil
+			case SecScripts:
+				// ctrl+t toggles which hook (pre/post) is edited, like the
+				// auth type row
+				e.field = (e.field + 1) % 2
+				return e, e.focusSection()
 			}
 		}
 	}
@@ -153,6 +190,12 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 		e.headers, cmd = e.headers.Update(msg)
 	case SecBody:
 		e.body, cmd = e.body.Update(msg)
+	case SecScripts:
+		if e.field == 1 {
+			e.post, cmd = e.post.Update(msg)
+		} else {
+			e.pre, cmd = e.pre.Update(msg)
+		}
 	case SecAuth:
 		cmd = e.auth.Update(msg)
 	}
@@ -170,11 +213,35 @@ func (e *Editor) View() string {
 		content = e.headers.View()
 	case SecBody:
 		content = e.body.View()
+	case SecScripts:
+		content = e.scriptsView()
 	case SecAuth:
 		content = e.auth.View()
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, tabRow, content)
+}
+
+// scriptsView renders a pre/post toggle row (like the auth type row) with
+// only the focused script's textarea below it.
+func (e *Editor) scriptsView() string {
+	var toggles []string
+	for i, name := range []string{"pre", "post"} {
+		if e.field == i {
+			toggles = append(toggles, ActiveTabStyle.Render(name))
+		} else {
+			toggles = append(toggles, TabStyle.Render(name))
+		}
+	}
+	toggleRow := HintStyle.Render("hook ") + strings.Join(toggles, "")
+
+	var content string
+	if e.field == 1 {
+		content = e.post.View()
+	} else {
+		content = e.pre.View()
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, toggleRow, content)
 }
 
 // Request builds a collection.Request from the editor state. Method and
@@ -186,8 +253,8 @@ func (e *Editor) Request() *collection.Request {
 		Headers: parseHeaders(e.headers.Value()),
 		Auth:    e.auth.Auth(),
 		Body:    e.body.Value(),
-		Pre:     e.pre,
-		Post:    e.post,
+		Pre:     e.pre.Value(),
+		Post:    e.post.Value(),
 	}
 }
 
@@ -246,8 +313,8 @@ func parseParams(s string) []collection.Param {
 // requests. Focus is decided by the caller; widgets are blurred here.
 func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 	e.activePath = path
-	e.pre = req.Pre
-	e.post = req.Post
+	e.pre.SetValue(req.Pre)
+	e.post.SetValue(req.Post)
 
 	var qb strings.Builder
 	for _, p := range req.Query {
@@ -271,8 +338,8 @@ func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 // New resets the editor to a blank request.
 func (e *Editor) New() tea.Cmd {
 	e.activePath = ""
-	e.pre = ""
-	e.post = ""
+	e.pre.SetValue("")
+	e.post.SetValue("")
 	e.query.SetValue("")
 	e.headers.SetValue("")
 	e.body.SetValue("")
