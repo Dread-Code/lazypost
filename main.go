@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -14,13 +15,11 @@ import (
 )
 
 func main() {
-	dir := flag.String("dir", "", "collection directory (default: ./sample-collections or ./collections)")
+	dir := flag.String("dir", "", "collection directory (default: ./sample-collections, ./collections, or the current directory)")
 	flag.Parse()
 
-	root := *dir
-	if root == "" {
-		root = defaultDir()
-	}
+	root := resolveRoot(*dir)
+	root = canonicalRoot(root)
 
 	// Load the collection tree and environments once, up front; the
 	// model treats them as immutable snapshots.
@@ -51,13 +50,29 @@ func main() {
 	}
 }
 
-// defaultDir picks the first existing collection directory; falls back
-// to "collections" so a fresh clone still starts cleanly.
-func defaultDir() string {
+// resolveRoot picks the collection directory. An explicit -dir wins; a
+// bare launch prefers ./sample-collections or ./collections (the repo's
+// own layout), otherwise the current directory is the collection — even
+// when it is empty ([[Design - open the current directory as a
+// collection]]).
+func resolveRoot(dir string) string {
+	if dir != "" {
+		return dir
+	}
 	for _, d := range []string{"sample-collections", "collections"} {
 		if info, err := os.Stat(d); err == nil && info.IsDir() {
 			return d
 		}
 	}
-	return "collections"
+	return "."
+}
+
+// canonicalRoot makes the root absolute so session state (keyed by the
+// cleaned root path) is unique per collection, even when it was opened
+// via the current directory.
+func canonicalRoot(root string) string {
+	if abs, err := filepath.Abs(root); err == nil {
+		return abs
+	}
+	return root
 }

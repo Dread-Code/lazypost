@@ -3,6 +3,7 @@ package collection
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -91,6 +92,43 @@ func TestLoadTree(t *testing.T) {
 	}
 	if entries[5].Kind != Req || entries[5].Name != "get" || entries[5].Req.Method != "GET" {
 		t.Errorf("entries[5] = %+v (default method should be GET, name from filename)", entries[5])
+	}
+}
+
+func TestLoadSkipsHiddenEntries(t *testing.T) {
+	root := t.TempDir()
+	mustWrite := func(rel, content string) {
+		t.Helper()
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustWrite("app.yaml", "name: app\nmethod: GET\nurl: https://x.test\n")
+	mustWrite(".git/config", "git stuff")
+	mustWrite(".git/hooks/x", "")
+	mustWrite("node_modules/pkg/index.yaml", "name: from node_modules\nmethod: GET\nurl: https://x.test/n\n")
+	mustWrite(".hidden.yaml", "name: hidden\nmethod: GET\nurl: https://x.test/h\n")
+
+	entries, err := Load(root)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	// .git and .hidden.yaml are skipped; node_modules is a real (non-dot)
+	// directory and stays
+	if len(entries) != 4 {
+		t.Fatalf("expected 4 entries, got %d: %+v", len(entries), entries)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name, ".") || strings.Contains(e.Path, ".git") {
+			t.Errorf("hidden entry leaked through: %+v", e)
+		}
+	}
+	if entries[0].Name != "app" {
+		t.Errorf("entries[0] = %+v", entries[0])
 	}
 }
 

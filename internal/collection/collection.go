@@ -104,6 +104,16 @@ func Load(root string) ([]Entry, error) {
 			return err
 		}
 		depth := strings.Count(rel, string(filepath.Separator))
+		// hidden entries (.git, .DS_Store, node_modules, …) are not part
+		// of a collection — important when the root is the current
+		// directory ([[Design - open the current directory as a
+		// collection]])
+		if strings.HasPrefix(d.Name(), ".") {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if d.IsDir() {
 			// environments/ holds variable sets, not requests — skip it
 			if d.Name() == environmentsDir {

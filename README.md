@@ -43,7 +43,7 @@ Requires Go 1.25+.
 ## Run
 
 ```sh
-./lazypost                    # uses ./sample-collections if present
+./lazypost                    # uses ./sample-collections or ./collections if present, else the current directory (a void dir starts an empty collection)
 ./lazypost -dir my-collection # or point at your own collection directory
 ```
 
