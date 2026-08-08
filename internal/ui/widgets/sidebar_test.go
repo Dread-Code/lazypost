@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"lazypost/internal/collection"
 )
 
@@ -69,5 +71,49 @@ func TestSidebarToggleCollapse(t *testing.T) {
 	}
 	if got := view(); !strings.Contains(got, "list") || !strings.Contains(got, "detail") {
 		t.Errorf("expected authors subtree back after re-expand:\n%s", got)
+	}
+}
+
+func TestSidebarCtrlNPnMovesCursor(t *testing.T) {
+	entries := []collection.Entry{
+		{Kind: collection.Dir, Name: "authors", Depth: 0, Path: "col/authors"},
+		{Kind: collection.Req, Name: "list", Depth: 1, Path: "col/authors/list.yaml", Req: &collection.Request{Method: "GET"}},
+		{Kind: collection.Req, Name: "detail", Depth: 1, Path: "col/authors/detail.yaml", Req: &collection.Request{Method: "GET"}},
+	}
+	s := NewSidebar(entries, "col", 40, 20)
+
+	// cursor starts on the collection root (index 0)
+	if e := s.Selected(); e != nil {
+		t.Fatalf("expected root selection (no request), got %q", e.Name)
+	}
+
+	// ctrl+n moves down: first onto the authors dir (not a request)
+	s.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	if s.Selected() != nil {
+		t.Errorf("after ctrl+n expected the authors dir, got %v", s.Selected())
+	}
+
+	// next ctrl+n lands on the first request
+	s.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	if e := s.Selected(); e == nil || e.Name != "list" {
+		t.Errorf("after second ctrl+n selected %v, want list", e)
+	}
+
+	// ctrl+n again moves further down
+	s.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	if e := s.Selected(); e == nil || e.Name != "detail" {
+		t.Errorf("after third ctrl+n selected %v, want detail", e)
+	}
+
+	// ctrl+p moves back up
+	s.Update(tea.KeyMsg{Type: tea.KeyCtrlP})
+	if e := s.Selected(); e == nil || e.Name != "list" {
+		t.Errorf("after ctrl+p selected %v, want list", e)
+	}
+
+	// arrows still work alongside
+	s.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if s.Selected() != nil {
+		t.Errorf("after up selected %v, want the authors dir", s.Selected())
 	}
 }

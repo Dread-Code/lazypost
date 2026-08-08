@@ -99,8 +99,8 @@ func TestNavigationLoadsRequest(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
 
-	// the next arrow loads the next request with no Enter either
-	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	// ctrl+n moves the sidebar cursor too, and loads just the same
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN})
 	w.waitFor(t, "{{host}}/api/authors/{{api_key}}", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})

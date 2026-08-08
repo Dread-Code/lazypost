@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -251,6 +252,19 @@ func (s *Sidebar) Resize(width, height int) {
 }
 
 func (s *Sidebar) Update(msg tea.Msg) (*Sidebar, tea.Cmd) {
+	if km, ok := msg.(tea.KeyMsg); ok {
+		// ctrl+n/p move the cursor like the arrows, mirroring the
+		// palette; the root model's selection-change check then loads
+		// the newly selected request
+		switch {
+		case key.Matches(km, keySectionNext):
+			s.list.CursorDown()
+			return s, nil
+		case key.Matches(km, keySectionPrev):
+			s.list.CursorUp()
+			return s, nil
+		}
+	}
 	var cmd tea.Cmd
 	s.list, cmd = s.list.Update(msg)
 	return s, cmd
