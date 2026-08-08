@@ -51,10 +51,11 @@ func helpContent() string {
 	}
 	var b strings.Builder
 	fmt.Fprintln(&b, header("Global"))
-	fmt.Fprintln(&b, row("ctrl+/", "command palette", "ctrl+r", "send request"))
-	fmt.Fprintln(&b, row("ctrl+h", "request history", "ctrl+s", "save request"))
-	fmt.Fprintln(&b, row("ctrl+e", "cycle environment", "ctrl+l", "jump to URL bar"))
-	fmt.Fprintln(&b, row("ctrl+g", "export as curl", "tab", "switch panes"))
+	fmt.Fprintln(&b, row("ctrl+/", "command palette", "?", "keybindings panel"))
+	fmt.Fprintln(&b, row("ctrl+h", "request history", "ctrl+r", "send request"))
+	fmt.Fprintln(&b, row("ctrl+e", "cycle environment", "ctrl+s", "save request"))
+	fmt.Fprintln(&b, row("ctrl+l", "jump to URL bar", "ctrl+g", "export as curl"))
+	fmt.Fprintln(&b, row("tab", "switch panes", "", ""))
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, header("Collection · sidebar"))
 	fmt.Fprintln(&b, row("↑/↓ ctrl+n/p", "navigate + load", "enter", "url bar / toggle folder"))

@@ -20,6 +20,32 @@ func TestURLBarFocusMovesCursorToEnd(t *testing.T) {
 	}
 }
 
+// View must not mutate the widget's width — resize happens at the state
+// change points (Resize/Focus/Blur/SetRequest), never while rendering.
+func TestURLBarViewIsPure(t *testing.T) {
+	u := NewURLBar(80)
+	u.SetRequest("GET", "https://api.test/things")
+
+	u.Resize(80)
+	u.Focus()
+	before := u.url.Width
+	u.View()
+	u.View()
+	if u.url.Width != before {
+		t.Errorf("View changed width: before %d, after %d", before, u.url.Width)
+	}
+
+	u.Blur()
+	blurW := u.url.Width
+	if blurW == before {
+		t.Errorf("Blur should widen the input (hint room released), got %d", blurW)
+	}
+	u.View()
+	if u.url.Width != blurW {
+		t.Errorf("View changed width after blur: %d != %d", u.url.Width, blurW)
+	}
+}
+
 func TestURLBarBlank(t *testing.T) {
 	u := NewURLBar(80)
 	if u.URL() != "" {

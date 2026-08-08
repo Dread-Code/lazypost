@@ -28,7 +28,8 @@ func adaptive(light, dark string) lipgloss.AdaptiveColor {
 var DefaultTheme = Themes["dracula"]
 
 // Themes are the embedded presets. User themes (YAML in
-// ~/.config/lazypost/themes/) extend this map at runtime.
+// ~/.config/lazypost/themes/) are planned but not yet loaded — presets
+// only for now.
 var Themes = map[string]Theme{
 	"dracula": {
 		Name:    "dracula",
