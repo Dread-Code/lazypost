@@ -22,7 +22,7 @@ GET https://api.example.com/posts          ctrl+t method
 - **Request top bar** — method + URL always visible, reachable from any pane with `ctrl+l`; `enter` sends
 - **Request editor** — query params, headers, body, auth (none / basic / bearer / api key), and per-request Lua scripts (`pre`/`post` hooks)
 - **Scripting & chaining** — sandboxed Lua `pre`/`post` hooks per request share a session `store` (`store.get` / `store.set`), so one response can feed the next request
-- **Collections** — requests stored as readable, version-control-friendly YAML files in a directory tree; `enter` collapses folders, `a`/`d`/`r` add / delete / rename with confirmation
+- **Collections** — requests stored as readable, version-control-friendly YAML files in a directory tree; navigating the sidebar loads the selected request, `enter` collapses folders, `a`/`d`/`r` add / delete / rename with confirmation
 - **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from environment files
 - **Response viewer** — status/time/size summary, pretty-printed JSON, headers tab
 - **curl import/export** — paste a `curl` command into the URL bar to import it; `ctrl+g` copies the current request as curl
@@ -57,7 +57,7 @@ Requires Go 1.25+.
 | `ctrl+/`       | open the command palette                     |
 | `ctrl+g`       | copy current request as curl (clipboard)      |
 | paste `curl …` | import a curl command (URL bar)               |
-| `enter`        | load request / toggle folder or all folders on the collection root (collection pane) / send (URL bar) |
+| `enter`        | focus the URL bar / toggle folder or all folders on the collection root (collection pane) / send (URL bar); navigating with `↑`/`↓` loads the selected request into the URL bar and editor |
 | `esc`          | leave the URL bar                             |
 | `n`            | new request (collection pane)                 |
 | `a`            | add a request in the highlighted folder; lead with `/` to create a folder (collection pane) |
