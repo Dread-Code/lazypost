@@ -28,7 +28,7 @@ GET https://api.example.com/posts          ctrl+t method
 - **curl import/export** — paste a `curl` command into the URL bar to import it; `ctrl+g` copies the current request as curl
 - **Command palette** — `ctrl+/` to filter and run any action, incl. switching themes and managing environments
 - **Themes** — dracula / catppuccin / solarized presets, switched from the palette
-- **Session persistence** — active environment, last request, collapsed folders, and theme survive relaunch
+- **Session persistence** — active environment, last request, collapsed folders, active editor tab, and theme survive relaunch
 
 ## Install
 
