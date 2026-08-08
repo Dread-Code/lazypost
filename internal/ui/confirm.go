@@ -3,14 +3,14 @@ package ui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 // Confirm is a small yes/no modal, opened before destructive actions like
 // deleting a request or a folder. y/enter confirms, n/esc cancels. It
 // renders as a centered overlay like the palette; the model routes keys
-// to it while open.
+// to it while open. It is stateless between Ask calls — the model owns
+// the answer, so it has no Update.
 type Confirm struct {
 	label string
 }
@@ -23,8 +23,6 @@ func NewConfirm() *Confirm {
 func (c *Confirm) Ask(label string) {
 	c.label = sanitizeLabel(label)
 }
-
-func (c *Confirm) Update(msg tea.Msg) {}
 
 func (c *Confirm) View() string {
 	question := lipgloss.NewStyle().Bold(true).Foreground(ColorError).Render(c.label)
