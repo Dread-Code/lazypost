@@ -45,7 +45,9 @@ func helpContent() string {
 		return lipgloss.NewStyle().Bold(true).Foreground(ui.ColorInfo).Render(s)
 	}
 	row := func(k1, a1, k2, a2 string) string {
-		return "  " + key(pad(k1, 18)) + a1 + "    " + key(pad(k2, 18)) + a2
+		// both the key and the action columns are padded to fixed widths,
+		// so the second key column starts at the same offset on every row
+		return "  " + key(pad(k1, 18)) + pad(a1, 26) + "    " + key(pad(k2, 18)) + a2
 	}
 	var b strings.Builder
 	fmt.Fprintln(&b, header("Global"))
