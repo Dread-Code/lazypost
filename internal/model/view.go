@@ -11,13 +11,18 @@ import (
 	"postgo/internal/ui"
 )
 
-// layout recomputes pane geometry from the current terminal size. It
-// mirrors the arithmetic in View() so panes are sized and rendered from
-// the same numbers.
-func (m *Model) layout() {
-	if m.width < 10 || m.height < 6 {
-		return
-	}
+// geometry derives pane sizes from the terminal size. Both layout() and
+// View() use it so panes are sized and rendered from the same numbers
+// and the two can't drift.
+type geometry struct {
+	sidebarW int
+	rightW   int
+	contentH int
+	editorH  int
+	respH    int
+}
+
+func (m Model) geometry() geometry {
 	sidebarW := m.width / 4
 	if sidebarW < 24 {
 		sidebarW = 24
@@ -27,15 +32,27 @@ func (m *Model) layout() {
 	}
 	rightW := m.width - sidebarW - 1
 	contentH := m.height - 3 // title bar + URL bar + status bar
-
 	editorH := contentH * 55 / 100
-	respH := contentH - editorH
+	return geometry{
+		sidebarW: sidebarW,
+		rightW:   rightW,
+		contentH: contentH,
+		editorH:  editorH,
+		respH:    contentH - editorH,
+	}
+}
 
+// layout recomputes pane geometry from the current terminal size.
+func (m *Model) layout() {
+	if m.width < 10 || m.height < 6 {
+		return
+	}
+	g := m.geometry()
 	// -3 per pane: 2 border rows + 1 title row
 	m.urlbar.Resize(m.width)
-	m.sidebar.Resize(sidebarW-2, contentH-3)
-	m.editor.Resize(rightW-2, editorH-3)
-	m.response.Resize(rightW-2, respH-3)
+	m.sidebar.Resize(g.sidebarW-2, g.contentH-3)
+	m.editor.Resize(g.rightW-2, g.editorH-3)
+	m.response.Resize(g.rightW-2, g.respH-3)
 }
 
 // View assembles exactly terminal-height output; taller frames make the
@@ -45,17 +62,7 @@ func (m Model) View() string {
 		return "terminal too small — resize to use postgo"
 	}
 
-	sidebarW := m.width / 4
-	if sidebarW < 24 {
-		sidebarW = 24
-	}
-	if sidebarW > 40 {
-		sidebarW = 40
-	}
-	rightW := m.width - sidebarW - 1
-	contentH := m.height - 3
-	editorH := contentH * 55 / 100
-	respH := contentH - editorH
+	g := m.geometry()
 
 	title := lipgloss.JoinHorizontal(lipgloss.Left,
 		ui.TitleStyle.Render("postgo"),
@@ -81,36 +88,34 @@ func (m Model) View() string {
 		bar += strings.Repeat(" ", m.width-w)
 	}
 
-	sidebar := renderPane("Collection", m.sidebar.View(), m.focus == pSidebar, sidebarW, contentH, true)
+	sidebar := renderPane("Collection", m.sidebar.View(), m.focus == pSidebar, g.sidebarW, g.contentH, true)
 
 	reqTitle := "Request"
 	if p := m.editor.ActivePath(); p != "" {
 		reqTitle += " · " + rel(m.dir, p)
 	}
-	editor := renderPane(reqTitle, m.editor.View(), m.focus == pEditor, rightW, editorH, false)
+	editor := renderPane(reqTitle, m.editor.View(), m.focus == pEditor, g.rightW, g.editorH, false)
 
 	respTitle := "Response"
 	if s := m.response.StatusLine(); s != "" {
 		respTitle += " · " + s
 	}
-	response := renderPane(respTitle, m.response.View(), m.focus == pResponse, rightW, respH, false)
+	response := renderPane(respTitle, m.response.View(), m.focus == pResponse, g.rightW, g.respH, false)
 
 	right := lipgloss.JoinVertical(lipgloss.Left, editor, response)
 	content := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right)
 
 	status := m.statusBar()
 	frame := lipgloss.JoinVertical(lipgloss.Left, titleBar, bar, content, status)
-	if m.paletteOpen {
-		frame = overlayPalette(frame, m.palette.View(), m.width, m.height)
-	}
-	if m.envManagerOpen {
+	switch m.overlay {
+	case ovPalette:
+		frame = overlayPalette(frame, m.palette.widget.View(), m.width, m.height)
+	case ovEnv:
 		frame = overlayPalette(frame, m.envManagerView(), m.width, m.height)
-	}
-	if m.namerOpen {
-		frame = overlayPalette(frame, m.namer.View(), m.width, m.height)
-	}
-	if m.confirmOpen {
-		frame = overlayPalette(frame, m.confirm.View(), m.width, m.height)
+	case ovNamer:
+		frame = overlayPalette(frame, m.namer.widget.View(), m.width, m.height)
+	case ovConfirm:
+		frame = overlayPalette(frame, m.confirm.widget.View(), m.width, m.height)
 	}
 	return frame
 }

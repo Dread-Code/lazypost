@@ -1,0 +1,55 @@
+package model
+
+import (
+	tea "github.com/charmbracelet/bubbletea"
+
+	"postgo/internal/app"
+	"postgo/internal/httpclient"
+)
+
+// send composes the request (URL/method from the bar, the rest from the
+// editor), runs the whole pipeline — pre hook, HTTP call, post hook — off
+// the render loop, and shows the result. Results come back as responseMsg
+// or errMsg; both carry any store writes made by the hooks.
+func (m *Model) send() (tea.Model, tea.Cmd) {
+	req := m.editor.Request()
+	req.Method = m.urlbar.Method()
+	req.URL = m.urlbar.URL()
+	if req.URL == "" {
+		m.setNotice("URL is required", true)
+		return m, nil
+	}
+	m.setNotice("", false)
+	vars := m.activeVars()
+	store := cloneVars(m.store)
+
+	cmd := func() tea.Msg {
+		res, err := app.Send(httpclient.Exec, *req, vars, store)
+		if err != nil {
+			return errMsg{err: err, store: res.Store}
+		}
+		return responseMsg{res: res.Response, store: res.Store}
+	}
+	return m, tea.Batch(m.response.StartLoading(), cmd)
+}
+
+// cloneVars returns a shallow copy of vars (nil-safe).
+func cloneVars(vars map[string]string) map[string]string {
+	out := make(map[string]string, len(vars))
+	for k, v := range vars {
+		out[k] = v
+	}
+	return out
+}
+
+// mergeVars layers extra over base (extra wins).
+func mergeVars(base, extra map[string]string) map[string]string {
+	out := make(map[string]string, len(base)+len(extra))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range extra {
+		out[k] = v
+	}
+	return out
+}

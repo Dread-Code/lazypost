@@ -23,6 +23,50 @@ type errMsg struct {
 	store map[string]string // store writes even when the send fails
 }
 
+// overlay is which modal currently sits on top of the frame. At most one
+// overlay is open at a time; while open, every message routes to it
+// before the panes see anything.
+type overlay int
+
+const (
+	noOverlay overlay = iota
+	ovPalette
+	ovNamer
+	ovConfirm
+	ovEnv
+)
+
+// paletteState is the shared palette widget in all its modes: the command
+// palette, the theme picker (theme), and the environment manager
+// (envTab/envFiltering browse its variables).
+type paletteState struct {
+	widget       *ui.Palette
+	prev         pane // pane to restore when the overlay closes
+	theme        bool // palette is a theme picker instead of commands
+	envTab       int  // active environment index into envNames
+	envFiltering bool // "/" typed: letters filter instead of acting
+}
+
+// namerState is the name-input modal, used for new requests/folders
+// (dir/rename/old) and for key=value variable edits (envEdit/envNew).
+type namerState struct {
+	widget  *ui.Namer
+	dir     string // folder the new request will be created in
+	rename  bool   // renaming an existing request instead of creating one
+	old     string // path of the request being renamed
+	envEdit string // environment whose variables are being edited
+	envNew  bool   // "a" (add) instead of "r" (edit): a leading "/" creates an environment
+}
+
+// confirmState is the y/n modal for destructive actions: deleting a
+// request or folder (target) or a variable (env+key).
+type confirmState struct {
+	widget *ui.Confirm
+	target *collection.Entry // entry to delete if confirmed; kept as data (not a closure)
+	env    string            // environment whose variable is being deleted
+	key    string            // variable to delete
+}
+
 type Model struct {
 	dir      string
 	sidebar  *ui.Sidebar
@@ -33,44 +77,11 @@ type Model struct {
 	// prevFocus is where esc in the URL bar returns to
 	prevFocus pane
 
-	palette     *ui.Palette
-	paletteOpen bool
-	// palettePrev is the pane to restore when the palette closes
-	palettePrev pane
-	// paletteTheme makes the palette a theme picker instead of commands
-	paletteTheme bool
+	overlay overlay
 
-	// envManager is the palette repurposed as an environment tabbed
-	// variables editor ([[Design - environment manager modal]]). envTab is
-	// the active environment index into envNames. envFiltering is set by
-	// "/" so letters (a/r/d) filter instead of acting.
-	envManagerOpen bool
-	envTab         int
-	envFiltering   bool
-
-	namer     *ui.Namer
-	namerOpen bool
-	// namerDir is the folder the new request will be created in
-	namerDir string
-	// namerRename is set while renaming an existing request (instead of
-	// creating a new one); namerOld holds its path
-	namerRename bool
-	namerOld    string
-	// namerEnvEditVar is the environment whose variables are being edited
-	// via a key=value Namer ([[Design - environment manager modal]]);
-	// namerEnvNew is set for "a" (add) instead of "r" (edit), so a leading
-	// "/" can create a new environment rather than a variable
-	namerEnvEditVar string
-	namerEnvNew     bool
-
-	confirm     *ui.Confirm
-	confirmOpen bool
-	// confirmTarget is the entry to delete if the user confirms; kept as
-	// data (not a closure) so the delete runs on the *current* model
-	confirmTarget *collection.Entry
-	// confirmVarEnv/confirmVarKey identify a variable to delete
-	confirmVarEnv string
-	confirmVarKey string
+	palette paletteState
+	namer   namerState
+	confirm confirmState
 
 	width  int
 	height int
@@ -105,9 +116,9 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.urlbar = ui.NewURLBar(80)
 	m.editor = ui.NewEditor(60, 15)
 	m.response = ui.NewResponse(60, 15)
-	m.palette = ui.NewPalette(40, 10)
-	m.namer = ui.NewNamer()
-	m.confirm = ui.NewConfirm()
+	m.palette.widget = ui.NewPalette(40, 10)
+	m.namer.widget = ui.NewNamer()
+	m.confirm.widget = ui.NewConfirm()
 	m.focus = pSidebar
 	m.keyTab = key.NewBinding(key.WithKeys("tab"))
 	m.keyShiftTab = key.NewBinding(key.WithKeys("shift+tab"))
@@ -116,21 +127,6 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.keyEnter = key.NewBinding(key.WithKeys("enter"))
 	m.restore(st)
 	return m
-}
-
-// restore applies persisted session state: active environment, collapsed
-// folders, and the last selected request.
-func (m *Model) restore(st session.State) {
-	if idx := indexOf(st.Env, m.envNames); idx >= 0 {
-		m.envIdx = idx + 1
-	}
-	m.sidebar.SetCollapsed(m.dir, st.Collapsed)
-	if st.ActivePath != "" && m.sidebar.SelectPath(filepath.Join(m.dir, st.ActivePath)) {
-		if e := m.sidebar.Selected(); e != nil {
-			m.urlbar.SetRequest(e.Req.Method, e.Req.URL)
-			m.editor.SetRequest(e.Req, e.Path)
-		}
-	}
 }
 
 func indexOf(s string, list []string) int {
@@ -144,9 +140,10 @@ func indexOf(s string, list []string) int {
 
 func (m Model) Init() tea.Cmd { return nil }
 
-// Update is a thin router: typed messages first, then global keys, then
-// the focused pane. Actions live in actions.go, focus in focus.go,
-// rendering in view.go.
+// Update is a thin router: typed messages first, then the open overlay,
+// then global keys, then the focused pane. Actions live in actions.go,
+// focus in focus.go, rendering in view.go, modal handling in their own
+// files.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -170,24 +167,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	// Palette is modal: every message (keys, filter matches, spinner)
-	// goes to it while open.
-	if m.paletteOpen {
+	// A modal overlay is open: every message (keys, filter matches,
+	// spinner) goes to it while it is up.
+	switch m.overlay {
+	case ovPalette:
 		return m.updatePalette(msg)
-	}
-
-	// Namer is modal too: while asking for a name, every key goes to it.
-	if m.namerOpen {
+	case ovNamer:
 		return m.updateNamer(msg)
-	}
-
-	// Confirm modal: while asking yes/no, every key goes to it.
-	if m.confirmOpen {
+	case ovConfirm:
 		return m.updateConfirm(msg)
-	}
-
-	// Environment manager is modal: every key goes to it while open.
-	if m.envManagerOpen {
+	case ovEnv:
 		return m.updateEnvManager(msg)
 	}
 
@@ -239,17 +228,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// the parent folder of the highlighted request; the namer
 			// asks for its name
 			if d := m.sidebar.SelectedDir(); d != nil {
-				m.namerDir = d.Path
+				m.namer.dir = d.Path
 			} else if e := m.sidebar.Selected(); e != nil {
-				m.namerDir = filepath.Dir(e.Path)
+				m.namer.dir = filepath.Dir(e.Path)
 			} else {
 				return m, nil
 			}
-			m.namerOpen = true
-			m.namer.SetLabel("")
-			m.namer.SetPlaceholder("e.g. list things")
-			m.namer.SetEnvMode(false)
-			return m, m.namer.Open()
+			m.overlay = ovNamer
+			m.namer.widget.SetLabel("")
+			m.namer.widget.SetPlaceholder("e.g. list things")
+			m.namer.widget.SetEnvMode(false)
+			return m, m.namer.widget.Open()
 		case "d":
 			// deleting is destructive: confirm first. Folders and requests
 			// both get the modal, with the folder case expanded in Delete.
@@ -262,14 +251,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "r":
 			if e := m.sidebar.Selected(); e != nil {
-				m.namerRename = true
-				m.namerOld = e.Path
-				m.namerDir = filepath.Dir(e.Path)
-				m.namerOpen = true
-				m.namer.SetLabel("")
-				m.namer.SetPlaceholder("e.g. list things")
-				m.namer.SetEnvMode(false)
-				return m, m.namer.OpenPrefilled(e.Req.Name)
+				m.namer.rename = true
+				m.namer.old = e.Path
+				m.namer.dir = filepath.Dir(e.Path)
+				m.overlay = ovNamer
+				m.namer.widget.SetLabel("")
+				m.namer.widget.SetPlaceholder("e.g. list things")
+				m.namer.widget.SetEnvMode(false)
+				return m, m.namer.widget.OpenPrefilled(e.Req.Name)
 			}
 			return m, nil
 		case "n":
@@ -312,4 +301,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *Model) setNotice(s string, isError bool) {
+	m.notice = s
+	m.noticeError = isError
 }
