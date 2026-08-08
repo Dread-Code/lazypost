@@ -24,10 +24,13 @@ func (c *Confirm) Ask(label string) {
 	c.label = sanitizeLabel(label)
 }
 
+// Label returns the question, which the modal's border title renders.
+func (c *Confirm) Label() string { return c.label }
+
 func (c *Confirm) View() string {
-	question := lipgloss.NewStyle().Bold(true).Foreground(ColorError).Render(c.label)
-	hint := lipgloss.NewStyle().Foreground(ColorMuted).Render("y yes · n no")
-	return question + "\n" + hint
+	// the question lives on the modal's border title (model/view.go
+	// renderModal), so the content is just the hint
+	return lipgloss.NewStyle().Foreground(ColorMuted).Render("y yes · n no")
 }
 
 // sanitizeLabel guards against multi-line labels leaking into the overlay.

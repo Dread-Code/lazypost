@@ -109,6 +109,7 @@ func (n *Namer) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (n *Namer) View() string {
-	l := lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render(n.Label())
-	return l + "\n" + n.input.View()
+	// the label lives on the modal's border title (model/view.go
+	// renderModal), so the content is just the input
+	return n.input.View()
 }

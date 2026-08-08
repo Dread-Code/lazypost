@@ -107,15 +107,19 @@ func (m Model) View() string {
 	frame := lipgloss.JoinVertical(lipgloss.Left, titleBar, bar, content, status)
 	switch m.overlay {
 	case ovPalette:
-		frame = overlayPalette(frame, m.palette.widget.View(), m.width, m.height)
+		title := "Command palette"
+		if m.palette.theme {
+			title = "Switch theme"
+		}
+		frame = overlayPalette(frame, title, m.palette.widget.View(), m.width, m.height)
 	case ovEnv:
-		frame = overlayPalette(frame, m.envManagerView(), m.width, m.height)
+		frame = overlayPalette(frame, "Environments", m.envManagerView(), m.width, m.height)
 	case ovNamer:
-		frame = overlayPalette(frame, m.namer.widget.View(), m.width, m.height)
+		frame = overlayPalette(frame, m.namer.widget.Label(), m.namer.widget.View(), m.width, m.height)
 	case ovConfirm:
-		frame = overlayPalette(frame, m.confirm.widget.View(), m.width, m.height)
+		frame = overlayPalette(frame, m.confirm.widget.Label(), m.confirm.widget.View(), m.width, m.height)
 	case ovHistory:
-		frame = overlayPalette(frame, m.historyWidget.View(), m.width, m.height)
+		frame = overlayPalette(frame, "Request history", m.historyWidget.View(), m.width, m.height)
 	}
 	return frame
 }
@@ -124,16 +128,8 @@ func (m Model) View() string {
 // cell buffer, so the frame content beside the box survives. The box hugs
 // its content width and drops from the top (like a quick-open), so it never
 // cuts the panes in two or sprawls across the pane borders.
-func overlayPalette(frame, paletteView string, termW, termH int) string {
-	contentW := 0
-	for _, l := range strings.Split(paletteView, "\n") {
-		if w := lipgloss.Width(l); w > contentW {
-			contentW = w
-		}
-	}
-	// lipgloss Width(w) is the *content* width; the two border columns are
-	// added on top, so the rendered box is contentW+2 wide.
-	box := ui.PaneStyle.Width(contentW).Render(paletteView)
+func overlayPalette(frame, title, paletteView string, termW, termH int) string {
+	box := renderModal(title, paletteView)
 	boxLines := strings.Split(box, "\n")
 	boxW := lipgloss.Width(boxLines[0])
 	boxH := len(boxLines)
@@ -160,6 +156,72 @@ func overlayPalette(frame, paletteView string, termW, termH int) string {
 	return strings.ReplaceAll(cellbuf.Render(buf), "\r\n", "\n")
 }
 
+// legendAlign is where a fieldset legend sits on the top border.
+type legendAlign int
+
+const (
+	alignLeft legendAlign = iota
+	alignCenter
+	alignRight
+)
+
+// legendLine builds a fieldset-style top border: the title sits on the
+// border, split into two dash runs (1 col each for the corners) at the
+// chosen alignment.
+func legendLine(border lipgloss.Border, borderStyle lipgloss.Style, title string, w int, align legendAlign) string {
+	titleStyled := lipgloss.NewStyle().Bold(true).Foreground(ui.ColorMuted).Render(" " + title + " ")
+	titleW := lipgloss.Width(titleStyled)
+	avail := (w - 2) - titleW
+	if avail < 0 {
+		avail = 0
+	}
+	var left, right int
+	switch align {
+	case alignLeft:
+		left = 1
+		right = avail - 1
+	case alignRight:
+		left = avail - 1
+		right = 1
+	default: // alignCenter
+		left = avail / 2
+		right = avail - avail/2
+	}
+	if left < 0 {
+		left = 0
+	}
+	if right < 0 {
+		right = 0
+	}
+	return borderStyle.Render(border.TopLeft+strings.Repeat(border.Top, left)) +
+		titleStyled +
+		borderStyle.Render(strings.Repeat(border.Top, right)+border.TopRight)
+}
+
+// renderModal draws a modal box whose title sits right-aligned on the top
+// border, matching the pane legend style ([[Design - command palette]] and
+// friends). The box hugs the wider of the content or the title.
+func renderModal(title, content string) string {
+	contentW := 0
+	for _, l := range strings.Split(content, "\n") {
+		if w := lipgloss.Width(l); w > contentW {
+			contentW = w
+		}
+	}
+	style := ui.PaneStyle
+	border := style.GetBorderStyle()
+	borderStyle := lipgloss.NewStyle()
+	if c := style.GetBorderTopForeground(); c != nil {
+		borderStyle = borderStyle.Foreground(c)
+	}
+	titleW := lipgloss.Width(lipgloss.NewStyle().Bold(true).Foreground(ui.ColorMuted).Render(" " + title + " "))
+	// room for the title (with its own padding) plus a dash on each side
+	boxW := max(contentW+2, titleW+4)
+	topLine := legendLine(border, borderStyle, title, boxW, alignRight)
+	body := style.Border(border, false, true, true, true).Width(boxW - 2).Render(content)
+	return lipgloss.JoinVertical(lipgloss.Left, topLine, body)
+}
+
 // renderPane draws a fieldset-style pane: the title sits on the top
 // border, which splits into two dash runs around it (like an HTML
 // fieldset legend). The legend hugs the left when legendLeft is set,
@@ -177,27 +239,11 @@ func renderPane(title, content string, focused bool, w, h int, legendLeft bool) 
 	if c := style.GetBorderTopForeground(); c != nil {
 		borderStyle = borderStyle.Foreground(c)
 	}
-	titleStyled := lipgloss.NewStyle().Bold(true).Foreground(ui.ColorMuted).Render(" " + title + " ")
-	titleW := lipgloss.Width(titleStyled)
-
-	// reserve the label width; split the rest of the top edge into two
-	// dash runs (1 col each for the corners). legendLeft puts the label at
-	// the front with all the slack on the right.
-	avail := (w - 2) - titleW
-	if avail < 0 {
-		avail = 0
-	}
-	var left, right int
+	align := alignCenter
 	if legendLeft {
-		left = 1
-		right = avail - 1
-	} else {
-		left = avail / 2
-		right = avail - avail/2
+		align = alignLeft
 	}
-	topLine := borderStyle.Render(border.TopLeft+strings.Repeat(border.Top, left)) +
-		titleStyled +
-		borderStyle.Render(strings.Repeat(border.Top, right)+border.TopRight)
+	topLine := legendLine(border, borderStyle, title, w, align)
 
 	// body: no top border (the legend line takes its place)
 	body := style.Border(border, false, true, true, true).Width(w - 2).Height(h - 2).Render(content)

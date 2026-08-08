@@ -88,8 +88,7 @@ type History struct {
 func NewHistory(width, height int) *History {
 	h := &History{width: width, height: height}
 	h.list = list.New(nil, historyDelegate{}, width, height)
-	h.list.SetShowTitle(true)
-	h.list.Title = "Request history"
+	h.list.SetShowTitle(false) // the title lives on the modal's border legend
 	h.list.SetShowFilter(false)
 	h.list.SetShowHelp(false)
 	h.list.SetShowPagination(false)

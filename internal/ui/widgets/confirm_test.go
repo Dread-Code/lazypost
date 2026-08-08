@@ -8,11 +8,11 @@ import (
 func TestConfirmView(t *testing.T) {
 	c := NewConfirm()
 	c.Ask("delete request list authors?")
-	v := c.View()
-	if !strings.Contains(v, "delete request list authors?") {
-		t.Errorf("expected question in view, got:\n%s", v)
+	// the question moved to the modal's border title
+	if l := c.Label(); !strings.Contains(l, "delete request list authors?") {
+		t.Errorf("expected question in label, got %q", l)
 	}
-	if !strings.Contains(v, "y yes · n no") {
-		t.Errorf("expected hint in view, got:\n%s", v)
+	if !strings.Contains(c.View(), "y yes · n no") {
+		t.Errorf("expected hint in view, got:\n%s", c.View())
 	}
 }
