@@ -31,6 +31,21 @@ func TestScriptEditorTyping(t *testing.T) {
 	}
 }
 
+// Regression: bubbletea reports a lone space as tea.KeySpace (not
+// KeyRunes), and the widget must insert it.
+func TestScriptEditorSpaceKey(t *testing.T) {
+	e := newScriptEditor(60, 10, "")
+	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune(" ")})
+	if e.Value() != " " {
+		t.Errorf("space key inserted %q", e.Value())
+	}
+	typed(e, runeMsg("x"))
+	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune(" ")})
+	if e.Value() != " x " {
+		t.Errorf("space mid-text inserted %q", e.Value())
+	}
+}
+
 func TestScriptEditorBackspaceDeleteEnter(t *testing.T) {
 	e := newScriptEditor(60, 10, "")
 	typed(e, runeMsg("abc"))

@@ -65,7 +65,9 @@ func (s *scriptEditor) Update(msg tea.Msg) (*scriptEditor, tea.Cmd) {
 	}
 	r := []rune(s.value)
 	switch km.Type {
-	case tea.KeyRunes:
+	case tea.KeyRunes, tea.KeySpace:
+		// bubbletea reports a lone space as KeySpace (Runes still carry
+		// the ' '); both insert
 		s.insertAt(r, string(km.Runes))
 	case tea.KeyEnter:
 		s.insertAt(r, "\n")
