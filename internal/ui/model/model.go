@@ -195,13 +195,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(km, keyQuit):
 			return m, m.quit()
 		case key.Matches(km, keyEnter):
-			// enter on a directory collapses/expands it; on a request it loads
+			// enter on a directory collapses/expands it; on a request it
+			// moves focus to the URL bar — loading already happened with
+			// navigation (the sidebar auto-loads the selected request)
 			if m.sidebar.ToggleCollapsed() {
 				return m, m.saveState()
 			}
-			if e := m.sidebar.Selected(); e != nil {
-				m.urlbar.SetRequest(e.Req.Method, e.Req.URL)
-				return m, tea.Batch(m.editor.SetRequest(e.Req, e.Path), m.enter(pBar), m.saveState())
+			if m.sidebar.Selected() != nil {
+				return m, m.enter(pBar)
 			}
 			return m, nil
 
@@ -248,7 +249,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(m.editor.New(), m.enter(pBar))
 		}
 		var cmd tea.Cmd
+		// navigating to a request loads it into the URL bar and editor
+		// immediately, without Enter (paths are compared because the
+		// sidebar rebuilds its item pointers on every call)
+		prev := ""
+		if e := m.sidebar.Selected(); e != nil {
+			prev = e.Path
+		}
 		m.sidebar, cmd = m.sidebar.Update(msg)
+		if e := m.sidebar.Selected(); e != nil && e.Path != prev {
+			m.urlbar.SetRequest(e.Req.Method, e.Req.URL)
+			return m, tea.Batch(m.editor.SetRequest(e.Req, e.Path), m.saveState())
+		}
 		return m, cmd
 
 	case pBar:

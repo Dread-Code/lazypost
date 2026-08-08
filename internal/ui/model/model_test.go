@@ -83,6 +83,30 @@ func TestLoadRequestIntoEditor(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+// Navigation alone must load the selected request into the URL bar and
+// editor — Enter is no longer needed to load.
+func TestNavigationLoadsRequest(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "quotes by author", 3*time.Second)
+
+	// cursor starts on the collection root; the first arrow lands on the
+	// authors directory (a directory, so nothing loads)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	// the next arrow lands on "quotes by author" (authors/by-author.yaml),
+	// which loads with no Enter
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+
+	// the next arrow loads the next request with no Enter either
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	w.waitFor(t, "{{host}}/api/authors/{{api_key}}", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestSectionNavigation(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
@@ -163,7 +187,7 @@ func TestBarEnterSendsAndEscReturns(t *testing.T) {
 
 	// esc returns focus to the pane before the bar (sidebar)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
-	w.waitFor(t, "enter load", 3*time.Second)
+	w.waitFor(t, "nav loads", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
@@ -249,7 +273,7 @@ func TestSidebarEnterTogglesDir(t *testing.T) {
 	// of loading a request, so focus stays in the sidebar (the status bar
 	// help for the sidebar still shows)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	w.waitFor(t, "enter load", 3*time.Second)
+	w.waitFor(t, "nav loads", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))

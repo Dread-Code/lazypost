@@ -206,7 +206,7 @@ func (m Model) statusBar() string {
 	var help string
 	switch m.focus {
 	case pSidebar:
-		help = "↑↓ nav · enter load · a add · d del · r rename · ctrl+e env · ctrl+l url · ctrl+/ palette · ctrl+r send · q quit"
+		help = "↑↓ nav loads · enter url · a add · d del · r rename · ctrl+e env · ctrl+l url · ctrl+/ palette · ctrl+r send · q quit"
 	case pBar:
 		help = "ctrl+t method · enter send · esc back · ctrl+/ palette · ctrl+g export curl · ctrl+r send"
 	case pEditor:
