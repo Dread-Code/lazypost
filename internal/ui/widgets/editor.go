@@ -321,7 +321,7 @@ func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 	e.body.SetValue(req.Body)
 	e.auth.SetAuth(req.Auth)
 
-	e.section = SecQuery
+	// the section stays where the user left it when switching requests
 	e.Blur()
 	return nil
 }

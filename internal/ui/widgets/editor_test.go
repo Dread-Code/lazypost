@@ -33,6 +33,22 @@ func TestEditorCarriesHooks(t *testing.T) {
 	}
 }
 
+// Regression: loading another request must keep the section the user is
+// on (e.g. Headers), not reset to Query.
+func TestSetRequestKeepsSection(t *testing.T) {
+	e := NewEditor(60, 20)
+	e.section = SecHeaders
+	e.SetRequest(&collection.Request{Name: "a", URL: "https://api.test/a"}, "/col/a.yaml")
+	if e.section != SecHeaders {
+		t.Errorf("section reset to %d, want SecHeaders", e.section)
+	}
+	// a genuinely new request still starts on Query
+	e.New()
+	if e.section != SecQuery {
+		t.Errorf("New should start on Query, got %d", e.section)
+	}
+}
+
 func TestEditorScriptsTab(t *testing.T) {
 	e := NewEditor(60, 20)
 	// navigate to the Scripts tab (index 4) via ctrl+n
