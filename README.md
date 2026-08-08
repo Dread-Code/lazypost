@@ -3,29 +3,32 @@
 An API client that lives in your terminal — a [Posting](https://posting.sh)-inspired TUI built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ```
-╭ Collection ────────╮ ╭─ Request ────────────────────────────╮
-│ ▸ posts/           │ │ POST https://api.example.com/posts   │
-│     POST create    │ │  Headers   Body   Auth               │
-│     GET  get all   │ │ ┌──────────────────────────────────┐ │
-│   users/           │ │ │ Content-Type: application/json   │ │
-│     GET  get one   │ │ └──────────────────────────────────┘ │
-╰────────────────────╯ ╰──────────────────────────────────────╯
-                       ╭─ Response · 201 Created · 65 B · 524ms╮
-                       │  Body   Headers                       │
-                       │ {                                     │
-                       │   "id": 101                           │
-                       │ }                                     │
-                       ╰───────────────────────────────────────╯
+postgo  sample-collections                          env: dev
+GET https://api.example.com/posts          ctrl+t method
+╭ Collection ────────────────╮ ╭─ Request · posts/create ────────────────╮
+│ ▸ posts/                   │ │  Query  Headers  Body  Auth  Scripts    │
+│     POST create            │ │ ┌─────────────────────────────────────┐ │
+│     GET  get all           │ │ │ Content-Type: application/json      │ │
+│   users/                   │ │ └─────────────────────────────────────┘ │
+│     GET  get one           │ ╰─────────────────────────────────────────╯
+╰────────────────────────────╯ ╭─ Response · 201 Created · 65 B · 524ms─╮
+                               │  Body  Headers                          │
+                               │  { "id": 101 }                          │
+                               ╰─────────────────────────────────────────╯
 ```
 
-## Features (MVP)
+## Features
 
-- **Request editor** — method selector, URL bar, headers, body, and auth (none / basic / bearer / api key)
-- **Collections** — requests stored as readable, version-control-friendly YAML files in a directory tree
+- **Request top bar** — method + URL always visible, reachable from any pane with `ctrl+l`; `enter` sends
+- **Request editor** — query params, headers, body, auth (none / basic / bearer / api key), and per-request Lua scripts (`pre`/`post` hooks)
+- **Scripting & chaining** — sandboxed Lua `pre`/`post` hooks per request share a session `store` (`store.get` / `store.set`), so one response can feed the next request
+- **Collections** — requests stored as readable, version-control-friendly YAML files in a directory tree; `enter` collapses folders, `a`/`d`/`r` add / delete / rename with confirmation
 - **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from environment files
 - **Response viewer** — status/time/size summary, pretty-printed JSON, headers tab
 - **curl import/export** — paste a `curl` command into the URL bar to import it; `ctrl+g` copies the current request as curl
 - **Command palette** — `ctrl+/` to filter and run any action, incl. switching themes and managing environments
+- **Themes** — dracula / catppuccin / solarized presets, switched from the palette
+- **Session persistence** — active environment, last request, collapsed folders, and theme survive relaunch
 
 ## Install
 
@@ -33,7 +36,7 @@ An API client that lives in your terminal — a [Posting](https://posting.sh)-in
 go build -o postgo .
 ```
 
-Requires Go 1.23+.
+Requires Go 1.25+.
 
 ## Run
 
@@ -116,9 +119,24 @@ go vet ./...
 go test ./...
 ```
 
-## Roadmap ideas
+## Roadmap
 
-- jump mode
-- custom keymaps
-- shared collection scripts & request chaining
-- cookies & trace tabs
+### Next — usability
+
+- **Request history** — resend with one key
+
+### Later — power
+
+- **Importers (Postman/Insomnia)**
+- **Cookies & trace tabs**
+- **Vim modes** — editor/response normal·visual·insert
+- **Help panel window** — toggleable keybinding reference
+
+### Parked ideas
+
+- **Shared collection scripts** — collection-level `scripts/*.lua`
+- **Jump mode / custom keymaps** — deferred at MVP (see ADR-0004); revisit via the keymap registry
+
+### Housekeeping
+
+- First benchmark (startup + collection load), CI on push, release process when sharing
