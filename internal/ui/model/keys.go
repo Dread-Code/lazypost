@@ -23,6 +23,7 @@ var (
 	keyCtrlE   = key.NewBinding(key.WithKeys("ctrl+e"))
 	keySlash   = key.NewBinding(key.WithKeys("/"))
 	keyHistory = key.NewBinding(key.WithKeys("ctrl+h"))
+	keyHelp    = key.NewBinding(key.WithKeys("?")) // scoped to non-input panes
 
 	keyAdd    = key.NewBinding(key.WithKeys("a")) // sidebar: add request/folder
 	keyDelete = key.NewBinding(key.WithKeys("d")) // sidebar/env manager: delete

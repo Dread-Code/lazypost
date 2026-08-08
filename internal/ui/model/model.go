@@ -39,6 +39,7 @@ const (
 	ovConfirm
 	ovEnv
 	ovHistory
+	ovHelp
 )
 
 // paletteState is the shared palette widget in all its modes: the command
@@ -104,6 +105,7 @@ type Model struct {
 	history       *app.History
 	historyWidget *ui.History
 	historyPrev   pane // pane to restore when the history overlay closes
+	helpPrev      pane // pane to restore when the keybindings panel closes
 
 	state session.State
 
@@ -176,6 +178,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateEnvManager(msg)
 	case ovHistory:
 		return m.updateHistory(msg)
+	case ovHelp:
+		return m.updateHelp(msg)
 	}
 
 	km, isKey := msg.(tea.KeyMsg)
@@ -215,6 +219,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(km, keyQuit):
 			return m, m.quit()
+		case key.Matches(km, keyHelp):
+			// "?" is printable, so it stays scoped to non-input panes
+			return m.openHelp()
 		case key.Matches(km, keyEnter):
 			// enter on a directory collapses/expands it; on a request it
 			// moves focus to the URL bar — loading already happened with
@@ -308,6 +315,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pResponse:
 		if key.Matches(km, keyQuit) {
 			return m, m.quit()
+		}
+		if key.Matches(km, keyHelp) {
+			return m.openHelp()
 		}
 		var cmd tea.Cmd
 		m.response, cmd = m.response.Update(msg)

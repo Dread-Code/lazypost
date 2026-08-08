@@ -120,6 +120,8 @@ func (m Model) View() string {
 		frame = overlayPalette(frame, m.confirm.widget.Label(), m.confirm.widget.View(), m.width, m.height)
 	case ovHistory:
 		frame = overlayPalette(frame, "Request history", m.historyWidget.View(), m.width, m.height)
+	case ovHelp:
+		frame = overlayPalette(frame, "Keybindings", helpContent(), m.width, m.height)
 	}
 	return frame
 }
@@ -254,13 +256,13 @@ func (m Model) statusBar() string {
 	var help string
 	switch m.focus {
 	case pSidebar:
-		help = "↑↓ ctrl+n/p nav loads · enter url · a add · d del · r rename · ctrl+e env · ctrl+l url · ctrl+/ palette · ctrl+h history · ctrl+r send · q quit"
+		help = "↑↓ ctrl+n/p nav loads · enter url · a add · d del · r rename · ctrl+e env · ctrl+l url · ctrl+/ palette · ? help · ctrl+h history · ctrl+r send · q quit"
 	case pBar:
 		help = "ctrl+t method · enter send · esc back · ctrl+/ palette · ctrl+h history · ctrl+g export curl · ctrl+r send"
 	case pEditor:
 		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+/ palette · ctrl+h history · ctrl+s save · ctrl+r send"
 	case pResponse:
-		help = "←→ or b/h tabs · ↑↓ scroll · ctrl+/ palette · ctrl+h history · ctrl+g curl · q quit"
+		help = "←→ or b/h tabs · ↑↓ scroll · ctrl+/ palette · ? help · ctrl+h history · ctrl+g curl · q quit"
 	}
 
 	right := ""

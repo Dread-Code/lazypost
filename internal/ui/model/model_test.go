@@ -107,6 +107,38 @@ func TestNavigationLoadsRequest(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+// "?" opens the keybindings panel from a non-input pane; esc closes and
+// restores focus. In the URL bar "?" types instead of opening help.
+func TestKeybindingsPanel(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "quotes by author", 3*time.Second)
+
+	// "?" from the sidebar opens the panel with grouped bindings
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")})
+	w.waitFor(t, "Keybindings", 3*time.Second)
+	w.waitFor(t, "send request", 3*time.Second)
+
+	// esc closes it; focus returns to the sidebar, so "a" opens the namer
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	w.waitFor(t, "new request name", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+
+	// in the URL bar, "?" is a printable character, not help
+	before := w.buf.Len()
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlL})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("abc?")})
+	w.waitFor(t, "abc?", 3*time.Second)
+	if strings.Contains(w.buf.String()[before:], "Keybindings") {
+		t.Errorf("help panel opened from the URL bar")
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestSectionNavigation(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
