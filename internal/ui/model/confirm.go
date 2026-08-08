@@ -6,7 +6,7 @@ import (
 
 	"postgo/internal/app"
 	"postgo/internal/collection"
-	"postgo/internal/ui"
+	"postgo/internal/ui/widgets"
 )
 
 // openDeleteConfirm shows the confirm modal for deleting e (a request or

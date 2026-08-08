@@ -12,7 +12,7 @@ import (
 	"postgo/internal/collection"
 	"postgo/internal/httpclient"
 	"postgo/internal/session"
-	"postgo/internal/ui"
+	"postgo/internal/ui/widgets"
 )
 
 type responseMsg struct {

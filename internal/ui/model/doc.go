@@ -6,8 +6,8 @@
 //
 // This package lives under internal/ui because it is UI: everything that
 // draws to the terminal lives under internal/ui — the root model here,
-// the widgets in the parent package — and everything that doesn't lives
-// in internal/app or the domain/infrastructure packages.
+// the widgets in the sibling widgets/ package — and everything that
+// doesn't lives in internal/app or the domain/infrastructure packages.
 //
 // # Layering
 //

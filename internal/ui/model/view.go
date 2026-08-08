@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 
-	"postgo/internal/ui"
+	"postgo/internal/ui/widgets"
 )
 
 // geometry derives pane sizes from the terminal size. Both layout() and

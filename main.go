@@ -9,8 +9,8 @@ import (
 
 	"postgo/internal/collection"
 	"postgo/internal/session"
-	"postgo/internal/ui"
 	"postgo/internal/ui/model"
+	"postgo/internal/ui/widgets"
 )
 
 func main() {

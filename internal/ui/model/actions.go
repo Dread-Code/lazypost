@@ -5,7 +5,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"postgo/internal/ui"
+	"postgo/internal/ui/widgets"
 )
 
 // Action is one selectable command: the palette lists all of them, and

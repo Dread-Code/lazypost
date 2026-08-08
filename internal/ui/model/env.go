@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"postgo/internal/collection"
-	"postgo/internal/ui"
+	"postgo/internal/ui/widgets"
 )
 
 // openEnvManager shows the environment manager: a tab bar of environments
