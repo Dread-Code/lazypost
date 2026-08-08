@@ -27,6 +27,12 @@ type errMsg struct {
 	req   collection.Request
 }
 
+// saveErrMsg is a session-state write failure. It is handled as a status
+// notice, never routed to the response pane like errMsg.
+type saveErrMsg struct {
+	err error
+}
+
 // overlay is which modal currently sits on top of the frame. At most one
 // overlay is open at a time; while open, every message routes to it
 // before the panes see anything.
@@ -157,6 +163,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.response.SetError(msg.err)
 		m.store = app.MergeVars(m.store, msg.store)
 		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.err.Error(), At: time.Now(), Err: msg.err})
+		return m, nil
+
+	case saveErrMsg:
+		m.setNotice("state save failed: "+msg.err.Error(), true)
 		return m, nil
 
 	case spinner.TickMsg:

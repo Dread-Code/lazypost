@@ -1,6 +1,8 @@
 package model
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 
@@ -28,7 +30,9 @@ func (m *Model) restore(st session.State) {
 // quit persists state synchronously (the program is about to exit, so an
 // async save could be cut off) then quits.
 func (m *Model) quit() tea.Cmd {
-	_ = session.Save(m.dir, m.snapshot())
+	if err := session.Save(m.dir, m.snapshot()); err != nil {
+		fmt.Fprintln(os.Stderr, "lazypost: save state failed: "+err.Error())
+	}
 	return tea.Quit
 }
 
@@ -48,12 +52,13 @@ func (m *Model) snapshot() session.State {
 }
 
 // saveState snapshots the persisted UI state (env, active request,
-// collapsed dirs) to disk off the render loop.
+// collapsed dirs) to disk off the render loop. Failures surface as a
+// status-bar notice, never the response pane (errMsg renders there).
 func (m *Model) saveState() tea.Cmd {
 	st := m.snapshot()
 	return func() tea.Msg {
 		if err := session.Save(m.dir, st); err != nil {
-			return errMsg{err: err}
+			return saveErrMsg{err: err}
 		}
 		return nil
 	}

@@ -488,6 +488,67 @@ func TestSessionSnapshot(t *testing.T) {
 	}
 }
 
+// A session-state write failure must surface as a status notice, never
+// as a response-pane error.
+func TestSaveStateFailureIsNotice(t *testing.T) {
+	m := loadSample(t) // sets XDG_CONFIG_HOME to a writable temp dir
+
+	// override XDG so the state file sits under a path blocked by a file,
+	// making session.Save fail
+	root := t.TempDir()
+	blocker := filepath.Join(root, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(blocker, "sub"))
+
+	cmd := m.saveState()
+	if cmd == nil {
+		t.Fatal("saveState returned no cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(saveErrMsg); !ok {
+		t.Fatalf("expected saveErrMsg, got %T", msg)
+	}
+	m2, _ := m.Update(msg)
+	mm := m2.(Model)
+	if !strings.Contains(mm.notice, "state save failed") {
+		t.Errorf("expected failure notice, got %q", mm.notice)
+	}
+	if !mm.noticeError {
+		t.Error("failure notice should be flagged as an error")
+	}
+}
+
+func TestImportCurlIntoRequest(t *testing.T) {
+	m := loadSample(t)
+	m2, _ := m.importCurl(`curl -X POST https://api.test/things -H "Content-Type: application/json" -d '{"a":1}'`)
+	mm := m2.(*Model)
+
+	if mm.urlbar.Method() != "POST" || mm.urlbar.URL() != "https://api.test/things" {
+		t.Errorf("bar = %s %s", mm.urlbar.Method(), mm.urlbar.URL())
+	}
+	req := mm.editor.Request()
+	if req.Body != `{"a":1}` {
+		t.Errorf("body = %q", req.Body)
+	}
+	if len(req.Headers) != 1 || req.Headers[0].Name != "Content-Type" {
+		t.Errorf("headers = %+v", req.Headers)
+	}
+	if !strings.Contains(mm.notice, "imported curl request") {
+		t.Errorf("notice = %q", mm.notice)
+	}
+}
+
+func TestImportCurlInvalid(t *testing.T) {
+	m := loadSample(t)
+	m2, _ := m.importCurl("this is not a curl command")
+	mm := m2.(*Model)
+	if !strings.Contains(mm.notice, "curl import failed") {
+		t.Errorf("expected failure notice, got %q", mm.notice)
+	}
+}
+
 func TestDeleteRequest(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
