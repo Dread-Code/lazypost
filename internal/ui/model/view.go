@@ -114,6 +114,8 @@ func (m Model) View() string {
 		frame = overlayPalette(frame, m.namer.widget.View(), m.width, m.height)
 	case ovConfirm:
 		frame = overlayPalette(frame, m.confirm.widget.View(), m.width, m.height)
+	case ovHistory:
+		frame = overlayPalette(frame, m.historyWidget.View(), m.width, m.height)
 	}
 	return frame
 }

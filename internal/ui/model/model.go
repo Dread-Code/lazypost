@@ -3,6 +3,7 @@ package model
 import (
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -18,10 +19,12 @@ import (
 type responseMsg struct {
 	res   *httpclient.Response
 	store map[string]string // post-hook store writes to merge
+	req   collection.Request
 }
 type errMsg struct {
 	err   error
 	store map[string]string // store writes even when the send fails
+	req   collection.Request
 }
 
 // overlay is which modal currently sits on top of the frame. At most one
@@ -35,6 +38,7 @@ const (
 	ovNamer
 	ovConfirm
 	ovEnv
+	ovHistory
 )
 
 // paletteState is the shared palette widget in all its modes: the command
@@ -95,6 +99,12 @@ type Model struct {
 	// ([[Design - request chaining store]]); memory-only per session.
 	store map[string]string
 
+	// history is the in-memory ring of past sends (memory-only by design,
+	// [[Design - request history]]).
+	history       *app.History
+	historyWidget *ui.History
+	historyPrev   pane // pane to restore when the history overlay closes
+
 	state session.State
 
 	notice      string
@@ -115,6 +125,8 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.palette.widget = ui.NewPalette(40, 10)
 	m.namer.widget = ui.NewNamer()
 	m.confirm.widget = ui.NewConfirm()
+	m.history = app.NewHistory(historyCap)
+	m.historyWidget = ui.NewHistory(40, 10)
 	m.focus = pSidebar
 	m.restore(st)
 	return m
@@ -136,11 +148,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case responseMsg:
 		m.response.SetResponse(msg.res)
 		m.store = app.MergeVars(m.store, msg.store)
+		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.res.Summary(), At: time.Now()})
 		return m, nil
 
 	case errMsg:
 		m.response.SetError(msg.err)
 		m.store = app.MergeVars(m.store, msg.store)
+		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.err.Error(), At: time.Now()})
 		return m, nil
 
 	case spinner.TickMsg:
@@ -160,6 +174,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateConfirm(msg)
 	case ovEnv:
 		return m.updateEnvManager(msg)
+	case ovHistory:
+		return m.updateHistory(msg)
 	}
 
 	km, isKey := msg.(tea.KeyMsg)
@@ -170,6 +186,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Toggle the command palette.
 	if key.Matches(km, keyPalette) {
 		return m.openPalette()
+	}
+
+	// Request history overlay.
+	if key.Matches(km, keyHistory) {
+		return m.openHistory()
 	}
 
 	// Global keys, handled before any pane sees them. Driven by the

@@ -171,3 +171,74 @@ func waitForN(t *testing.T, mu *sync.Mutex, headers *[]string, n int, timeout ti
 	}
 	t.Fatalf("timeout waiting for %d requests", n)
 }
+
+func TestRequestHistory(t *testing.T) {
+	var mu sync.Mutex
+	goodHits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		goodHits++
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := t.TempDir()
+	good := collection.Request{Name: "good", Method: "GET", URL: srv.URL + "/good"}
+	if _, err := collection.Save(root, filepath.Join(root, "good.yaml"), &good); err != nil {
+		t.Fatal(err)
+	}
+	// a request that fails (connection refused)
+	bad := collection.Request{Name: "bad", Method: "GET", URL: "http://127.0.0.1:1/bad"}
+	if _, err := collection.Save(root, filepath.Join(root, "bad.yaml"), &bad); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := collection.Load(root)
+
+	tm := teatest.NewTestModel(t, New(root, entries, nil, nil, session.State{}), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	// bad sorts first; send it to get an error entry
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})  // -> bad
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR}) // send, fails
+	w.waitFor(t, "connection refused", 5*time.Second)
+
+	// then good, which hits the server
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})  // -> good
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR}) // send
+	waitHits(t, &mu, &goodHits, 1)
+
+	// open history: newest first, so good is on top
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlH})
+	w.waitFor(t, "Request history", 3*time.Second)
+	w.waitFor(t, "good", 3*time.Second)
+
+	// enter loads the top entry (good) into the editor + URL bar
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, srv.URL+"/good", 3*time.Second)
+
+	// resend with ctrl+r from the bar
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR})
+	waitHits(t, &mu, &goodHits, 2)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func waitHits(t *testing.T, mu *sync.Mutex, hits *int, want int) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := *hits
+		mu.Unlock()
+		if n >= want {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	t.Fatalf("timeout: hits = %d, want %d", *hits, want)
+}

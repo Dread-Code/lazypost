@@ -16,12 +16,13 @@ var (
 	keyEsc     = key.NewBinding(key.WithKeys("esc"))
 	keyQuit    = key.NewBinding(key.WithKeys("q"))
 
-	keyUp    = key.NewBinding(key.WithKeys("up"))
-	keyDown  = key.NewBinding(key.WithKeys("down"))
-	keyCtrlN = key.NewBinding(key.WithKeys("ctrl+n"))
-	keyCtrlP = key.NewBinding(key.WithKeys("ctrl+p"))
-	keyCtrlE = key.NewBinding(key.WithKeys("ctrl+e"))
-	keySlash = key.NewBinding(key.WithKeys("/"))
+	keyUp      = key.NewBinding(key.WithKeys("up"))
+	keyDown    = key.NewBinding(key.WithKeys("down"))
+	keyCtrlN   = key.NewBinding(key.WithKeys("ctrl+n"))
+	keyCtrlP   = key.NewBinding(key.WithKeys("ctrl+p"))
+	keyCtrlE   = key.NewBinding(key.WithKeys("ctrl+e"))
+	keySlash   = key.NewBinding(key.WithKeys("/"))
+	keyHistory = key.NewBinding(key.WithKeys("ctrl+h"))
 
 	keyAdd    = key.NewBinding(key.WithKeys("a")) // sidebar: add request/folder
 	keyDelete = key.NewBinding(key.WithKeys("d")) // sidebar/env manager: delete

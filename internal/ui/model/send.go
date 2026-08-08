@@ -26,9 +26,9 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 	cmd := func() tea.Msg {
 		res, err := app.Send(httpclient.Exec, *req, vars, store)
 		if err != nil {
-			return errMsg{err: err, store: res.Store}
+			return errMsg{err: err, store: res.Store, req: *req}
 		}
-		return responseMsg{res: res.Response, store: res.Store}
+		return responseMsg{res: res.Response, store: res.Store, req: *req}
 	}
 	return m, tea.Batch(m.response.StartLoading(), cmd)
 }
