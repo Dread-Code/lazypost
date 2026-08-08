@@ -148,13 +148,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case responseMsg:
 		m.response.SetResponse(msg.res)
 		m.store = app.MergeVars(m.store, msg.store)
-		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.res.Summary(), At: time.Now()})
+		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.res.Summary(), At: time.Now(), Res: msg.res})
 		return m, nil
 
 	case errMsg:
 		m.response.SetError(msg.err)
 		m.store = app.MergeVars(m.store, msg.store)
-		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.err.Error(), At: time.Now()})
+		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.err.Error(), At: time.Now(), Err: msg.err})
 		return m, nil
 
 	case spinner.TickMsg:

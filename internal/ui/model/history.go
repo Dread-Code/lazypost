@@ -51,7 +51,16 @@ func (m *Model) updateHistory(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.overlay = noOverlay
 				req := it.Req.Req
 				m.urlbar.SetRequest(req.Method, req.URL)
-				return m, tea.Batch(m.editor.SetRequest(&req, ""), m.enter(pBar))
+				// restoring the entry also restores its response (or
+				// error) so the evidence comes back with the request
+				var cmds []tea.Cmd
+				if it.Req.Res != nil {
+					m.response.SetResponse(it.Req.Res)
+				} else if it.Req.Err != nil {
+					m.response.SetError(it.Req.Err)
+				}
+				cmds = append(cmds, m.editor.SetRequest(&req, ""), m.enter(pBar))
+				return m, tea.Batch(cmds...)
 			}
 			return m, nil
 		}

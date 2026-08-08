@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -179,7 +180,9 @@ func TestRequestHistory(t *testing.T) {
 		mu.Lock()
 		goodHits++
 		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, `{"marker":"hello-from-history"}`)
 	}))
 	defer srv.Close()
 
@@ -214,9 +217,11 @@ func TestRequestHistory(t *testing.T) {
 	w.waitFor(t, "Request history", 3*time.Second)
 	w.waitFor(t, "good", 3*time.Second)
 
-	// enter loads the top entry (good) into the editor + URL bar
+	// enter loads the top entry (good) into the editor + URL bar and
+	// restores its response
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, srv.URL+"/good", 3*time.Second)
+	w.waitFor(t, "hello-from-history", 3*time.Second)
 
 	// resend with ctrl+r from the bar
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR})
