@@ -59,8 +59,13 @@ func (u *URLBar) Resize(width int) {
 	u.resize()
 }
 
-func (u *URLBar) Focus() tea.Cmd { return u.url.Focus() }
-func (u *URLBar) Blur()          { u.url.Blur() }
+func (u *URLBar) Focus() tea.Cmd {
+	// entering the bar always puts the cursor at the end, so the URL is
+	// ready to edit (bubbles textinput keeps the position it was left at)
+	u.url.CursorEnd()
+	return u.url.Focus()
+}
+func (u *URLBar) Blur() { u.url.Blur() }
 
 func (u *URLBar) Update(msg tea.Msg) (*URLBar, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok && key.Matches(km, keyCtrlT) {
