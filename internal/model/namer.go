@@ -11,7 +11,7 @@ import (
 func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch {
-		case km.String() == "esc":
+		case key.Matches(km, keyEsc):
 			m.overlay = noOverlay
 			m.namer.rename = false
 			m.namer.envEdit = ""
@@ -19,7 +19,7 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.namer.widget.SetEnvMode(false)
 			return m, nil
 
-		case key.Matches(km, m.keyEnter):
+		case key.Matches(km, keyEnter):
 			name := m.namer.widget.Value()
 			if name == "" {
 				m.setNotice("name is required", true)

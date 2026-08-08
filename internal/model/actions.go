@@ -127,7 +127,7 @@ func (m *Model) openPalette() (tea.Model, tea.Cmd) {
 func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch {
-		case km.String() == "esc" || km.String() == "q":
+		case key.Matches(km, keyEsc) || key.Matches(km, keyQuit):
 			m.overlay = noOverlay
 			m.palette.theme = false
 			return m, m.enter(m.palette.prev)
@@ -135,14 +135,14 @@ func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// bubbles routes every key to the filter input in Filtering state
 		// and disables its nav bindings, so move the cursor ourselves. j/k
 		// stay free for the filter query.
-		case km.String() == "up" || km.String() == "ctrl+p":
+		case key.Matches(km, keyUp) || key.Matches(km, keyCtrlP):
 			m.palette.widget.CursorUp()
 			return m, nil
-		case km.String() == "down" || km.String() == "ctrl+n":
+		case key.Matches(km, keyDown) || key.Matches(km, keyCtrlN):
 			m.palette.widget.CursorDown()
 			return m, nil
 
-		case key.Matches(km, m.keyEnter):
+		case key.Matches(km, keyEnter):
 			if m.palette.theme {
 				return m.applySelectedTheme()
 			}

@@ -98,11 +98,6 @@ type Model struct {
 
 	notice      string
 	noticeError bool
-
-	keyTab      key.Binding
-	keyShiftTab key.Binding
-	keyPalette  key.Binding
-	keyEnter    key.Binding
 }
 
 func New(dir string, entries []collection.Entry, envs map[string]map[string]string, envNames []string, st session.State) Model {
@@ -120,11 +115,6 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.namer.widget = ui.NewNamer()
 	m.confirm.widget = ui.NewConfirm()
 	m.focus = pSidebar
-	m.keyTab = key.NewBinding(key.WithKeys("tab"))
-	m.keyShiftTab = key.NewBinding(key.WithKeys("shift+tab"))
-	// ctrl+/ is delivered as ctrl+_ (0x1F) by terminals; accept both
-	m.keyPalette = key.NewBinding(key.WithKeys("ctrl+_", "ctrl+/"))
-	m.keyEnter = key.NewBinding(key.WithKeys("enter"))
 	m.restore(st)
 	return m
 }
@@ -186,7 +176,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Toggle the command palette.
-	if key.Matches(km, m.keyPalette) {
+	if key.Matches(km, keyPalette) {
 		return m.openPalette()
 	}
 
@@ -199,20 +189,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Pane cycling is focus routing, not a command.
-	if key.Matches(km, m.keyTab) {
+	if key.Matches(km, keyTab) {
 		return m, m.cycleFocus(1)
 	}
-	if key.Matches(km, m.keyShiftTab) {
+	if key.Matches(km, keyShiftTab) {
 		return m, m.cycleFocus(-1)
 	}
 
 	// Remaining keys route to the focused pane only.
 	switch m.focus {
 	case pSidebar:
-		switch km.String() {
-		case "q":
+		switch {
+		case key.Matches(km, keyQuit):
 			return m, m.quit()
-		case "enter":
+		case key.Matches(km, keyEnter):
 			// enter on a directory collapses/expands it; on a request it loads
 			if m.sidebar.ToggleCollapsed() {
 				return m, m.saveState()
@@ -223,7 +213,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case "a":
+		case key.Matches(km, keyAdd):
 			// add a new request under the highlighted folder, or inside
 			// the parent folder of the highlighted request; the namer
 			// asks for its name
@@ -239,7 +229,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.namer.widget.SetPlaceholder("e.g. list things")
 			m.namer.widget.SetEnvMode(false)
 			return m, m.namer.widget.Open()
-		case "d":
+		case key.Matches(km, keyDelete):
 			// deleting is destructive: confirm first. Folders and requests
 			// both get the modal, with the folder case expanded in Delete.
 			if e := m.sidebar.Selected(); e != nil {
@@ -249,7 +239,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.openDeleteConfirm(d)
 			}
 			return m, nil
-		case "r":
+		case key.Matches(km, keyRename):
 			if e := m.sidebar.Selected(); e != nil {
 				m.namer.rename = true
 				m.namer.old = e.Path
@@ -261,7 +251,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.namer.widget.OpenPrefilled(e.Req.Name)
 			}
 			return m, nil
-		case "n":
+		case key.Matches(km, keyN):
 			m.urlbar.New()
 			return m, tea.Batch(m.editor.New(), m.enter(pBar))
 		}
@@ -271,9 +261,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case pBar:
 		switch {
-		case key.Matches(km, m.keyEnter):
+		case key.Matches(km, keyEnter):
 			return m.send()
-		case km.Type == tea.KeyEsc:
+		case key.Matches(km, keyEsc):
 			return m, m.enter(m.prevFocus)
 		case km.Paste:
 			// a pasted curl command is imported; other pastes insert
@@ -291,8 +281,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case pResponse:
-		switch km.String() {
-		case "q":
+		if key.Matches(km, keyQuit) {
 			return m, m.quit()
 		}
 		var cmd tea.Cmd

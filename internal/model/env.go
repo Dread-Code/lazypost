@@ -71,8 +71,8 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok {
 		// While filtering, all letters go to the filter: only esc/q act.
 		if m.palette.envFiltering {
-			switch km.String() {
-			case "esc", "q":
+			switch {
+			case key.Matches(km, keyEsc) || key.Matches(km, keyQuit):
 				m.palette.envFiltering = false
 				m.palette.widget.ClearFilter()
 				return m, nil
@@ -82,11 +82,11 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
-		case km.String() == "esc" || km.String() == "q":
+		case key.Matches(km, keyEsc) || key.Matches(km, keyQuit):
 			m.overlay = noOverlay
 			return m, m.enter(m.palette.prev)
 
-		case km.String() == "/":
+		case key.Matches(km, keySlash):
 			// enter filter mode: letters now search the variables
 			m.palette.envFiltering = true
 			m.palette.widget.StartFiltering()
@@ -94,21 +94,21 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// bubbles routes every key to the filter input in Filtering state
 		// and disables its nav bindings, so move the cursor ourselves.
-		case km.String() == "up" || km.String() == "ctrl+p":
+		case key.Matches(km, keyUp) || key.Matches(km, keyCtrlP):
 			m.palette.widget.CursorUp()
 			return m, nil
-		case km.String() == "down" || km.String() == "ctrl+n":
+		case key.Matches(km, keyDown) || key.Matches(km, keyCtrlN):
 			m.palette.widget.CursorDown()
 			return m, nil
 
 		// cycle the environment tab (ctrl+e is free here: the manager is
 		// modal, so the global cycle key is intercepted)
-		case km.String() == "ctrl+e":
+		case key.Matches(km, keyCtrlE):
 			m.palette.envTab = (m.palette.envTab + 1) % len(m.envNames)
 			m.loadEnvTab()
 			return m, nil
 
-		case km.String() == "a":
+		case key.Matches(km, keyAdd):
 			if env := m.envTabName(); env != "" {
 				m.namer.envEdit = env
 				m.namer.envNew = true
@@ -120,7 +120,7 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case km.String() == "r":
+		case key.Matches(km, keyRename):
 			if env := m.envTabName(); env != "" {
 				if key := m.selectedVarName(); key != "" {
 					m.namer.envEdit = env
@@ -134,7 +134,7 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case km.String() == "d":
+		case key.Matches(km, keyDelete):
 			if env := m.envTabName(); env != "" {
 				if key := m.selectedVarName(); key != "" {
 					m.confirm.widget.Ask("delete variable " + ui.TruncateRunes(key, 30) + "?")
@@ -145,7 +145,7 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case key.Matches(km, m.keyEnter):
+		case key.Matches(km, keyEnter):
 			m.setEnv(m.envTabName())
 			m.overlay = noOverlay
 			return m, m.saveState()
