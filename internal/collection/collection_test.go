@@ -94,6 +94,23 @@ func TestLoadTree(t *testing.T) {
 	}
 }
 
+func TestSaveEnvironment(t *testing.T) {
+	root := t.TempDir()
+	if err := SaveEnvironment(root, "staging", map[string]string{"host": "https://staging.test"}); err != nil {
+		t.Fatal(err)
+	}
+	envs, names, err := LoadEnvironments(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 1 || names[0] != "staging" {
+		t.Errorf("names = %v", names)
+	}
+	if envs["staging"]["host"] != "https://staging.test" {
+		t.Errorf("vars = %v", envs["staging"])
+	}
+}
+
 func TestLoadEnvironments(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "environments")

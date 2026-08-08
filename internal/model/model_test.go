@@ -606,6 +606,135 @@ func TestPaletteClearsChainStore(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+func TestSwitchTheme(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "Collection", 3*time.Second)
+
+	// open the palette, filter to "theme", run Switch theme
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	w.waitFor(t, "Send request", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("theme")})
+	w.waitFor(t, "Switch theme", 3*time.Second)
+	time.Sleep(250 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "solarized", 3*time.Second) // theme picker lists presets
+
+	// select solarized (third item; nav down twice then enter)
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "theme: solarized", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestEnvManagerTabsAndActivate(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "env: none", 3*time.Second)
+
+	// open the env manager; no "none" tab, so it starts on dev
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	w.waitFor(t, "Send request", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("environ")})
+	w.waitFor(t, "Environments", 3*time.Second)
+	time.Sleep(250 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "dev", 3*time.Second) // tab bar shows dev (no none)
+	w.waitFor(t, "host = ", 3*time.Second)
+
+	// enter activates dev and closes
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "env: dev", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestEnvManagerAddVariable(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	if err := os.MkdirAll(filepath.Join(root, "environments"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := collection.SaveEnvironment(root, "dev", map[string]string{"host": "https://dev.test"}); err != nil {
+		t.Fatal(err)
+	}
+	seed := &collection.Request{Name: "thing", Method: "GET", URL: "https://api.test/things"}
+	if _, err := collection.Save(root, filepath.Join(root, "thing.yaml"), seed); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := collection.Load(root)
+	envs, names, _ := collection.LoadEnvironments(root)
+	tm := teatest.NewTestModel(t, New(root, entries, envs, names, session.State{}), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "thing", 3*time.Second)
+
+	// open the env manager; starts on dev (first env, no "none" tab)
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	w.waitFor(t, "Send request", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("environ")})
+	w.waitFor(t, "Environments", 3*time.Second)
+	time.Sleep(250 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "host = ", 3*time.Second)
+
+	// add a variable to the dev tab via key=value namer
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	w.waitFor(t, "new request name", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("timeout=10")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "timeout = 10", 3*time.Second)
+
+	// verify persisted
+	data, err := os.ReadFile(filepath.Join(root, "environments", "dev.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "timeout") {
+		t.Errorf("timeout not persisted:\n%s", data)
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestEnvManagerFilter(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "env: none", 3*time.Second)
+
+	// open the env manager (starts on dev, listing its variables)
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	w.waitFor(t, "Send request", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("environ")})
+	w.waitFor(t, "Environments", 3*time.Second)
+	time.Sleep(250 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "host = ", 3*time.Second)
+
+	// "/" enters filter mode: typing "a" must NOT open the add-namer
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	time.Sleep(250 * time.Millisecond)
+	if strings.Contains(w.buf.String(), "new request name") {
+		t.Error("typing 'a' in filter mode should not open the add-namer")
+	}
+
+	// esc exits filter mode, esc closes the manager
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestCycleEnvironment(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}

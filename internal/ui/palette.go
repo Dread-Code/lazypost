@@ -37,8 +37,10 @@ func (d paletteDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 		avail = 10
 	}
 
-	// budget: cursor(2) + title + shortcut(12)
-	titleW := avail - 12
+	// budget: cursor(2) + title + shortcut (only when one exists, so
+	// shortcut-less items like theme names get the full width)
+	sw := lipgloss.Width(it.Shortcut)
+	titleW := avail - 2 - sw
 	if titleW < 4 {
 		titleW = 4
 	}
@@ -77,7 +79,7 @@ func NewPalette(width, height int) *Palette {
 	p.list.FilterInput.Prompt = "› "
 	p.list.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(ColorPrimary)
 	p.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(ColorPrimary)
-	p.list.FilterInput.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	p.list.FilterInput.TextStyle = lipgloss.NewStyle().Foreground(InputColor)
 	p.list.FilterInput.PlaceholderStyle = lipgloss.NewStyle().Foreground(ColorMuted)
 	// the default TitleBar pads 1 line under the filter; kill it so the
 	// typed query sits flush above the items
@@ -108,6 +110,29 @@ func (p *Palette) Resize(width, height int) {
 func (p *Palette) Open() {
 	p.list.SetFilterText("")
 	p.list.SetFilterState(list.Filtering)
+}
+
+// OpenBrowsing shows all items with the filter inactive, so letters do
+// not type into a search box. Used by modals where typing is an action
+// (e.g. the env manager's a/r/d) and "/" explicitly starts a filter.
+func (p *Palette) OpenBrowsing() {
+	p.list.SetFilterText("")
+	p.list.SetFilterState(list.Unfiltered)
+	p.list.FilterInput.Blur()
+}
+
+// StartFiltering activates the filter input (used when "/" is pressed in
+// a browsing modal).
+func (p *Palette) StartFiltering() {
+	p.list.SetFilterState(list.Filtering)
+}
+
+// ClearFilter empties the filter input (used when exiting the env
+// manager's filter mode).
+func (p *Palette) ClearFilter() {
+	p.list.SetFilterText("")
+	p.list.SetFilterState(list.Unfiltered)
+	p.list.FilterInput.Blur()
 }
 
 func (p *Palette) Update(msg tea.Msg) (tea.Cmd, *PaletteItem) {

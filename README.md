@@ -25,7 +25,7 @@ An API client that lives in your terminal — a [Posting](https://posting.sh)-in
 - **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from environment files
 - **Response viewer** — status/time/size summary, pretty-printed JSON, headers tab
 - **curl import/export** — paste a `curl` command into the URL bar to import it; `ctrl+g` copies the current request as curl
-- **Command palette** — `ctrl+/` to filter and run any action
+- **Command palette** — `ctrl+/` to filter and run any action, incl. switching themes and managing environments
 
 ## Install
 
@@ -116,7 +116,7 @@ go test ./...
 
 ## Roadmap ideas
 
-- command palette & jump mode
-- themes & custom keymaps
+- jump mode
+- custom keymaps
 - shared collection scripts & request chaining
 - cookies & trace tabs

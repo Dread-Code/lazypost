@@ -103,6 +103,9 @@ func (m Model) View() string {
 	if m.paletteOpen {
 		frame = overlayPalette(frame, m.palette.View(), m.width, m.height)
 	}
+	if m.envManagerOpen {
+		frame = overlayPalette(frame, m.envManagerView(), m.width, m.height)
+	}
 	if m.namerOpen {
 		frame = overlayPalette(frame, m.namer.View(), m.width, m.height)
 	}

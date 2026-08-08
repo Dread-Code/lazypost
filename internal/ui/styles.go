@@ -2,25 +2,21 @@ package ui
 
 import "github.com/charmbracelet/lipgloss"
 
+// Colors are package vars set by Theme.Apply() ([[Design - themes]]).
+// Read them freely; assign only through a theme.
 var (
-	ColorPrimary = lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7AA2F7"}
-	ColorDim     = lipgloss.AdaptiveColor{Light: "#888888", Dark: "#666666"}
-	ColorSuccess = lipgloss.AdaptiveColor{Light: "#008000", Dark: "#9ECE6A"}
-	ColorWarn    = lipgloss.AdaptiveColor{Light: "#B58900", Dark: "#E0AF68"}
-	ColorError   = lipgloss.AdaptiveColor{Light: "#CC0000", Dark: "#F7768E"}
-	ColorInfo    = lipgloss.AdaptiveColor{Light: "#0066CC", Dark: "#7DCFFF"}
-	ColorMuted   = lipgloss.AdaptiveColor{Light: "#999999", Dark: "#565F89"}
+	ColorPrimary lipgloss.AdaptiveColor
+	ColorDim     lipgloss.AdaptiveColor
+	ColorSuccess lipgloss.AdaptiveColor
+	ColorWarn    lipgloss.AdaptiveColor
+	ColorError   lipgloss.AdaptiveColor
+	ColorInfo    lipgloss.AdaptiveColor
+	ColorMuted   lipgloss.AdaptiveColor
+	// InputColor is text color in inputs/textareas (was hardcoded #FFFFFF).
+	InputColor lipgloss.AdaptiveColor
 )
 
-var methodColors = map[string]lipgloss.AdaptiveColor{
-	"GET":     ColorSuccess,
-	"POST":    ColorWarn,
-	"PUT":     ColorInfo,
-	"PATCH":   {Light: "#875FD7", Dark: "#BB9AF7"},
-	"DELETE":  ColorError,
-	"HEAD":    ColorMuted,
-	"OPTIONS": ColorMuted,
-}
+var methodColors map[string]lipgloss.AdaptiveColor
 
 func MethodStyle(method string) lipgloss.Style {
 	c, ok := methodColors[method]
@@ -44,29 +40,21 @@ func StatusColor(code int) lipgloss.AdaptiveColor {
 }
 
 var (
-	PaneStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "#DDDDDD", Dark: "#3B3B3B"})
-
-	ActivePaneStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(ColorPrimary)
-
-	TitleStyle  = lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary)
-	HintStyle   = lipgloss.NewStyle().Foreground(ColorMuted)
-	ErrorStyle  = lipgloss.NewStyle().Foreground(ColorError)
-	NoticeStyle = lipgloss.NewStyle().Foreground(ColorSuccess)
-
-	TabStyle = lipgloss.NewStyle().
-			Padding(0, 2).
-			Foreground(ColorMuted)
-
-	ActiveTabStyle = lipgloss.NewStyle().
-			Padding(0, 2).
-			Foreground(ColorPrimary).
-			Bold(true).
-			Underline(true)
+	PaneStyle       lipgloss.Style
+	ActivePaneStyle lipgloss.Style
+	TitleStyle      lipgloss.Style
+	HintStyle       lipgloss.Style
+	ErrorStyle      lipgloss.Style
+	NoticeStyle     lipgloss.Style
+	TabStyle        lipgloss.Style
+	ActiveTabStyle  lipgloss.Style
 )
+
+// init applies the default theme so styles are valid before any other
+// package uses them; main.go may switch themes later via Theme.Apply().
+func init() {
+	DefaultTheme.Apply()
+}
 
 // TabBar renders a simple tab strip; active is the highlighted index.
 func TabBar(tabs []string, active int) string {

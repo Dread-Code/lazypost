@@ -17,6 +17,7 @@ type State struct {
 	Env        string   `yaml:"env,omitempty"`
 	ActivePath string   `yaml:"active,omitempty"`
 	Collapsed  []string `yaml:"collapsed,omitempty"`
+	Theme      string   `yaml:"theme,omitempty"` // theme name, "" = default
 }
 
 // Load reads the state for dir. A missing file or unknown keys yield a

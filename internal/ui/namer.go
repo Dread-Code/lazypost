@@ -25,7 +25,7 @@ func NewNamer() *Namer {
 	n.input.Width = 40
 	n.input.PromptStyle = lipgloss.NewStyle().Foreground(ColorPrimary)
 	n.input.Cursor.Style = lipgloss.NewStyle().Foreground(ColorPrimary)
-	n.input.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	n.input.TextStyle = lipgloss.NewStyle().Foreground(InputColor)
 	n.input.PlaceholderStyle = lipgloss.NewStyle().Foreground(ColorMuted)
 	return n
 }

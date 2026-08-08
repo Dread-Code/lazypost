@@ -37,6 +37,16 @@ type Model struct {
 	paletteOpen bool
 	// palettePrev is the pane to restore when the palette closes
 	palettePrev pane
+	// paletteTheme makes the palette a theme picker instead of commands
+	paletteTheme bool
+
+	// envManager is the palette repurposed as an environment tabbed
+	// variables editor ([[Design - environment manager modal]]). envTab is
+	// the active environment index into envNames. envFiltering is set by
+	// "/" so letters (a/r/d) filter instead of acting.
+	envManagerOpen bool
+	envTab         int
+	envFiltering   bool
 
 	namer     *ui.Namer
 	namerOpen bool
@@ -46,12 +56,18 @@ type Model struct {
 	// creating a new one); namerOld holds its path
 	namerRename bool
 	namerOld    string
+	// namerEnvEditVar is the environment whose variables are being edited
+	// via a key=value Namer ([[Design - environment manager modal]])
+	namerEnvEditVar string
 
 	confirm     *ui.Confirm
 	confirmOpen bool
 	// confirmTarget is the entry to delete if the user confirms; kept as
 	// data (not a closure) so the delete runs on the *current* model
 	confirmTarget *collection.Entry
+	// confirmVarEnv/confirmVarKey identify a variable to delete
+	confirmVarEnv string
+	confirmVarKey string
 
 	width  int
 	height int
@@ -165,6 +181,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Confirm modal: while asking yes/no, every key goes to it.
 	if m.confirmOpen {
 		return m.updateConfirm(msg)
+	}
+
+	// Environment manager is modal: every key goes to it while open.
+	if m.envManagerOpen {
+		return m.updateEnvManager(msg)
 	}
 
 	km, isKey := msg.(tea.KeyMsg)

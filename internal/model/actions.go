@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -56,7 +57,275 @@ func (m *Model) paletteActions() []Action {
 			m.setNotice("chain store cleared", false)
 			return m, nil
 		}},
+		Action{Title: "Switch theme", Run: func(m *Model) (tea.Model, tea.Cmd) {
+			return m.openThemePicker()
+		}},
+		Action{Title: "Environments", Run: func(m *Model) (tea.Model, tea.Cmd) {
+			return m.openEnvManager()
+		}},
 	)
+}
+
+// openThemePicker reopens the palette as a theme list; enter applies the
+// selected theme and persists it in session state.
+func (m *Model) openThemePicker() (tea.Model, tea.Cmd) {
+	names := ui.ThemeNames()
+	items := make([]ui.PaletteItem, len(names))
+	for i, n := range names {
+		items[i] = ui.PaletteItem{Title: n}
+	}
+	m.palette.SetItems(items)
+	w := m.paletteWidth(items)
+	if w < 28 {
+		w = 28
+	}
+	m.palette.Resize(w, m.minPaletteHeight(len(items)))
+	m.palette.Open()
+	m.palettePrev = m.focus
+	m.paletteTheme = true
+	m.paletteOpen = true
+	return m, nil
+}
+
+// applySelectedTheme applies the theme highlighted in the picker and
+// persists it in session state.
+func (m *Model) applySelectedTheme() (tea.Model, tea.Cmd) {
+	it := m.palette.Selected()
+	if it == nil {
+		return m, nil
+	}
+	m.paletteOpen = false
+	m.paletteTheme = false
+	name := it.Title
+	ui.ThemeByName(name).Apply()
+	m.state.Theme = name
+	m.setNotice("theme: "+name, false)
+	return m, m.saveState()
+}
+
+// openEnvManager shows the environment manager: a tab bar of environments
+// with the active tab's variables listed below. ctrl+e cycles the tab,
+// enter activates it, a/r/d edit variables ([[Design - environment
+// manager modal]]).
+func (m *Model) openEnvManager() (tea.Model, tea.Cmd) {
+	if len(m.envNames) == 0 {
+		m.setNotice("no environments", true)
+		return m, nil
+	}
+	if !m.envManagerOpen {
+		// open on the active environment if set, else the first
+		m.envTab = m.envIdx - 1
+		if m.envTab < 0 {
+			m.envTab = 0
+		}
+	}
+	m.envManagerOpen = true
+	m.envFiltering = false
+	m.loadEnvTab()
+	m.palettePrev = m.focus
+	return m, nil
+}
+
+// envTabName returns the environment for the current tab.
+func (m *Model) envTabName() string {
+	if m.envTab < 0 || m.envTab >= len(m.envNames) {
+		return ""
+	}
+	return m.envNames[m.envTab]
+}
+
+// loadEnvTab populates the palette with the current tab's variables.
+func (m *Model) loadEnvTab() {
+	items := []ui.PaletteItem{}
+	if env := m.envTabName(); env != "" {
+		for k, v := range m.envs[env] {
+			items = append(items, ui.PaletteItem{Title: k + " = " + v})
+		}
+	}
+	m.palette.SetItems(items)
+	w := m.paletteWidth(items)
+	if w < 50 {
+		w = 50
+	}
+	m.palette.Resize(w, m.minPaletteHeight(len(items)+2)) // tab row + filter
+	if m.envFiltering {
+		m.palette.StartFiltering()
+	} else {
+		m.palette.OpenBrowsing()
+	}
+}
+
+// updateEnvManager routes keys while the environment manager is open:
+// ctrl+e cycles tabs, enter activates the tab, a/r/d edit variables,
+// "/" starts filtering (so letters search instead of acting), esc/q
+// closes.
+func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if km, ok := msg.(tea.KeyMsg); ok {
+		// While filtering, all letters go to the filter: only esc/q act.
+		if m.envFiltering {
+			switch km.String() {
+			case "esc", "q":
+				m.envFiltering = false
+				m.palette.ClearFilter()
+				return m, nil
+			}
+			cmd, _ := m.palette.Update(msg)
+			return m, cmd
+		}
+
+		switch {
+		case km.String() == "esc" || km.String() == "q":
+			m.envManagerOpen = false
+			return m, m.enter(m.palettePrev)
+
+		case km.String() == "/":
+			// enter filter mode: letters now search the variables
+			m.envFiltering = true
+			m.palette.StartFiltering()
+			return m, nil
+
+		// bubbles routes every key to the filter input in Filtering state
+		// and disables its nav bindings, so move the cursor ourselves.
+		case km.String() == "up" || km.String() == "ctrl+p":
+			m.palette.CursorUp()
+			return m, nil
+		case km.String() == "down" || km.String() == "ctrl+n":
+			m.palette.CursorDown()
+			return m, nil
+
+		// cycle the environment tab (ctrl+e is free here: the manager is
+		// modal, so the global cycle key is intercepted)
+		case km.String() == "ctrl+e":
+			m.envTab = (m.envTab + 1) % len(m.envNames)
+			m.loadEnvTab()
+			return m, nil
+
+		case km.String() == "a":
+			if env := m.envTabName(); env != "" {
+				m.namerEnvEditVar = env
+				m.namerOpen = true
+				return m, m.namer.Open()
+			}
+			return m, nil
+
+		case km.String() == "r":
+			if env := m.envTabName(); env != "" {
+				if key := m.selectedVarName(); key != "" {
+					m.namerEnvEditVar = env
+					m.namerOpen = true
+					return m, m.namer.OpenPrefilled(key + "=" + m.envs[env][key])
+				}
+			}
+			return m, nil
+
+		case km.String() == "d":
+			if env := m.envTabName(); env != "" {
+				if key := m.selectedVarName(); key != "" {
+					m.confirm.Ask("delete variable " + ui.TruncateRunes(key, 30) + "?")
+					m.confirmOpen = true
+					m.confirmVarEnv = env
+					m.confirmVarKey = key
+				}
+			}
+			return m, nil
+
+		case key.Matches(km, m.keyEnter):
+			m.setEnv(m.envTabName())
+			m.envManagerOpen = false
+			return m, m.saveState()
+		}
+	}
+	cmd, _ := m.palette.Update(msg)
+	return m, cmd
+}
+
+// selectedVarName returns the highlighted variable's key (the part before
+// " = ").
+func (m *Model) selectedVarName() string {
+	it := m.palette.Selected()
+	if it == nil {
+		return ""
+	}
+	if k, _, ok := strings.Cut(it.Title, " = "); ok {
+		return k
+	}
+	return ""
+}
+
+// setEnv activates env by name ("" = none), re-resolving envIdx.
+func (m *Model) setEnv(name string) {
+	if name == "" {
+		m.envIdx = 0
+		return
+	}
+	if idx := indexOf(name, m.envNames); idx >= 0 {
+		m.envIdx = idx + 1
+	} else {
+		m.envIdx = 0
+	}
+}
+
+// reloadEnvs re-reads environments from disk and re-resolves envIdx so a
+// rename/delete of the active env falls back to none.
+func (m *Model) reloadEnvs() {
+	envs, names, err := collection.LoadEnvironments(m.dir)
+	if err != nil {
+		m.setNotice("reload environments: "+err.Error(), true)
+		return
+	}
+	active := m.activeEnvName()
+	m.envs = envs
+	m.envNames = names
+	m.setEnv(active)
+}
+
+// setEnvironmentVar writes key=value into an environment's map, persists
+// it, and reopens the env manager (now on that env's tab).
+func (m *Model) setEnvironmentVar(env, kv string) (tea.Model, tea.Cmd) {
+	key, val, ok := strings.Cut(kv, "=")
+	if !ok || strings.TrimSpace(key) == "" {
+		m.setNotice("expected key=value", true)
+		return m, nil
+	}
+	vars := m.envs[env]
+	if vars == nil {
+		vars = map[string]string{}
+	}
+	vars[strings.TrimSpace(key)] = strings.TrimSpace(val)
+	if err := collection.SaveEnvironment(m.dir, env, vars); err != nil {
+		m.setNotice("edit environment: "+err.Error(), true)
+		return m, nil
+	}
+	m.reloadEnvs()
+	m.setNotice("environment "+env+" updated", false)
+	m.envTab = indexOf(env, m.envNames)
+	return m.openEnvManager()
+}
+
+// deleteVariable removes key from an environment, persists it, and
+// reopens the env manager.
+func (m *Model) deleteVariable(env, key string) tea.Cmd {
+	vars := m.envs[env]
+	if vars == nil {
+		return nil
+	}
+	delete(vars, key)
+	if err := collection.SaveEnvironment(m.dir, env, vars); err != nil {
+		m.setNotice("edit environment: "+err.Error(), true)
+		return nil
+	}
+	m.reloadEnvs()
+	m.setNotice("deleted variable "+key, false)
+	m.envTab = indexOf(env, m.envNames)
+	_, _ = m.openEnvManager() // mutates m in place via pointer receiver
+	return nil
+}
+
+// envManagerView renders the environment manager overlay: a tab bar of
+// environments above the active tab's variables.
+func (m *Model) envManagerView() string {
+	tabRow := ui.TabBar(m.envNames, m.envTab)
+	return lipgloss.JoinVertical(lipgloss.Left, tabRow, m.palette.View())
 }
 
 // matches reports whether km hits any of the action's shortcut keys.
@@ -79,6 +348,7 @@ func (m *Model) openPalette() (tea.Model, tea.Cmd) {
 	m.palette.Resize(m.paletteWidth(items), m.minPaletteHeight(len(items)))
 	m.palette.Open()
 	m.palettePrev = m.focus
+	m.paletteTheme = false
 	m.paletteOpen = true
 	return m, nil
 }
@@ -91,6 +361,7 @@ func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case km.String() == "esc" || km.String() == "q":
 			m.paletteOpen = false
+			m.paletteTheme = false
 			return m, m.enter(m.palettePrev)
 
 		// bubbles routes every key to the filter input in Filtering state
@@ -104,6 +375,9 @@ func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(km, m.keyEnter):
+			if m.paletteTheme {
+				return m.applySelectedTheme()
+			}
 			actions := m.paletteActions()
 			if it := m.palette.Selected(); it != nil {
 				for _, a := range actions {
@@ -163,6 +437,7 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case km.String() == "esc":
 			m.namerOpen = false
 			m.namerRename = false
+			m.namerEnvEditVar = ""
 			return m, nil
 
 		case key.Matches(km, m.keyEnter):
@@ -171,6 +446,15 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.setNotice("name is required", true)
 				return m, nil
 			}
+
+			// environment variable edit (key=value)
+			if m.namerEnvEditVar != "" {
+				m.namerOpen = false
+				env := m.namerEnvEditVar
+				m.namerEnvEditVar = ""
+				return m.setEnvironmentVar(env, name)
+			}
+
 			// renaming is only valid for requests, so a leading / (folder
 			// mode) is not allowed
 			if m.namerRename {
@@ -219,9 +503,16 @@ func (m *Model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmOpen = false
 				return m, m.doDelete(target)
 			}
+			if m.confirmVarKey != "" {
+				env, key := m.confirmVarEnv, m.confirmVarKey
+				m.confirmVarEnv, m.confirmVarKey = "", ""
+				m.confirmOpen = false
+				return m, m.deleteVariable(env, key)
+			}
 		case "n", "esc", "q":
 			m.confirmOpen = false
 			m.confirmTarget = nil
+			m.confirmVarEnv, m.confirmVarKey = "", ""
 		}
 	}
 	return m, nil

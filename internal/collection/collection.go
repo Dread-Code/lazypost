@@ -197,8 +197,24 @@ type Environment struct {
 	Variables map[string]string `yaml:"variables"`
 }
 
-// LoadEnvironments reads <root>/environments/*.yaml and returns the
-// variables keyed by environment name plus the sorted list of names.
+// SaveEnvironment writes (or replaces) an environment file
+// <root>/environments/<slug>.yaml.
+func SaveEnvironment(root, name string, vars map[string]string) error {
+	dir := filepath.Join(root, environmentsDir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	if vars == nil {
+		vars = map[string]string{}
+	}
+	data, err := yaml.Marshal(Environment{Variables: vars})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, Slug(name)+".yaml"), data, 0o644)
+}
+
+// LoadEnvironments reads <root>/environments/*.yaml and returns the// variables keyed by environment name plus the sorted list of names.
 func LoadEnvironments(root string) (map[string]map[string]string, []string, error) {
 	dir := filepath.Join(root, environmentsDir)
 	envs := map[string]map[string]string{}
