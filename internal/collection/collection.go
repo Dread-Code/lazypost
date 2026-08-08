@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -140,6 +141,20 @@ func Slug(name string) string {
 	s := strings.ToLower(strings.TrimSpace(name))
 	s = slugRe.ReplaceAllString(s, "-")
 	return strings.Trim(s, "-")
+}
+
+// DefaultName derives a request name from the last URL path segment when
+// the user hasn't provided one (e.g. ".../posts/42" → "42").
+func DefaultName(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err == nil && u.Path != "" && u.Path != "/" {
+		segs := strings.Split(strings.Trim(u.Path, "/"), "/")
+		last := segs[len(segs)-1]
+		if last != "" {
+			return Slug(last)
+		}
+	}
+	return "untitled"
 }
 
 // Save writes r as YAML. If path is empty a path is derived from the

@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"postgo/internal/app"
 	"postgo/internal/collection"
 	"postgo/internal/httpclient"
 	"postgo/internal/session"
@@ -119,15 +120,6 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	return m
 }
 
-func indexOf(s string, list []string) int {
-	for i, v := range list {
-		if v == s {
-			return i
-		}
-	}
-	return -1
-}
-
 func (m Model) Init() tea.Cmd { return nil }
 
 // Update is a thin router: typed messages first, then the open overlay,
@@ -143,12 +135,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case responseMsg:
 		m.response.SetResponse(msg.res)
-		m.store = mergeVars(m.store, msg.store)
+		m.store = app.MergeVars(m.store, msg.store)
 		return m, nil
 
 	case errMsg:
 		m.response.SetError(msg.err)
-		m.store = mergeVars(m.store, msg.store)
+		m.store = app.MergeVars(m.store, msg.store)
 		return m, nil
 
 	case spinner.TickMsg:

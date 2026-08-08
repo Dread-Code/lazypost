@@ -8,7 +8,9 @@ import (
 	"fmt"
 
 	"postgo/internal/collection"
+	"postgo/internal/curl"
 	"postgo/internal/httpclient"
+	"postgo/internal/render"
 	"postgo/internal/script"
 )
 
@@ -24,6 +26,12 @@ type Result struct {
 	Store    map[string]string
 }
 
+// CurlLine renders req as a curl one-liner with {{vars}} interpolated
+// (unknown placeholders pass through, per ADR-0006).
+func CurlLine(req collection.Request, vars map[string]string) string {
+	return curl.Format(render.Request(req, vars))
+}
+
 // Send runs the request pipeline: pre hook → HTTP exec → post hook.
 //
 // vars are the interpolation variables (the active environment) and
@@ -37,11 +45,11 @@ func Send(c Client, req collection.Request, vars, store map[string]string) (Resu
 			// synchronous-failure path
 			return Result{}, err
 		}
-		vars = mergeVars(vars, extra)
+		vars = MergeVars(vars, extra)
 	}
 
 	// interpolation precedence: env → pre-returned vars → store
-	vars = mergeVars(vars, store)
+	vars = MergeVars(vars, store)
 
 	// snapshot for the post hook: it must see the request as sent
 	sent := req
@@ -60,13 +68,22 @@ func Send(c Client, req collection.Request, vars, store map[string]string) (Resu
 	return Result{Response: res, Store: store}, nil
 }
 
-// mergeVars layers extra over base (extra wins).
-func mergeVars(base, extra map[string]string) map[string]string {
+// MergeVars layers extra over base (extra wins).
+func MergeVars(base, extra map[string]string) map[string]string {
 	out := make(map[string]string, len(base)+len(extra))
 	for k, v := range base {
 		out[k] = v
 	}
 	for k, v := range extra {
+		out[k] = v
+	}
+	return out
+}
+
+// CloneVars returns a shallow copy of vars (nil-safe).
+func CloneVars(vars map[string]string) map[string]string {
+	out := make(map[string]string, len(vars))
+	for k, v := range vars {
 		out[k] = v
 	}
 	return out

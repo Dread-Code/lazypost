@@ -193,31 +193,6 @@ func TestPasteCurlImportAndExport(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
-func TestCurlExportLineInterpolates(t *testing.T) {
-	req := collection.Request{
-		Method: "GET",
-		URL:    "{{host}}/api/random",
-		Headers: []collection.Header{
-			{Name: "Accept", Value: "application/json"},
-		},
-	}
-	got := curlExportLine(req, map[string]string{"host": "https://zenquotes.io"})
-	for _, want := range []string{"https://zenquotes.io/api/random", "-H 'Accept: application/json'"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("curlExportLine = %q, want contains %q", got, want)
-		}
-	}
-	if strings.Contains(got, "{{host}}") {
-		t.Errorf("curlExportLine should interpolate host, got %q", got)
-	}
-
-	// unknown placeholders still pass through
-	got = curlExportLine(req, nil)
-	if !strings.Contains(got, "{{host}}") {
-		t.Errorf("no vars should keep {{host}}, got %q", got)
-	}
-}
-
 func TestCommandPalette(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}

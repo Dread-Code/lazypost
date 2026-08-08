@@ -1,13 +1,11 @@
 package model
 
 import (
-	neturl "net/url"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 
-	"postgo/internal/collection"
 	"postgo/internal/ui"
 )
 
@@ -236,18 +234,4 @@ func (m Model) statusBar() string {
 
 func rel(dir, path string) string {
 	return strings.TrimPrefix(path, dir+"/")
-}
-
-// defaultName derives a request name from the last URL path segment when
-// the user hasn't provided one (e.g. ".../posts/42" → "42").
-func defaultName(rawURL string) string {
-	u, err := neturl.Parse(rawURL)
-	if err == nil && u.Path != "" && u.Path != "/" {
-		segs := strings.Split(strings.Trim(u.Path, "/"), "/")
-		last := segs[len(segs)-1]
-		if last != "" {
-			return collection.Slug(last)
-		}
-	}
-	return "untitled"
 }

@@ -2,6 +2,7 @@ package model
 
 import (
 	"path/filepath"
+	"slices"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -11,7 +12,7 @@ import (
 // restore applies persisted session state: active environment, collapsed
 // folders, and the last selected request.
 func (m *Model) restore(st session.State) {
-	if idx := indexOf(st.Env, m.envNames); idx >= 0 {
+	if idx := slices.Index(m.envNames, st.Env); idx >= 0 {
 		m.envIdx = idx + 1
 	}
 	m.sidebar.SetCollapsed(m.dir, st.Collapsed)

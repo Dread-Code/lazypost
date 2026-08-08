@@ -21,7 +21,7 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 	}
 	m.setNotice("", false)
 	vars := m.activeVars()
-	store := cloneVars(m.store)
+	store := app.CloneVars(m.store)
 
 	cmd := func() tea.Msg {
 		res, err := app.Send(httpclient.Exec, *req, vars, store)
@@ -31,25 +31,4 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 		return responseMsg{res: res.Response, store: res.Store}
 	}
 	return m, tea.Batch(m.response.StartLoading(), cmd)
-}
-
-// cloneVars returns a shallow copy of vars (nil-safe).
-func cloneVars(vars map[string]string) map[string]string {
-	out := make(map[string]string, len(vars))
-	for k, v := range vars {
-		out[k] = v
-	}
-	return out
-}
-
-// mergeVars layers extra over base (extra wins).
-func mergeVars(base, extra map[string]string) map[string]string {
-	out := make(map[string]string, len(base)+len(extra))
-	for k, v := range base {
-		out[k] = v
-	}
-	for k, v := range extra {
-		out[k] = v
-	}
-	return out
 }

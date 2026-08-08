@@ -5,10 +5,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"postgo/internal/app"
 	"postgo/internal/clipboard"
-	"postgo/internal/collection"
 	"postgo/internal/curl"
-	"postgo/internal/render"
 )
 
 // importCurl parses a pasted curl command into the bar and editor,
@@ -37,17 +36,11 @@ func (m *Model) exportCurl() (tea.Model, tea.Cmd) {
 		m.setNotice("nothing to export: URL is empty", true)
 		return m, nil
 	}
-	line := curlExportLine(*req, m.activeVars())
+	line := app.CurlLine(*req, m.activeVars())
 	m.setNotice("curl copied to clipboard", false)
 	if err := clipboard.Write(line); err != nil {
 		seq := "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(line)) + "\a"
 		return m, tea.Printf("%s", seq)
 	}
 	return m, nil
-}
-
-// curlExportLine renders req as a curl command with {{vars}} interpolated
-// from vars (unknown placeholders pass through, per ADR-0006).
-func curlExportLine(req collection.Request, vars map[string]string) string {
-	return curl.Format(render.Request(req, vars))
 }

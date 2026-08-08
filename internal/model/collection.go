@@ -4,6 +4,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"postgo/internal/app"
+	"postgo/internal/collection"
 )
 
 // save persists the composed request to disk, then refreshes the sidebar
@@ -17,7 +18,7 @@ func (m *Model) save() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if req.Name == "" {
-		req.Name = defaultName(req.URL)
+		req.Name = collection.DefaultName(req.URL)
 	}
 	path, entries, err := app.SaveRequest(m.dir, m.editor.ActivePath(), req)
 	if err != nil {

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -174,7 +175,7 @@ func (m *Model) setEnv(name string) {
 		m.envIdx = 0
 		return
 	}
-	if idx := indexOf(name, m.envNames); idx >= 0 {
+	if idx := slices.Index(m.envNames, name); idx >= 0 {
 		m.envIdx = idx + 1
 	} else {
 		m.envIdx = 0
@@ -214,7 +215,7 @@ func (m *Model) setEnvironmentVar(env, kv string) (tea.Model, tea.Cmd) {
 	}
 	m.reloadEnvs()
 	m.setNotice("environment "+env+" updated", false)
-	m.palette.envTab = indexOf(env, m.envNames)
+	m.palette.envTab = slices.Index(m.envNames, env)
 	return m.openEnvManager()
 }
 
@@ -228,7 +229,7 @@ func (m *Model) createEnvironment(name string) (tea.Model, tea.Cmd) {
 	}
 	m.reloadEnvs()
 	m.setNotice("environment "+name+" created", false)
-	m.palette.envTab = indexOf(name, m.envNames)
+	m.palette.envTab = slices.Index(m.envNames, name)
 	return m.openEnvManager()
 }
 
@@ -246,7 +247,7 @@ func (m *Model) deleteVariable(env, key string) tea.Cmd {
 	}
 	m.reloadEnvs()
 	m.setNotice("deleted variable "+key, false)
-	m.palette.envTab = indexOf(env, m.envNames)
+	m.palette.envTab = slices.Index(m.envNames, env)
 	_, _ = m.openEnvManager() // mutates m in place via pointer receiver
 	return nil
 }

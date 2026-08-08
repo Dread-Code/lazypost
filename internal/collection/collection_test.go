@@ -200,3 +200,19 @@ func TestSlug(t *testing.T) {
 		}
 	}
 }
+
+func TestDefaultName(t *testing.T) {
+	cases := map[string]string{
+		"https://api.test/posts/42":       "42",
+		"https://api.test/posts/My Post":  "my-post",
+		"https://api.test/":               "untitled",
+		"https://api.test":                "untitled",
+		"https://api.test/posts/":         "posts",
+		"a bare relative path with space": "a-bare-relative-path-with-space",
+	}
+	for in, want := range cases {
+		if got := DefaultName(in); got != want {
+			t.Errorf("DefaultName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
