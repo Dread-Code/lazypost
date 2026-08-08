@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"postgo/internal/session"
+	"lazypost/internal/session"
 )
 
 // restore applies persisted session state: active environment, collapsed

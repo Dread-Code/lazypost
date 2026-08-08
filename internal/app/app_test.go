@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"postgo/internal/collection"
-	"postgo/internal/httpclient"
+	"lazypost/internal/collection"
+	"lazypost/internal/httpclient"
 )
 
 func fakeResponse() *httpclient.Response {

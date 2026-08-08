@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 func TestParse(t *testing.T) {

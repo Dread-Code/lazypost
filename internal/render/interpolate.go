@@ -3,7 +3,7 @@ package render
 import (
 	"regexp"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 // pattern matches {{name}} with optional inner whitespace, e.g. {{ host }}.

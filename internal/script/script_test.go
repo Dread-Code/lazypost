@@ -3,7 +3,7 @@ package script
 import (
 	"testing"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 func TestPreReturnsVars(t *testing.T) {

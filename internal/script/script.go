@@ -10,7 +10,7 @@ import (
 
 	lua "github.com/yuin/gopher-lua"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 // maxPostBody caps the response body handed to a post hook; larger bodies

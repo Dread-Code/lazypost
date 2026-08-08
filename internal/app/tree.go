@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 // Collection operations: each mutates the collection tree on disk and

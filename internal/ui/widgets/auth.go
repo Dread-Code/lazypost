@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 var authTypes = []string{"none", "basic", "bearer", "apikey"}

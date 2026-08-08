@@ -7,11 +7,11 @@ package app
 import (
 	"fmt"
 
-	"postgo/internal/collection"
-	"postgo/internal/curl"
-	"postgo/internal/httpclient"
-	"postgo/internal/render"
-	"postgo/internal/script"
+	"lazypost/internal/collection"
+	"lazypost/internal/curl"
+	"lazypost/internal/httpclient"
+	"lazypost/internal/render"
+	"lazypost/internal/script"
 )
 
 // Client executes an already-interpolated request. httpclient.Exec is

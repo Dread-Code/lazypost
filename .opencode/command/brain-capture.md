@@ -2,7 +2,7 @@
 description: End-of-session capture — distill this session's knowledge into the vault (gotchas, learnings, ADRs, architecture updates).
 ---
 
-You are running the end-of-session knowledge capture for postgo.
+You are running the end-of-session knowledge capture for lazypost.
 
 Paths:
 - Vault: /Users/dread-code/Documents/Vault/lazy-post

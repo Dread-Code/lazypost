@@ -12,8 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"postgo/internal/collection"
-	"postgo/internal/session"
+	"lazypost/internal/collection"
+	"lazypost/internal/session"
 )
 
 func TestSendRequestEndToEnd(t *testing.T) {

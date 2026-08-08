@@ -1,4 +1,4 @@
-module postgo
+module lazypost
 
 go 1.25.0
 

@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/cellbuf"
 
-	"postgo/internal/ui/widgets"
+	"lazypost/internal/ui/widgets"
 )
 
 // geometry derives pane sizes from the terminal size. Both layout() and
@@ -57,13 +57,13 @@ func (m *Model) layout() {
 // renderer drop lines (e.g. the title bar).
 func (m Model) View() string {
 	if m.width < 60 || m.height < 20 {
-		return "terminal too small — resize to use postgo"
+		return "terminal too small — resize to use lazypost"
 	}
 
 	g := m.geometry()
 
 	title := lipgloss.JoinHorizontal(lipgloss.Left,
-		ui.TitleStyle.Render("postgo"),
+		ui.TitleStyle.Render("lazypost"),
 		ui.HintStyle.Render("  "+ui.TruncateRunes(m.dir, m.width/2)),
 	)
 	envLabel := "env: none"

@@ -7,10 +7,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"postgo/internal/collection"
-	"postgo/internal/session"
-	"postgo/internal/ui/model"
-	"postgo/internal/ui/widgets"
+	"lazypost/internal/collection"
+	"lazypost/internal/session"
+	"lazypost/internal/ui/model"
+	"lazypost/internal/ui/widgets"
 )
 
 func main() {
@@ -26,12 +26,12 @@ func main() {
 	// model treats them as immutable snapshots.
 	entries, err := collection.Load(root)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "postgo: cannot load collection %q: %v\n", root, err)
+		fmt.Fprintf(os.Stderr, "lazypost: cannot load collection %q: %v\n", root, err)
 		os.Exit(1)
 	}
 	envs, envNames, err := collection.LoadEnvironments(root)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "postgo: cannot load environments: %v\n", err)
+		fmt.Fprintf(os.Stderr, "lazypost: cannot load environments: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -39,14 +39,14 @@ func main() {
 	// the previous run; a missing state file yields defaults.
 	st, err := session.Load(root)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "postgo: cannot load session state: %v\n", err)
+		fmt.Fprintf(os.Stderr, "lazypost: cannot load session state: %v\n", err)
 		os.Exit(1)
 	}
 	ui.ThemeByName(st.Theme).Apply()
 
 	p := tea.NewProgram(model.New(root, entries, envs, envNames, st), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "postgo: %v\n", err)
+		fmt.Fprintf(os.Stderr, "lazypost: %v\n", err)
 		os.Exit(1)
 	}
 }

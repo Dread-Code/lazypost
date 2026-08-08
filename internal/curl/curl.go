@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 var noArgFlags = map[string]bool{
@@ -25,7 +25,7 @@ var noArgFlags = map[string]bool{
 	"--http1.1": true, "--http2": true,
 }
 
-// valueFlags are request-shaping flags postgo does not model; their value
+// valueFlags are request-shaping flags lazypost does not model; their value
 // is consumed and skipped so parsing can continue.
 var valueFlags = map[string]bool{
 	"-o": true, "--output": true,

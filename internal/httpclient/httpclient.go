@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"postgo/internal/collection"
-	"postgo/internal/render"
+	"lazypost/internal/collection"
+	"lazypost/internal/render"
 )
 
 type Response struct {

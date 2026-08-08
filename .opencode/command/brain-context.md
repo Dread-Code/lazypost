@@ -2,7 +2,7 @@
 description: Load the project's context from the vault into this session — run at the start of a new session.
 ---
 
-You are starting work on postgo in a fresh session. Absorb the project context from the vault so nothing has to be rediscovered.
+You are starting work on lazypost in a fresh session. Absorb the project context from the vault so nothing has to be rediscovered.
 
 Paths:
 - Vault (project brain): /Users/dread-code/Documents/Vault/lazy-post

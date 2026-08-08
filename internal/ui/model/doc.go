@@ -1,4 +1,4 @@
-// Package model is the root Bubble Tea model of postgo: the single
+// Package model is the root Bubble Tea model of lazypost: the single
 // tea.Model the program runs, plus everything the root needs to respond
 // to messages.
 //

@@ -1,4 +1,4 @@
-/postgo
+/lazypost
 *.test
 *.out
 coverage.*

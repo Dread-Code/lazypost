@@ -3,7 +3,7 @@ package render
 import (
 	"testing"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 func TestApply(t *testing.T) {

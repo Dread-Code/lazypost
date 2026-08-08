@@ -4,9 +4,9 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"postgo/internal/app"
-	"postgo/internal/collection"
-	"postgo/internal/ui/widgets"
+	"lazypost/internal/app"
+	"lazypost/internal/collection"
+	"lazypost/internal/ui/widgets"
 )
 
 // openDeleteConfirm shows the confirm modal for deleting e (a request or

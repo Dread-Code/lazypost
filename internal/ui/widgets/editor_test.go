@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 func TestEditorCarriesHooks(t *testing.T) {

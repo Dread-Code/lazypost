@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 func TestExec(t *testing.T) {

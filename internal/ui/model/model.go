@@ -8,11 +8,11 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"postgo/internal/app"
-	"postgo/internal/collection"
-	"postgo/internal/httpclient"
-	"postgo/internal/session"
-	"postgo/internal/ui/widgets"
+	"lazypost/internal/app"
+	"lazypost/internal/collection"
+	"lazypost/internal/httpclient"
+	"lazypost/internal/session"
+	"lazypost/internal/ui/widgets"
 )
 
 type responseMsg struct {

@@ -5,9 +5,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"postgo/internal/app"
-	"postgo/internal/clipboard"
-	"postgo/internal/curl"
+	"lazypost/internal/app"
+	"lazypost/internal/clipboard"
+	"lazypost/internal/curl"
 )
 
 // importCurl parses a pasted curl command into the bar and editor,

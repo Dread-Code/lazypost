@@ -8,8 +8,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"postgo/internal/collection"
-	"postgo/internal/ui/widgets"
+	"lazypost/internal/collection"
+	"lazypost/internal/ui/widgets"
 )
 
 // openEnvManager shows the environment manager: a tab bar of environments

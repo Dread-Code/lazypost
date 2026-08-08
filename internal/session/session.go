@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// State is what postgo remembers about one collection between runs. All
+// State is what lazypost remembers about one collection between runs. All
 // paths are relative to the collection root.
 type State struct {
 	Env        string   `yaml:"env,omitempty"`
@@ -62,15 +62,15 @@ func Save(dir string, s State) error {
 	return os.WriteFile(file, data, 0o644)
 }
 
-// stateFile returns $XDG_CONFIG_HOME/postgo/state.yaml (or
-// ~/.config/postgo/state.yaml), falling back to the platform config dir.
+// stateFile returns $XDG_CONFIG_HOME/lazypost/state.yaml (or
+// ~/.config/lazypost/state.yaml), falling back to the platform config dir.
 func stateFile() (string, error) {
 	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
-		return filepath.Join(dir, "postgo", "state.yaml"), nil
+		return filepath.Join(dir, "lazypost", "state.yaml"), nil
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "postgo", "state.yaml"), nil
+	return filepath.Join(dir, "lazypost", "state.yaml"), nil
 }

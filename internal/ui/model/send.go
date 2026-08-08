@@ -3,8 +3,8 @@ package model
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"postgo/internal/app"
-	"postgo/internal/httpclient"
+	"lazypost/internal/app"
+	"lazypost/internal/httpclient"
 )
 
 // send composes the request (URL/method from the bar, the rest from the

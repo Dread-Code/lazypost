@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"postgo/internal/httpclient"
+	"lazypost/internal/httpclient"
 )
 
 type respState int

@@ -3,8 +3,8 @@ package model
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"postgo/internal/app"
-	"postgo/internal/collection"
+	"lazypost/internal/app"
+	"lazypost/internal/collection"
 )
 
 // save persists the composed request to disk, then refreshes the sidebar

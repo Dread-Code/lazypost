@@ -5,7 +5,7 @@ import (
 
 	lua "github.com/yuin/gopher-lua"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 // setup populates the sandbox globals for a hook: env (active vars), req

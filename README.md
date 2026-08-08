@@ -1,9 +1,9 @@
-# postgo
+# lazypost
 
 An API client that lives in your terminal — a [Posting](https://posting.sh)-inspired TUI built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ```
-postgo  sample-collections                          env: dev
+lazypost  sample-collections                          env: dev
 GET https://api.example.com/posts          ctrl+t method
 ╭ Collection ────────────────╮ ╭─ Request · posts/create ────────────────╮
 │ ▸ posts/                   │ │  Query  Headers  Body  Auth  Scripts    │
@@ -33,7 +33,7 @@ GET https://api.example.com/posts          ctrl+t method
 ## Install
 
 ```sh
-go build -o postgo .
+go build -o lazypost .
 ```
 
 Requires Go 1.25+.
@@ -41,8 +41,8 @@ Requires Go 1.25+.
 ## Run
 
 ```sh
-./postgo                    # uses ./sample-collections if present
-./postgo -dir my-collection # or point at your own collection directory
+./lazypost                    # uses ./sample-collections if present
+./lazypost -dir my-collection # or point at your own collection directory
 ```
 
 ## Keybindings

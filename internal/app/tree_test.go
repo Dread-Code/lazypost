@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"postgo/internal/collection"
+	"lazypost/internal/collection"
 )
 
 func seed(t *testing.T, root string, req *collection.Request) string {

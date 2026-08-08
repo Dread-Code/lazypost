@@ -28,8 +28,8 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 		t.Errorf("collapsed mismatch: %+v", got.Collapsed)
 	}
 
-	// file lives under $XDG_CONFIG_HOME/postgo/state.yaml
-	file := filepath.Join(cfg, "postgo", "state.yaml")
+	// file lives under $XDG_CONFIG_HOME/lazypost/state.yaml
+	file := filepath.Join(cfg, "lazypost", "state.yaml")
 	if _, err := os.Stat(file); err != nil {
 		t.Errorf("expected state file at %s: %v", file, err)
 	}
