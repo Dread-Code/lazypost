@@ -2,6 +2,13 @@
 // tea.Model the program runs, plus everything the root needs to respond
 // to messages.
 //
+// # Boundary
+//
+// This package lives under internal/ui because it is UI: everything that
+// draws to the terminal lives under internal/ui — the root model here,
+// the widgets in the parent package — and everything that doesn't lives
+// in internal/app or the domain/infrastructure packages.
+//
 // # Layering
 //
 // Two kinds of code live here, deliberately:
@@ -13,7 +20,7 @@
 //
 //  2. The handlers — one file per operation that Update delegates to:
 //     actions.go (action registry + palette overlay), send.go,
-//     collection.go (save/rename/create), confirm.go (delete flow),
+//     crud.go (save/rename/create), confirm.go (delete flow),
 //     env.go (environment manager), namer.go, curl.go, session.go.
 //     They are not framework code; they live here because they mutate
 //     widget state (sidebar, editor, urlbar, overlays), which only the

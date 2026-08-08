@@ -8,9 +8,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"postgo/internal/collection"
-	"postgo/internal/model"
 	"postgo/internal/session"
 	"postgo/internal/ui"
+	"postgo/internal/ui/model"
 )
 
 func main() {

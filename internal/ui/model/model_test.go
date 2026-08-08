@@ -18,15 +18,15 @@ import (
 func loadSample(t *testing.T) Model {
 	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	entries, err := collection.Load("../../sample-collections")
+	entries, err := collection.Load("../../../sample-collections")
 	if err != nil {
 		t.Fatalf("load sample collections: %v", err)
 	}
-	envs, names, err := collection.LoadEnvironments("../../sample-collections")
+	envs, names, err := collection.LoadEnvironments("../../../sample-collections")
 	if err != nil {
 		t.Fatalf("load environments: %v", err)
 	}
-	return New("../../sample-collections", entries, envs, names, session.State{})
+	return New("../../../sample-collections", entries, envs, names, session.State{})
 }
 
 // watcher accumulates program output across waitFor calls, since the
@@ -377,11 +377,11 @@ func TestAddFolderWithSlash(t *testing.T) {
 
 func TestRestoreSessionState(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	entries, err := collection.Load("../../sample-collections")
+	entries, err := collection.Load("../../../sample-collections")
 	if err != nil {
 		t.Fatal(err)
 	}
-	envs, names, err := collection.LoadEnvironments("../../sample-collections")
+	envs, names, err := collection.LoadEnvironments("../../../sample-collections")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -390,7 +390,7 @@ func TestRestoreSessionState(t *testing.T) {
 		ActivePath: "quotes/random.yaml",
 		Collapsed:  []string{"authors"},
 	}
-	tm := teatest.NewTestModel(t, New("../../sample-collections", entries, envs, names, st), teatest.WithInitialTermSize(120, 40))
+	tm := teatest.NewTestModel(t, New("../../../sample-collections", entries, envs, names, st), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
 	// environment restored
