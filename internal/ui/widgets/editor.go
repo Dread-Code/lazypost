@@ -28,10 +28,10 @@ type Editor struct {
 	headers textarea.Model
 	body    textarea.Model
 	auth    AuthEditor
-	pre     textarea.Model
-	post    textarea.Model
+	pre     *scriptEditor
+	post    *scriptEditor
 	section Section
-	// field selects which script textarea (0=pre, 1=post) has focus
+	// field selects which script editor (0=pre, 1=post) has focus
 	field   int
 	focused bool
 
@@ -63,17 +63,8 @@ func NewEditor(width, height int) *Editor {
 	e.body.ShowLineNumbers = true
 	e.body.CharLimit = -1
 
-	e.pre = textarea.New()
-	e.pre.Placeholder = "-- runs before the request"
-	e.pre.Prompt = ""
-	e.pre.ShowLineNumbers = true
-	e.pre.CharLimit = -1
-
-	e.post = textarea.New()
-	e.post.Placeholder = "-- runs after the response"
-	e.post.Prompt = ""
-	e.post.ShowLineNumbers = true
-	e.post.CharLimit = -1
+	e.pre = newScriptEditor(0, 0, "-- runs before the request")
+	e.post = newScriptEditor(0, 0, "-- runs after the response")
 
 	e.auth = NewAuthEditor()
 	e.resize()
