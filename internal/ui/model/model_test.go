@@ -410,9 +410,10 @@ func TestRestoreSessionState(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := session.State{
-		Env:        "prod",
-		ActivePath: "quotes/random.yaml",
-		Collapsed:  []string{"authors"},
+		Env:           "prod",
+		ActivePath:    "quotes/random.yaml",
+		Collapsed:     []string{"authors"},
+		EditorSection: 2, // SecBody
 	}
 	tm := teatest.NewTestModel(t, New("../../../sample-collections", entries, envs, names, st), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
@@ -427,6 +428,11 @@ func TestRestoreSessionState(t *testing.T) {
 	// active request restored into the editor
 	w.waitFor(t, "{{host}}/api/random", 3*time.Second)
 
+	// editor section restored: tabbing into the editor shows the Body tab
+	// without any ctrl+n navigation
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+	w.waitFor(t, `{"hello": "world"}`, 3*time.Second)
+
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
@@ -437,12 +443,16 @@ func TestSessionSnapshot(t *testing.T) {
 	m.cycleEnv() // none -> dev
 	m.cycleEnv() // dev -> prod
 	m.sidebar.ToggleCollapsed()
+	m.editor.SetSection(3) // SecAuth
 	st := m.snapshot()
 	if st.Env != "prod" {
 		t.Errorf("expected env prod, got %q", st.Env)
 	}
 	if len(st.Collapsed) != 3 {
 		t.Errorf("expected all top-level dirs collapsed, got %v", st.Collapsed)
+	}
+	if st.EditorSection != 3 {
+		t.Errorf("expected editor section 3, got %d", st.EditorSection)
 	}
 }
 

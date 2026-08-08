@@ -49,6 +49,25 @@ func TestSetRequestKeepsSection(t *testing.T) {
 	}
 }
 
+func TestSectionAccessors(t *testing.T) {
+	e := NewEditor(60, 20)
+	if e.Section() != int(SecQuery) {
+		t.Errorf("initial section = %d", e.Section())
+	}
+	e.SetSection(int(SecScripts))
+	if e.Section() != int(SecScripts) {
+		t.Errorf("SetSection(SecScripts) = %d", e.Section())
+	}
+	e.SetSection(99)
+	if e.Section() != int(SecScripts) {
+		t.Errorf("out-of-range SetSection changed section to %d", e.Section())
+	}
+	e.SetSection(-1)
+	if e.Section() != int(SecScripts) {
+		t.Errorf("negative SetSection changed section to %d", e.Section())
+	}
+}
+
 func TestEditorScriptsTab(t *testing.T) {
 	e := NewEditor(60, 20)
 	// navigate to the Scripts tab (index 4) via ctrl+n

@@ -342,3 +342,14 @@ func (e *Editor) New() tea.Cmd {
 
 func (e *Editor) ActivePath() string        { return e.activePath }
 func (e *Editor) SetActivePath(path string) { e.activePath = path }
+
+// Section returns the active editor tab, for session persistence.
+func (e *Editor) Section() int { return int(e.section) }
+
+// SetSection restores the active editor tab; out-of-range values are
+// ignored.
+func (e *Editor) SetSection(n int) {
+	if n >= 0 && n < len(sectionTabs) {
+		e.section = Section(n)
+	}
+}

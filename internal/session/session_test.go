@@ -12,7 +12,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	defer os.Setenv("XDG_CONFIG_HOME", orig)
 
-	st := State{Env: "dev", ActivePath: "quotes/random.yaml", Collapsed: []string{"authors"}}
+	st := State{Env: "dev", ActivePath: "quotes/random.yaml", Collapsed: []string{"authors"}, EditorSection: 2}
 	if err := Save("/tmp/col", st); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
@@ -26,6 +26,9 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	}
 	if len(got.Collapsed) != 1 || got.Collapsed[0] != "authors" {
 		t.Errorf("collapsed mismatch: %+v", got.Collapsed)
+	}
+	if got.EditorSection != 2 {
+		t.Errorf("editor section mismatch: %d", got.EditorSection)
 	}
 
 	// file lives under $XDG_CONFIG_HOME/lazypost/state.yaml

@@ -10,7 +10,7 @@ import (
 )
 
 // restore applies persisted session state: active environment, collapsed
-// folders, and the last selected request.
+// folders, the last selected request, and the editor section.
 func (m *Model) restore(st session.State) {
 	if idx := slices.Index(m.envNames, st.Env); idx >= 0 {
 		m.envIdx = idx + 1
@@ -22,6 +22,7 @@ func (m *Model) restore(st session.State) {
 			m.editor.SetRequest(e.Req, e.Path)
 		}
 	}
+	m.editor.SetSection(st.EditorSection)
 }
 
 // quit persists state synchronously (the program is about to exit, so an
@@ -32,7 +33,7 @@ func (m *Model) quit() tea.Cmd {
 }
 
 // snapshot captures the persisted UI state (env, active request, collapsed
-// dirs) without writing it.
+// dirs, editor section) without writing it.
 func (m *Model) snapshot() session.State {
 	st := m.state
 	st.Env = m.activeEnvName()
@@ -42,6 +43,7 @@ func (m *Model) snapshot() session.State {
 		}
 	}
 	st.Collapsed = m.sidebar.CollapsedPaths(m.dir)
+	st.EditorSection = m.editor.Section()
 	return st
 }
 

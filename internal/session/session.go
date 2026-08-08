@@ -14,10 +14,11 @@ import (
 // State is what lazypost remembers about one collection between runs. All
 // paths are relative to the collection root.
 type State struct {
-	Env        string   `yaml:"env,omitempty"`
-	ActivePath string   `yaml:"active,omitempty"`
-	Collapsed  []string `yaml:"collapsed,omitempty"`
-	Theme      string   `yaml:"theme,omitempty"` // theme name, "" = default
+	Env           string   `yaml:"env,omitempty"`
+	ActivePath    string   `yaml:"active,omitempty"`
+	Collapsed     []string `yaml:"collapsed,omitempty"`
+	Theme         string   `yaml:"theme,omitempty"`          // theme name, "" = default
+	EditorSection int      `yaml:"editor_section,omitempty"` // active editor tab
 }
 
 // Load reads the state for dir. A missing file or unknown keys yield a
