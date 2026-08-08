@@ -52,7 +52,7 @@ func (d paletteDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 		cursor = lipgloss.NewStyle().Foreground(ColorPrimary).Render("▸ ")
 		title = lipgloss.NewStyle().Foreground(ColorPrimary).Render(title)
 	}
-	line := cursor + title + strings.Repeat(" ", avail-lipgloss.Width(title)-lipgloss.Width(shortcut)) + shortcut
+	line := cursor + title + strings.Repeat(" ", max(0, avail-lipgloss.Width(title)-lipgloss.Width(shortcut))) + shortcut
 	fmt.Fprint(w, line)
 }
 
