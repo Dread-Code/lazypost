@@ -1,8 +1,10 @@
 package model
 
 import (
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"postgo/internal/app"
 	"postgo/internal/collection"
 	"postgo/internal/ui"
 )
@@ -25,8 +27,8 @@ func (m *Model) openDeleteConfirm(e *collection.Entry) tea.Cmd {
 // the pending delete, n/esc cancels.
 func (m *Model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok {
-		switch km.String() {
-		case "y", "enter":
+		switch {
+		case key.Matches(km, keyYes) || key.Matches(km, keyEnter):
 			if m.confirm.target != nil {
 				target := m.confirm.target
 				m.confirm.target = nil
@@ -39,7 +41,7 @@ func (m *Model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.overlay = noOverlay
 				return m, m.deleteVariable(env, key)
 			}
-		case "n", "esc", "q":
+		case key.Matches(km, keyN) || key.Matches(km, keyEsc) || key.Matches(km, keyQuit):
 			m.overlay = noOverlay
 			m.confirm.target = nil
 			m.confirm.env, m.confirm.key = "", ""
@@ -48,10 +50,11 @@ func (m *Model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// doDelete removes the highlighted entry (file or folder) and reloads the
-// tree. If it was the active request the editor is reset.
+// doDelete removes the highlighted entry (file or folder) and refreshes
+// the tree. If it was the active request the editor is reset.
 func (m *Model) doDelete(e *collection.Entry) tea.Cmd {
-	if err := collection.Delete(m.dir, e.Path); err != nil {
+	entries, err := app.DeleteEntry(m.dir, e)
+	if err != nil {
 		m.setNotice("delete failed: "+err.Error(), true)
 		return nil
 	}
@@ -59,10 +62,7 @@ func (m *Model) doDelete(e *collection.Entry) tea.Cmd {
 		m.urlbar.New()
 		m.editor.New()
 	}
-	entries, err := collection.Load(m.dir)
-	if err == nil {
-		m.sidebar.SetEntries(entries)
-	}
+	m.sidebar.SetEntries(entries)
 	m.setNotice("deleted "+rel(m.dir, e.Path), false)
 	return m.saveState()
 }

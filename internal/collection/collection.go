@@ -169,6 +169,25 @@ func Save(root, path string, r *Request) (string, error) {
 // must never be deleted from the UI (the collection root, environments/).
 var ErrProtected = errors.New("refusing to delete a protected path")
 
+// Rename rewrites the request at oldPath under a new slug path derived
+// from name, then removes the old file. The renamed request is returned
+// with the new path.
+func Rename(root, oldPath, name string) (*Request, string, error) {
+	req, err := LoadFile(oldPath)
+	if err != nil {
+		return nil, "", err
+	}
+	req.Name = name
+	newPath := filepath.Join(filepath.Dir(oldPath), Slug(name)+".yaml")
+	if _, err := Save(root, newPath, req); err != nil {
+		return nil, "", err
+	}
+	if err := os.Remove(oldPath); err != nil {
+		return nil, "", err
+	}
+	return req, newPath, nil
+}
+
 // Delete removes a request file or a directory subtree (a folder in the
 // collection). The collection root and environments/ are protected.
 func Delete(root, path string) error {

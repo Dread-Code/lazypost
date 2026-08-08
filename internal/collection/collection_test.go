@@ -137,6 +137,35 @@ func TestLoadEnvironments(t *testing.T) {
 	}
 }
 
+func TestRename(t *testing.T) {
+	root := t.TempDir()
+	old := filepath.Join(root, "old-name.yaml")
+	if _, err := Save(root, old, &Request{Name: "old name", Method: "GET", URL: "https://api.test/x"}); err != nil {
+		t.Fatal(err)
+	}
+
+	req, newPath, err := Rename(root, old, "new name")
+	if err != nil {
+		t.Fatalf("Rename: %v", err)
+	}
+	if req.Name != "new name" {
+		t.Errorf("renamed request name = %q", req.Name)
+	}
+	if filepath.Base(newPath) != "new-name.yaml" {
+		t.Errorf("new path = %q, want new-name.yaml", newPath)
+	}
+	if _, err := os.Stat(old); !os.IsNotExist(err) {
+		t.Error("old file should be removed")
+	}
+	out, err := LoadFile(newPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Name != "new name" {
+		t.Errorf("on-disk name = %q, want new name", out.Name)
+	}
+}
+
 func TestDelete(t *testing.T) {
 	root := t.TempDir()
 	if _, err := Save(root, filepath.Join(root, "a.yaml"), &Request{Name: "a", Method: "GET"}); err != nil {
