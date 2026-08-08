@@ -3,6 +3,10 @@ package render
 import (
 	"encoding/json"
 	"strings"
+	"sync"
+
+	"github.com/alecthomas/chroma/v2"
+	"github.com/alecthomas/chroma/v2/lexers"
 )
 
 // Kind is a JSON token category for syntax highlighting.
@@ -16,11 +20,10 @@ const (
 	KindPunctuation
 )
 
-type token struct {
-	kind  Kind
-	start int
-	end   int
-}
+var (
+	jsonLexerOnce sync.Once
+	jsonLexer     chroma.Lexer
+)
 
 // HighlightJSON returns src with paint applied to each JSON token; paint
 // receives the token kind and its literal and returns the colored form.
@@ -30,82 +33,53 @@ func HighlightJSON(src string, paint func(Kind, string) string) string {
 	if !json.Valid([]byte(src)) {
 		return src
 	}
-	toks := lexJSON(src)
-	if len(toks) == 0 {
+	jsonLexerOnce.Do(func() { jsonLexer = chroma.Coalesce(lexers.Get("json")) })
+	return paintTokens(src, jsonLexer, paint, jsonKind)
+}
+
+// jsonKind maps chroma token types onto Kind; -1 means pass through.
+// chroma emits NameTag for object keys, which is how keys stay distinct
+// from value strings.
+func jsonKind(t chroma.TokenType) Kind {
+	switch t {
+	case chroma.NameTag:
+		return KindKey
+	case chroma.LiteralStringDouble:
+		return KindString
+	case chroma.KeywordConstant:
+		return KindLiteral
+	case chroma.LiteralNumberInteger, chroma.LiteralNumberFloat:
+		return KindNumber
+	case chroma.Punctuation:
+		return KindPunctuation
+	}
+	return Kind(-1)
+}
+
+// paintTokens rebuilds src by painting every token that maps to a known
+// kind; all other tokens (whitespace, comments, errors) pass through
+// verbatim. A lexer panic degrades to the uncolored input: highlighting
+// must never break live editing.
+func paintTokens[K ~int](src string, lexer chroma.Lexer, paint func(K, string) string, kindOf func(chroma.TokenType) K) string {
+	var toks []chroma.Token
+	func() {
+		defer func() { recover() }()
+		it, err := lexer.Tokenise(nil, src)
+		if err == nil && it != nil {
+			toks = it.Tokens()
+		}
+	}()
+	if toks == nil {
 		return src
 	}
 	var b strings.Builder
 	b.Grow(len(src) + len(toks)*8)
-	pos := 0
 	for _, t := range toks {
-		b.WriteString(src[pos:t.start])
-		b.WriteString(paint(t.kind, src[t.start:t.end]))
-		pos = t.end
-	}
-	b.WriteString(src[pos:])
-	return b.String()
-}
-
-// lexJSON scans valid JSON into tokens. A string followed by ':' becomes a
-// KindKey; strings in arrays or value position stay KindString.
-func lexJSON(src string) []token {
-	var toks []token
-	last := -1 // index of the most recent token, for key promotion
-	n := len(src)
-	i := 0
-	for i < n {
-		c := src[i]
-		switch {
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
-			i++
-		case c == '"':
-			start := i
-			i++
-			for i < n {
-				if src[i] == '\\' {
-					i += 2
-					continue
-				}
-				if src[i] == '"' {
-					i++
-					break
-				}
-				i++
-			}
-			last = len(toks)
-			toks = append(toks, token{KindString, start, i})
-		case c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':':
-			start := i
-			i++
-			if c == ':' && last >= 0 && toks[last].kind == KindString {
-				toks[last].kind = KindKey
-			}
-			last = len(toks)
-			toks = append(toks, token{KindPunctuation, start, i})
-		case c == 't' && strings.HasPrefix(src[i:], "true"):
-			last = len(toks)
-			toks = append(toks, token{KindLiteral, i, i + 4})
-			i += 4
-		case c == 'f' && strings.HasPrefix(src[i:], "false"):
-			last = len(toks)
-			toks = append(toks, token{KindLiteral, i, i + 5})
-			i += 5
-		case c == 'n' && strings.HasPrefix(src[i:], "null"):
-			last = len(toks)
-			toks = append(toks, token{KindLiteral, i, i + 4})
-			i += 4
-		case c == '-' || (c >= '0' && c <= '9'):
-			start := i
-			i++
-			for i < n && (src[i] == '.' || src[i] == 'e' || src[i] == 'E' ||
-				src[i] == '+' || src[i] == '-' || (src[i] >= '0' && src[i] <= '9')) {
-				i++
-			}
-			last = len(toks)
-			toks = append(toks, token{KindNumber, start, i})
-		default:
-			i++ // unreachable on valid JSON; cannot loop
+		if k := kindOf(t.Type); k >= 0 {
+			b.WriteString(paint(k, t.Value))
+		} else {
+			b.WriteString(t.Value)
 		}
 	}
-	return toks
+	return b.String()
 }

@@ -34,10 +34,10 @@ func TestHighlightJSON(t *testing.T) {
 		{
 			"keys vs value strings nested",
 			`{"a":[1,"two"],"b":{"c":"x"}}`,
-			pn("{") + key(`"a"`) + pn(":") + pn("[") + num("1") + pn(",") +
-				str(`"two"`) + pn("]") + pn(",") +
-				key(`"b"`) + pn(":") + pn("{") + key(`"c"`) + pn(":") +
-				str(`"x"`) + pn("}") + pn("}"),
+			pn("{") + key(`"a"`) + pn(":[") + num("1") + pn(",") +
+				str(`"two"`) + pn("],") +
+				key(`"b"`) + pn(":{") + key(`"c"`) + pn(":") +
+				str(`"x"`) + pn("}}"),
 		},
 		{
 			"escaped quotes stay inside the string",
@@ -58,8 +58,8 @@ func TestHighlightJSON(t *testing.T) {
 		{
 			"empty containers",
 			`{"e":{},"a":[],"s":""}`,
-			pn("{") + key(`"e"`) + pn(":") + pn("{") + pn("}") + pn(",") +
-				key(`"a"`) + pn(":") + pn("[") + pn("]") + pn(",") +
+			pn("{") + key(`"e"`) + pn(":{},") +
+				key(`"a"`) + pn(":[],") +
 				key(`"s"`) + pn(":") + str(`""`) + pn("}"),
 		},
 		{
