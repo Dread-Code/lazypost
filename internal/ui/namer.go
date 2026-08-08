@@ -8,12 +8,17 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Namer is a small modal that asks for a new entry's name, opened with `a`
-// over a folder in the sidebar. Typing a leading `/` switches it from "new
+// Namer is a small modal that asks for a name, opened with `a` over a
+// folder in the sidebar. Typing a leading `/` switches it from "new
 // request" to "new collection" mode, so enter creates a folder instead of
-// a request. It renders as a centered overlay like the palette.
+// a request. It also serves the env manager for key=value edits, via
+// SetLabel/SetPlaceholder. It renders as a centered overlay like the
+// palette.
 type Namer struct {
-	input textinput.Model
+	input       textinput.Model
+	label       string
+	placeholder string
+	envMode     bool
 }
 
 func NewNamer() *Namer {
@@ -28,6 +33,44 @@ func NewNamer() *Namer {
 	n.input.TextStyle = lipgloss.NewStyle().Foreground(InputColor)
 	n.input.PlaceholderStyle = lipgloss.NewStyle().Foreground(ColorMuted)
 	return n
+}
+
+// SetLabel overrides the modal title (e.g. "new variable"). An empty label
+// falls back to the request/collection wording.
+func (n *Namer) SetLabel(label string) {
+	n.label = label
+}
+
+// SetEnvMode switches the namer into env-variable mode: a leading "/"
+// reads as a new environment instead of a new collection, and the title
+// follows the mode.
+func (n *Namer) SetEnvMode(envMode bool) {
+	n.envMode = envMode
+}
+
+// Label returns the title to render for the current input state.
+func (n *Namer) Label() string {
+	if n.label != "" {
+		if n.IsFolder() {
+			if n.envMode {
+				return "new environment name"
+			}
+			return "new collection name"
+		}
+		return n.label
+	}
+	label := "new request name"
+	if n.IsFolder() {
+		label = "new collection name"
+	}
+	return label
+}
+
+// SetPlaceholder overrides the input placeholder (e.g. "key=value"). An
+// empty placeholder falls back to the default.
+func (n *Namer) SetPlaceholder(ph string) {
+	n.placeholder = ph
+	n.input.Placeholder = ph
 }
 
 // Open focuses the input and clears it, ready for a new name.
@@ -66,10 +109,6 @@ func (n *Namer) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (n *Namer) View() string {
-	label := "new request name"
-	if n.IsFolder() {
-		label = "new collection name"
-	}
-	l := lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render(label)
+	l := lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render(n.Label())
 	return l + "\n" + n.input.View()
 }

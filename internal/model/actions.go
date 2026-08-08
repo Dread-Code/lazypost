@@ -203,7 +203,11 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case km.String() == "a":
 			if env := m.envTabName(); env != "" {
 				m.namerEnvEditVar = env
+				m.namerEnvNew = true
 				m.namerOpen = true
+				m.namer.SetLabel("new variable")
+				m.namer.SetPlaceholder("key=value")
+				m.namer.SetEnvMode(true)
 				return m, m.namer.Open()
 			}
 			return m, nil
@@ -212,7 +216,11 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if env := m.envTabName(); env != "" {
 				if key := m.selectedVarName(); key != "" {
 					m.namerEnvEditVar = env
+					m.namerEnvNew = false
 					m.namerOpen = true
+					m.namer.SetLabel("edit variable")
+					m.namer.SetPlaceholder("key=value")
+					m.namer.SetEnvMode(true)
 					return m, m.namer.OpenPrefilled(key + "=" + m.envs[env][key])
 				}
 			}
@@ -299,6 +307,20 @@ func (m *Model) setEnvironmentVar(env, kv string) (tea.Model, tea.Cmd) {
 	m.reloadEnvs()
 	m.setNotice("environment "+env+" updated", false)
 	m.envTab = indexOf(env, m.envNames)
+	return m.openEnvManager()
+}
+
+// createEnvironment creates an empty environment (from a leading "/" in
+// the add-variable namer), persists it, and reopens the env manager on
+// the new tab.
+func (m *Model) createEnvironment(name string) (tea.Model, tea.Cmd) {
+	if err := collection.SaveEnvironment(m.dir, name, map[string]string{}); err != nil {
+		m.setNotice("create environment: "+err.Error(), true)
+		return m, nil
+	}
+	m.reloadEnvs()
+	m.setNotice("environment "+name+" created", false)
+	m.envTab = indexOf(name, m.envNames)
 	return m.openEnvManager()
 }
 
@@ -438,6 +460,8 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.namerOpen = false
 			m.namerRename = false
 			m.namerEnvEditVar = ""
+			m.namerEnvNew = false
+			m.namer.SetEnvMode(false)
 			return m, nil
 
 		case key.Matches(km, m.keyEnter):
@@ -447,11 +471,19 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-			// environment variable edit (key=value)
+			// environment variable edit (key=value); a leading "/" in add
+			// mode creates a new environment instead
 			if m.namerEnvEditVar != "" {
 				m.namerOpen = false
 				env := m.namerEnvEditVar
 				m.namerEnvEditVar = ""
+				if m.namerEnvNew && m.namer.IsFolder() {
+					m.namerEnvNew = false
+					m.namer.SetEnvMode(false)
+					return m.createEnvironment(name)
+				}
+				m.namerEnvNew = false
+				m.namer.SetEnvMode(false)
 				return m.setEnvironmentVar(env, name)
 			}
 

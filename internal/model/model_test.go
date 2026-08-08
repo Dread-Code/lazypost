@@ -684,9 +684,12 @@ func TestEnvManagerAddVariable(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "host = ", 3*time.Second)
 
-	// add a variable to the dev tab via key=value namer
+	// add a variable to the dev tab via key=value namer; the modal must
+	// say "new variable" (not the request-naming label) with a key=value
+	// placeholder
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
-	w.waitFor(t, "new request name", 3*time.Second)
+	w.waitFor(t, "new variable", 3*time.Second)
+	w.waitFor(t, "key=value", 3*time.Second)
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("timeout=10")})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "timeout = 10", 3*time.Second)
@@ -698,6 +701,60 @@ func TestEnvManagerAddVariable(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "timeout") {
 		t.Errorf("timeout not persisted:\n%s", data)
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestEnvManagerAddEnvironment(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	if err := os.MkdirAll(filepath.Join(root, "environments"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := collection.SaveEnvironment(root, "dev", map[string]string{"host": "https://dev.test"}); err != nil {
+		t.Fatal(err)
+	}
+	seed := &collection.Request{Name: "thing", Method: "GET", URL: "https://api.test/things"}
+	if _, err := collection.Save(root, filepath.Join(root, "thing.yaml"), seed); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := collection.Load(root)
+	envs, names, _ := collection.LoadEnvironments(root)
+	tm := teatest.NewTestModel(t, New(root, entries, envs, names, session.State{}), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "thing", 3*time.Second)
+
+	// open the env manager
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	w.waitFor(t, "Send request", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("environ")})
+	w.waitFor(t, "Environments", 3*time.Second)
+	time.Sleep(250 * time.Millisecond)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	w.waitFor(t, "host = ", 3*time.Second)
+
+	// a leading / in the add-variable namer means a new environment
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	w.waitFor(t, "new variable", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/staging")})
+	w.waitFor(t, "new environment name", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	// the notice only appears once the env is created (the "/staging"
+	// text is already in the output buffer from the namer view, so it
+	// can't be used to wait)
+	w.waitFor(t, "environment staging created", 3*time.Second)
+
+	// persisted as an empty environment file
+	data, err := os.ReadFile(filepath.Join(root, "environments", "staging.yaml"))
+	if err != nil {
+		t.Fatalf("staging env not persisted: %v", err)
+	}
+	if strings.Contains(string(data), "dev.test") {
+		t.Errorf("staging env should start empty:\n%s", data)
 	}
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})

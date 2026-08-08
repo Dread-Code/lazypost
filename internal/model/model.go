@@ -57,8 +57,11 @@ type Model struct {
 	namerRename bool
 	namerOld    string
 	// namerEnvEditVar is the environment whose variables are being edited
-	// via a key=value Namer ([[Design - environment manager modal]])
+	// via a key=value Namer ([[Design - environment manager modal]]);
+	// namerEnvNew is set for "a" (add) instead of "r" (edit), so a leading
+	// "/" can create a new environment rather than a variable
 	namerEnvEditVar string
+	namerEnvNew     bool
 
 	confirm     *ui.Confirm
 	confirmOpen bool
@@ -243,6 +246,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.namerOpen = true
+			m.namer.SetLabel("")
+			m.namer.SetPlaceholder("e.g. list things")
+			m.namer.SetEnvMode(false)
 			return m, m.namer.Open()
 		case "d":
 			// deleting is destructive: confirm first. Folders and requests
@@ -260,6 +266,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.namerOld = e.Path
 				m.namerDir = filepath.Dir(e.Path)
 				m.namerOpen = true
+				m.namer.SetLabel("")
+				m.namer.SetPlaceholder("e.g. list things")
+				m.namer.SetEnvMode(false)
 				return m, m.namer.OpenPrefilled(e.Req.Name)
 			}
 			return m, nil
