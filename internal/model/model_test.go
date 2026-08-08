@@ -567,7 +567,10 @@ func TestRenameRequest(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlU}) // clear pre-filled value
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("renamed thing")})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	w.waitFor(t, "renamed ", 3*time.Second)
+	// wait on the notice, not the namer's typed text ("renamed thing"
+	// contains "renamed " too, which would let the file check race ahead
+	// of the rename)
+	w.waitFor(t, "→ renamed-thing.yaml", 3*time.Second)
 
 	if _, err := os.Stat(filepath.Join(root, "renamed-thing.yaml")); err != nil {
 		t.Fatalf("expected renamed file: %v", err)
