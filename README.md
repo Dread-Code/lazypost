@@ -1,6 +1,12 @@
 # lazypost
 
+[![CI](https://github.com/Dread-Code/lazypost/actions/workflows/ci.yml/badge.svg)](https://github.com/Dread-Code/lazypost/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/github/go-mod/go-version/Dread-Code/lazypost)](https://go.dev)
+[![Release](https://img.shields.io/github/v/release/Dread-Code/lazypost)](https://github.com/Dread-Code/lazypost/releases)
+
 An API client that lives in your terminal — a [Posting](https://posting.sh)-inspired TUI built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
+
+Requests are plain YAML files in a directory tree, so a collection is just a folder you can version-control, diff, and share.
 
 ```
 lazypost  sample-collections                          env: dev
@@ -19,82 +25,122 @@ GET https://api.example.com/posts          ctrl+t method
 
 ## Features
 
-- **Request top bar** — method + URL always visible, reachable from any pane with `ctrl+l`; `enter` sends
-- **Request editor** — query params, headers, body, auth (none / basic / bearer / api key), and per-request Lua scripts (`pre`/`post` hooks)
-- **Scripting & chaining** — sandboxed Lua `pre`/`post` hooks per request share a session `store` (`store.get` / `store.set`), so one response can feed the next request
-- **Collections** — requests stored as readable, version-control-friendly YAML files in a directory tree; navigating the sidebar loads the selected request, `enter` collapses folders, `a`/`d`/`r` add / delete / rename with confirmation
-- **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from environment files
-- **Response viewer** — status/time/size summary, pretty-printed JSON, headers tab
-- **Request history** — the last 20 sends (request + response) kept in memory; `ctrl+h` browses them, enter restores request and response, `ctrl+r` resends
-- **Keybindings panel** — press `?` (from the collection or response pane) for a grouped reference of every keybinding
-- **curl import/export** — paste a `curl` command into the URL bar to import it; `ctrl+g` copies the current request as curl
-- **Command palette** — `ctrl+/` to filter and run any action, incl. switching themes and managing environments
-- **Themes** — dracula / catppuccin / solarized presets, switched from the palette
+- **Request top bar** — method + URL always visible, editable from any pane with `ctrl+l`; `enter` sends
+- **Request editor** — query params, headers, body, auth (none / basic / bearer / api key), and per-request Lua scripts
+- **Scripting & chaining** — sandboxed Lua `pre`/`post` hooks share a session `store` (`store.get` / `store.set`), so one response can feed the next request
+- **Collections** — requests as readable YAML in a directory tree; `enter` collapses folders, `a`/`d`/`r` add / delete / rename with confirmation
+- **Open any directory** — run lazypost anywhere and the current directory (or `-dir`) becomes a collection, marked with a `.lazypost` file
+- **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from `environments/*.yaml`
+- **Response viewer** — status / time / size summary, theme-colored JSON, headers tab
+- **Request history** — last 20 sends (request + response) in memory; `ctrl+h` browses, enter restores, `ctrl+r` resends
+- **Keybindings panel** — `?` for a grouped reference of every binding
+- **curl import/export** — paste a `curl` command to import it; `ctrl+g` copies the current request as curl
+- **Command palette** — `ctrl+/` to run any action, including switching themes and managing environments
+- **Themes** — dracula / catppuccin / solarized presets
 - **Session persistence** — active environment, last request, collapsed folders, active editor tab, and theme survive relaunch
 
 ## Install
 
-Pre-built binaries (macOS arm64/amd64, Linux arm64/amd64) are published on [GitHub Releases](https://github.com/Dread-Code/lazypost/releases). One-line install (checksum-verified, defaults to `~/.local/bin`):
+One command (checksum-verified; installs to `~/.local/bin`, override with `PREFIX`):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Dread-Code/lazypost/main/install.sh | sh
-# or pin a version, or pick an install directory:
+# pin a version, or pick an install directory:
 curl -fsSL https://raw.githubusercontent.com/Dread-Code/lazypost/main/install.sh | sh -s -- v0.1.0
-PREFIX=/usr/local sh install.sh   # e.g. after downloading install.sh
+PREFIX=/usr/local sh install.sh
 ```
 
-Or build from source:
+Pre-built binaries for macOS and Linux (arm64 + amd64) are attached to every [GitHub Release](https://github.com/Dread-Code/lazypost/releases). Re-running the install command updates to the latest release.
+
+Or build from source (Go 1.25+):
 
 ```sh
 go build -o lazypost .
 ```
 
-Requires Go 1.25+.
+Check what you're running with `lazypost -version`.
+
+## Quick start
+
+1. `lazypost` in any directory — when asked, give the collection a name (this writes a `.lazypost` marker)
+2. `n` creates a request; `ctrl+l` edits the URL, `ctrl+t` cycles the method
+3. `ctrl+s` saves, `ctrl+r` sends
+4. Drop environment files in `environments/` and switch with `ctrl+e`
 
 ## Run
 
 ```sh
-./lazypost                    # uses ./sample-collections or ./collections if present, else the current directory (a void dir starts an empty collection)
+./lazypost                    # uses ./sample-collections or ./collections if present, else the current directory
 ./lazypost -dir my-collection # or point at your own collection directory
 ```
 
 ## Keybindings
 
-| Key            | Action                                        |
-| -------------- | --------------------------------------------- |
-| `tab`/`shift+tab` | switch panes (collection / request / response; the URL bar is reached with `ctrl+l` or `enter` on a request) |
-| `ctrl+r`       | send request                                  |
-| `ctrl+s`       | save request to collection                    |
-| `ctrl+e`       | cycle environment                             |
-| `ctrl+l`       | jump to the URL bar                           |
-| `ctrl+/`       | open the command palette                     |
-| `ctrl+h`       | open request history                         |
-| `?`            | open the keybindings panel (collection / response pane) |
-| `ctrl+g`       | copy current request as curl (clipboard)      |
-| paste `curl …` | import a curl command (URL bar)               |
-| `enter`        | focus the URL bar / toggle folder or all folders on the collection root (collection pane) / send (URL bar); navigating with `↑`/`↓`/`ctrl+n`/`ctrl+p` loads the selected request into the URL bar and editor |
-| `esc`          | leave the URL bar                             |
-| `n`            | new request (collection pane)                 |
-| `a`            | add a request in the highlighted folder; lead with `/` to create a folder (collection pane) |
-| `d`            | delete the highlighted request/folder (confirm with `y`, cancel with `n`) |
-| `r`            | rename the highlighted request (collection pane)   |
-| `ctrl+n`/`ctrl+p` | move between query / headers / body / auth / scripts |
-| `alt+←`/`alt+→` | switch query / headers / body / auth / scripts tabs |
-| `ctrl+t`       | cycle HTTP method (URL bar) or auth type      |
-| `b` / `h`      | body / headers tab (response pane)            |
-| `q`            | quit (collection or response pane)            |
-| `ctrl+c`       | quit                                          |
+### Global
 
-## Collection format
+| Key            | Action                                  |
+| -------------- | --------------------------------------- |
+| `tab`          | switch panes                            |
+| `ctrl+/`       | command palette                         |
+| `?`            | keybindings panel                       |
+| `ctrl+h`       | request history                         |
+| `ctrl+r`       | send request                            |
+| `ctrl+e`       | cycle environment                       |
+| `ctrl+s`       | save request                            |
+| `ctrl+l`       | jump to the URL bar                     |
+| `ctrl+g`       | export current request as curl          |
+| `q`            | quit (collection / response pane)       |
+| `ctrl+c`       | quit                                    |
 
-A collection is a directory of YAML files (subdirectories become tree nodes). A `.lazypost` marker marks a directory as a collection and supplies its display name:
+### Collection · sidebar
+
+| Key              | Action                                                        |
+| ---------------- | ------------------------------------------------------------- |
+| `↑`/`↓`, `ctrl+n`/`ctrl+p` | navigate (loads the request)                    |
+| `enter`          | focus the URL bar / toggle folder (collection root toggles all) |
+| `n`              | new request                                                  |
+| `a`              | add request in folder; lead with `/` for a folder             |
+| `d`              | delete (confirm with `y`)                                     |
+| `r`              | rename                                                       |
+
+### URL bar
+
+| Key            | Action                        |
+| -------------- | ----------------------------- |
+| `ctrl+t`       | cycle method                  |
+| `enter`        | send                          |
+| `esc`          | back to previous pane         |
+| paste `curl …` | import a curl command         |
+
+### Editor
+
+| Key                | Action                          |
+| ------------------ | ------------------------------- |
+| `ctrl+n`/`ctrl+p`  | move between sections           |
+| `alt+←`/`alt+→`    | switch tabs                     |
+| `ctrl+t`           | cycle auth type                 |
+| `ctrl+s`           | save                            |
+
+### Response
+
+| Key              | Action              |
+| ---------------- | ------------------- |
+| `←`/`→`, `b`/`h` | switch tabs         |
+| `↑`/`↓`          | scroll              |
+| `q`              | quit                |
+
+## Collections
+
+A collection is a directory of YAML files; subdirectories become folders. A `.lazypost` marker marks a directory as a collection and supplies its display name:
 
 ```yaml
 name: My API collection      # title bar name
 root: ~/APIs/main            # optional: point here at the real collection root
 ```
 
-Opening a directory you choose (`-dir` or the current directory) without a marker asks for a name and writes the marker on confirm; `esc` opens it anyway without writing. `./sample-collections` / `./collections` are treated as collections without a marker.
+Open any directory you choose (`-dir` or the current directory) and lazypost becomes that collection: without a marker it asks for a name and writes the marker on confirm (`esc` opens it anyway, writing nothing). `./sample-collections` / `./collections` are treated as collections without a marker.
+
+### Request format
 
 ```yaml
 name: create post
@@ -133,37 +179,47 @@ Select an environment with `ctrl+e`; `{{host}}`-style placeholders are substitut
 
 Manage variables in the TUI: `ctrl+/` → **Environments** opens the environment manager (tab bar of environments; `ctrl+e` cycles tabs, `a`/`r`/`d` add/edit/delete `key=value` variables, `enter` activates the tab's env). A leading `/` in the add-variable prompt creates a new empty environment instead.
 
+## Scripting
+
+Each request can carry `pre` and `post` hooks written in sandboxed Lua (no filesystem, no network — only `os.time` is exposed). Edit them in the **Scripts** tab of the request editor.
+
+**Pre** — mutate the request before it's sent; a returned table merges into `{{...}}` interpolation:
+
+```lua
+req.headers["X-Session"] = store.get("token")
+req.query["page"] = "2"
+return { host = "https://api.example.com" }
+```
+
+**Post** — inspect the response; returning falsy or a string fails the send with that message:
+
+```lua
+if response.status_code ~= 200 then
+  return "expected 200, got " .. tostring(response.status_code)
+end
+local id = string.match(response.body, '"id": (%d+)')
+store.set("last_id", id)
+```
+
+Globals: `req` (method, url, body, headers, query — mutable in `pre`), `env` (active variables), `store.get(key)` / `store.set(key, value)` (session store), `response` (status, status_code, headers, body — `post` only), `os.time`.
+
 ## Development
 
 ```sh
-go build ./...
-go vet ./...
-go test ./...
+gofmt -l . && go vet ./... && go test ./...
 ```
+
+CI (`.github/workflows/ci.yml`) runs the same checks plus `go mod tidy` and `go build` on every push to `main` and pull request; a green `test` check is required on `main`.
 
 ## Roadmap
 
 ### Done
 
-- **Request history** — resend with one key (`ctrl+h`, then `ctrl+r`)
-- **Keybindings panel** — `?` opens an in-app reference of every binding
+- Request history, keybindings panel, response highlighting, script editor, themes, session persistence
+- Open the current directory as a collection, `.lazypost` marker
+- CI on push, releases + `install.sh`, `-version` stamp
 
-### Next — usability
+### Later
 
-(none scheduled)
-
-### Later — power
-
-- **Importers (Postman/Insomnia)**
-- **Cookies & trace tabs**
-- **Vim modes** — editor/response normal·visual·insert
-- **Help panel window** — toggleable keybinding reference
-
-### Parked ideas
-
-- **Shared collection scripts** — collection-level `scripts/*.lua`
-- **Jump mode / custom keymaps** — deferred at MVP (see ADR-0004); revisit via the keymap registry
-
-### Housekeeping
-
-- First benchmark (startup + collection load), CI on push, release process when sharing
+- **Importers (Postman/Insomnia)** · **cookies & trace tabs** · **vim modes** · **LSP for scripts**
+- **Copy / cut / paste** in the sidebar
