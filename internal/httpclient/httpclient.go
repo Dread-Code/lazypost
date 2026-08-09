@@ -21,6 +21,9 @@ type Response struct {
 	Body        []byte
 	Duration    time.Duration
 	ContentType string
+	// URL is the exact URL that was executed — after interpolation and
+	// query-param merge — so the response can show what was really sent.
+	URL string
 }
 
 var client = &http.Client{Timeout: 30 * time.Second}
@@ -96,6 +99,7 @@ func Exec(req collection.Request, vars map[string]string) (*Response, error) {
 		Body:        raw,
 		Duration:    time.Since(start),
 		ContentType: resp.Header.Get("Content-Type"),
+		URL:         httpReq.URL.String(),
 	}, nil
 }
 
@@ -111,14 +115,18 @@ func (r *Response) FormattedBody() string {
 	return string(r.Body)
 }
 
-// FormattedHeaders returns response headers as sorted "Name: Value" lines.
+// FormattedHeaders returns the executed URL (when known) followed by the
+// response headers as sorted "Name: Value" lines.
 func (r *Response) FormattedHeaders() string {
+	var b strings.Builder
+	if r.URL != "" {
+		fmt.Fprintf(&b, "URL: %s\n\n", r.URL)
+	}
 	names := make([]string, 0, len(r.Headers))
 	for name := range r.Headers {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	var b strings.Builder
 	for _, name := range names {
 		for _, v := range r.Headers[name] {
 			fmt.Fprintf(&b, "%s: %s\n", name, v)

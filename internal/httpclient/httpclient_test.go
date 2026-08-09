@@ -47,6 +47,9 @@ func TestExec(t *testing.T) {
 	if res.Summary() == "" {
 		t.Error("empty summary")
 	}
+	if res.URL != srv.URL+"/things" {
+		t.Errorf("executed URL = %q", res.URL)
+	}
 }
 
 func TestExecAPIKeyInQuery(t *testing.T) {
@@ -106,6 +109,12 @@ func TestExecMergesQueryParams(t *testing.T) {
 	if string(res.Body) != "ok" {
 		t.Errorf("body = %q", res.Body)
 	}
+	// the executed URL reflects the merged query params
+	for _, want := range []string{"api_key=secret", "tag=news", "from_url=1"} {
+		if !strings.Contains(res.URL, want) {
+			t.Errorf("executed URL %q should contain %q", res.URL, want)
+		}
+	}
 }
 
 func TestExecInterpolatesQueryParams(t *testing.T) {
@@ -163,5 +172,20 @@ func TestFormattedBodyNonJSON(t *testing.T) {
 	r := &Response{Body: []byte("plain text")}
 	if r.FormattedBody() != "plain text" {
 		t.Errorf("got %q", r.FormattedBody())
+	}
+}
+
+func TestFormattedHeadersLeadsWithExecutedURL(t *testing.T) {
+	r := &Response{
+		URL:     "https://api.test/things?tag=news",
+		Headers: http.Header{"Content-Type": []string{"application/json"}},
+	}
+	got := r.FormattedHeaders()
+	if !strings.HasPrefix(got, "URL: https://api.test/things?tag=news\n\n") {
+		t.Errorf("headers should lead with the executed URL, got:\n%s", got)
+	}
+	// real headers still follow, sorted
+	if !strings.Contains(got, "Content-Type: application/json") {
+		t.Errorf("missing header line, got:\n%s", got)
 	}
 }

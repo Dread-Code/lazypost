@@ -258,7 +258,9 @@ func (r *Response) center(content string) string {
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, content)
 }
 
-// StatusLine renders the response summary for the pane title.
+// StatusLine renders the response summary for the pane title. The
+// executed URL lives in the Headers tab, not here ([[ADR-0014 Response
+// shows the executed URL]]).
 func (r *Response) StatusLine() string {
 	if r.state != stDone || r.res == nil {
 		return ""
