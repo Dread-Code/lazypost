@@ -14,9 +14,17 @@ import (
 	"lazypost/internal/ui/widgets"
 )
 
+var version = "dev"
+
 func main() {
 	dir := flag.String("dir", "", "collection directory (default: ./sample-collections, ./collections, or the current directory)")
+	ver := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
+
+	if *ver {
+		fmt.Printf("lazypost %s\n", version)
+		return
+	}
 
 	root := resolveRoot(*dir)
 	root = canonicalRoot(root)

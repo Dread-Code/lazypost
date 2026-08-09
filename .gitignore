@@ -1,4 +1,5 @@
 /lazypost
+/dist/
 *.test
 *.out
 coverage.*
