@@ -1,0 +1,10 @@
+# {{post_id}} interpolates from the dev environment (a real post, 1-100).
+# After "create post" ran, its simulated id lives in the chain store under
+# created_id — it does not override this URL, so this request always reads
+# a real post. 200 means the post exists.
+name: read post
+method: GET
+url: "{{host}}/posts/{{post_id}}"
+headers:
+  - name: Accept
+    value: application/json

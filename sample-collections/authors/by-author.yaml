@@ -1,6 +1,0 @@
-name: quotes by author
-method: GET
-url: "{{host}}/api/quotes/author/{{author}}/{{api_key}}"
-headers:
-  - name: Accept
-    value: application/json

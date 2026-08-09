@@ -1,5 +1,6 @@
 variables:
-  host: https://zenquotes.io
-  api_key: your-api-key
-  author: albert-einstein
-  keyword: inspirational
+  host: https://jsonplaceholder.typicode.com
+  api_key: demo-api-key
+  title: hello from lazypost
+  user_id: "1"
+  post_id: "1"

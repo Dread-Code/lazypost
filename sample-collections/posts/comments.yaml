@@ -1,6 +1,6 @@
-name: list authors
+name: post comments
 method: GET
-url: "{{host}}/api/authors/{{api_key}}"
+url: "{{host}}/posts/{{post_id}}/comments"
 headers:
   - name: Accept
     value: application/json

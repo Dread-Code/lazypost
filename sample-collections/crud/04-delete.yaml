@@ -1,0 +1,14 @@
+name: delete post
+method: DELETE
+url: "{{host}}/posts/{{post_id}}"
+headers:
+  - name: Accept
+    value: application/json
+post: |
+  -- JSONPlaceholder deletes by returning {} with 200; assert the status,
+  -- not the data, so the example stays idempotent across the server's
+  -- ~5-minute resets (deleted posts come back when it resets).
+  if response.status_code == 200 then
+    return true
+  end
+  return "expected 200, got " .. tostring(response.status_code)

@@ -82,13 +82,13 @@ func TestLoadRequestIntoEditor(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
-	w.waitFor(t, "quotes by author", 3*time.Second)
+	w.waitFor(t, "create post", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 
-	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+	w.waitFor(t, "{{host}}/posts", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
@@ -100,19 +100,19 @@ func TestNavigationLoadsRequest(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
-	w.waitFor(t, "quotes by author", 3*time.Second)
+	w.waitFor(t, "create post", 3*time.Second)
 
 	// cursor starts on the collection root; the first arrow lands on the
-	// authors directory (a directory, so nothing loads)
+	// crud directory (a directory, so nothing loads)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	// the next arrow lands on "quotes by author" (authors/by-author.yaml),
+	// the next arrow lands on "create post" (crud/01-create.yaml),
 	// which loads with no Enter
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+	w.waitFor(t, "{{host}}/posts", 3*time.Second)
 
 	// ctrl+n moves the sidebar cursor too, and loads just the same
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN})
-	w.waitFor(t, "{{host}}/api/authors/{{api_key}}", 3*time.Second)
+	w.waitFor(t, "{{host}}/posts/{{post_id}}", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
@@ -124,7 +124,7 @@ func TestKeybindingsPanel(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
-	w.waitFor(t, "quotes by author", 3*time.Second)
+	w.waitFor(t, "create post", 3*time.Second)
 
 	// "?" from the sidebar opens the panel with grouped bindings
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")})
@@ -155,18 +155,18 @@ func TestSectionNavigation(t *testing.T) {
 	w := &watcher{r: tm.Output()}
 
 	// enter loads the request and focuses the URL bar
-	w.waitFor(t, "quotes by author", 3*time.Second)
+	w.waitFor(t, "create post", 3*time.Second)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+	w.waitFor(t, "{{host}}/posts", 3*time.Second)
 
 	// tab into the editor (Query section by default), then ctrl+n twice
-	// to Body; the empty body renders its placeholder
+	// to Body; the create body renders with its raw {{title}} placeholder
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN})
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN})
-	w.waitFor(t, `{"hello": "world"}`, 3*time.Second)
+	w.waitFor(t, "{{title}}", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
@@ -176,11 +176,11 @@ func TestQueryTab(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
-	w.waitFor(t, "quotes by author", 3*time.Second)
+	w.waitFor(t, "create post", 3*time.Second)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+	w.waitFor(t, "{{host}}/posts", 3*time.Second)
 
 	// tab into the editor lands on the first tab (Query); the empty
 	// query textarea shows its placeholder
@@ -195,11 +195,11 @@ func TestScriptsTabEditsHooks(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
-	w.waitFor(t, "quotes by author", 3*time.Second)
+	w.waitFor(t, "create post", 3*time.Second)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+	w.waitFor(t, "{{host}}/posts", 3*time.Second)
 
 	// tab into the editor (Query), then ctrl+n four times to Scripts
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
@@ -217,11 +217,11 @@ func TestBarEnterSendsAndEscReturns(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
-	w.waitFor(t, "quotes by author", 3*time.Second)
+	w.waitFor(t, "create post", 3*time.Second)
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	w.waitFor(t, "{{host}}/api/quotes/author", 3*time.Second)
+	w.waitFor(t, "{{host}}/posts", 3*time.Second)
 
 	// enter in the bar sends; no env active, so the send fails with the
 	// unresolved-placeholder error
@@ -312,7 +312,7 @@ func TestSidebarEnterTogglesDir(t *testing.T) {
 
 	w.waitFor(t, "Collection", 3*time.Second)
 
-	// cursor starts on the "authors" directory; enter collapses it instead
+	// cursor starts on the "crud" directory; enter collapses it instead
 	// of loading a request, so focus stays in the sidebar (the status bar
 	// help for the sidebar still shows)
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -454,8 +454,8 @@ func TestRestoreSessionState(t *testing.T) {
 	}
 	st := session.State{
 		Env:           "prod",
-		ActivePath:    "quotes/random.yaml",
-		Collapsed:     []string{"authors"},
+		ActivePath:    "crud/02-read.yaml",
+		Collapsed:     []string{"users"},
 		EditorSection: 2, // SecBody
 	}
 	tm := teatest.NewTestModel(t, New("../../../sample-collections", entries, envs, names, st), teatest.WithInitialTermSize(120, 40))
@@ -463,13 +463,13 @@ func TestRestoreSessionState(t *testing.T) {
 
 	// environment restored
 	w.waitFor(t, "env: prod", 3*time.Second)
-	// collapsed folder: authors subtree hidden
-	w.waitFor(t, "authors", 3*time.Second)
-	if strings.Contains(w.buf.String(), "quotes by author") {
-		t.Errorf("collapsed authors should hide its requests")
+	// collapsed folder: users subtree hidden
+	w.waitFor(t, "users", 3*time.Second)
+	if strings.Contains(w.buf.String(), "list users") {
+		t.Errorf("collapsed users should hide its requests")
 	}
 	// active request restored into the editor
-	w.waitFor(t, "{{host}}/api/random", 3*time.Second)
+	w.waitFor(t, "{{host}}/posts/{{post_id}}", 3*time.Second)
 
 	// editor section restored: tabbing into the editor shows the Body tab
 	// without any ctrl+n navigation

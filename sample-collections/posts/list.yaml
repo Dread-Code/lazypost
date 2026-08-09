@@ -1,6 +1,6 @@
-name: random quote
+name: list posts
 method: GET
-url: "{{host}}/api/random"
+url: "{{host}}/posts"
 headers:
   - name: Accept
     value: application/json

@@ -1,5 +1,6 @@
 variables:
-  host: https://zenquotes.io
-  api_key: your-api-key
-  author: marcus-aurelius
-  keyword: success
+  host: https://jsonplaceholder.typicode.com
+  api_key: prod-api-key
+  title: hello from lazypost (prod)
+  user_id: "2"
+  post_id: "1"

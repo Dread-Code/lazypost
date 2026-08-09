@@ -36,7 +36,7 @@ func TestLoadSampleCollections(t *testing.T) {
 	if len(names) != 2 {
 		t.Errorf("expected dev+prod environments, got %v", names)
 	}
-	if envs["dev"]["host"] != "https://zenquotes.io" {
+	if envs["dev"]["host"] != "https://jsonplaceholder.typicode.com" {
 		t.Errorf("dev host = %q", envs["dev"]["host"])
 	}
 }

@@ -1,0 +1,11 @@
+name: user by id
+method: GET
+url: "{{host}}/users/{{user_id}}"
+auth:
+  type: apikey
+  keyName: X-API-Key
+  keyValue: "{{api_key}}"
+  keyIn: header
+headers:
+  - name: Accept
+    value: application/json

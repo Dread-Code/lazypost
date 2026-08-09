@@ -1,9 +1,0 @@
-name: quotes by keyword
-method: GET
-url: "{{host}}/api/quotes/{{api_key}}"
-query:
-  - name: keyword
-    value: "{{keyword}}"
-headers:
-  - name: Accept
-    value: application/json

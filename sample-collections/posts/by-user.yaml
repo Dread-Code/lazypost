@@ -1,0 +1,9 @@
+name: posts by user
+method: GET
+url: "{{host}}/posts"
+query:
+  - name: userId
+    value: "{{user_id}}"
+headers:
+  - name: Accept
+    value: application/json

@@ -1,6 +1,6 @@
-name: random quote image
+name: list users
 method: GET
-url: "{{host}}/api/image"
+url: "{{host}}/users"
 headers:
   - name: Accept
     value: application/json
