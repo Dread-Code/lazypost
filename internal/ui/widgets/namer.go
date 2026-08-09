@@ -113,6 +113,6 @@ func (n *Namer) View() string {
 	// renderModal), so the content is the input plus the key hint
 	return lipgloss.JoinVertical(lipgloss.Left,
 		n.input.View(),
-		HintStyle.Render("enter confirm · esc cancel"),
+		KeyHint("enter", "confirm", "esc", "cancel"),
 	)
 }

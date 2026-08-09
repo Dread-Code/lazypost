@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/cellbuf"
 
 	"lazypost/internal/ui/widgets"
@@ -98,9 +99,9 @@ func (m Model) View() string {
 		}
 		content := m.palette.widget.View()
 		if m.palette.theme {
-			content += "\n" + ui.HintStyle.Render("↑↓ preview · enter apply · esc cancel")
+			content += "\n" + ui.KeyHint("↑↓", "preview", "enter", "apply", "esc", "cancel")
 		} else {
-			content += "\n" + ui.HintStyle.Render("↑↓ navigate · enter run · esc close")
+			content += "\n" + ui.KeyHint("↑↓", "navigate", "enter", "run", "esc", "close")
 		}
 		frame = overlayPalette(frame, title, content, m.width, m.height)
 	case ovEnv:
@@ -110,7 +111,7 @@ func (m Model) View() string {
 	case ovConfirm:
 		frame = overlayPalette(frame, m.confirm.widget.Label(), m.confirm.widget.View(), m.width, m.height)
 	case ovHistory:
-		content := m.historyWidget.View() + "\n" + ui.HintStyle.Render("enter restore · ctrl+r resend · esc close")
+		content := m.historyWidget.View() + "\n" + ui.KeyHint("enter", "restore", "ctrl+r", "resend", "esc", "close")
 		frame = overlayPalette(frame, "Request history", content, m.width, m.height)
 	case ovHelp:
 		frame = overlayPalette(frame, "Keybindings", helpContent(m.width-8), m.width, m.height)
@@ -272,13 +273,13 @@ func (m Model) statusBar() string {
 	var help string
 	switch m.focus {
 	case pSidebar:
-		help = "↑↓ ctrl+n/p nav loads · enter url · a add · d del · r rename · ? help"
+		help = ui.KeyHint("↑↓ ctrl+n/p", "nav loads", "enter", "url", "a", "add", "d", "del", "r", "rename", "?", "help")
 	case pBar:
-		help = "ctrl+t method · enter send · esc back"
+		help = ui.KeyHint("ctrl+t", "method", "enter", "send", "esc", "back")
 	case pEditor:
-		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+s save · ctrl+r send"
+		help = ui.KeyHint("ctrl+n/p", "field", "alt+←→", "tab", "ctrl+t", "auth type", "ctrl+s", "save", "ctrl+r", "send")
 	case pResponse:
-		help = "←→ or b/h tabs · ↑↓ scroll · ? help · q quit"
+		help = ui.KeyHint("←→ or b/h", "tabs", "↑↓", "scroll", "?", "help", "q", "quit")
 	}
 
 	// right side: the file root and version sit at the far right,
@@ -286,7 +287,7 @@ func (m Model) statusBar() string {
 	// notices come and go
 	right := ui.HintStyle.Render(ui.TruncateRunes(m.collectionTitle(), m.width/4))
 	if m.version != "" {
-		right += "  " + ui.HintStyle.Render(m.version)
+		right += "  " + ui.VersionStyle.Render(m.version)
 	}
 	if m.notice != "" {
 		text := ui.TruncateRunes(m.notice, m.width/3)
@@ -298,7 +299,11 @@ func (m Model) statusBar() string {
 			right = ui.NoticeStyle.Render(text) + "  " + right
 		}
 	}
-	left := ui.HintStyle.Render(ui.TruncateRunes(help, m.width-lipgloss.Width(right)-1))
+	limit := m.width - lipgloss.Width(right) - 1
+	if limit < 1 {
+		limit = 1
+	}
+	left := ansi.Truncate(help, limit, "…")
 
 	gap := m.width - lipgloss.Width(left) - lipgloss.Width(right)
 	if gap < 1 {

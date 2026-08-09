@@ -31,8 +31,8 @@ func (c *Confirm) View() string {
 	// the question lives on the modal's border title (model/view.go
 	// renderModal), so the content is just the hint
 	return lipgloss.JoinVertical(lipgloss.Left,
-		HintStyle.Render("y yes · n no"),
-		HintStyle.Render("enter confirms · esc cancels"),
+		KeyHint("y", "yes", "n", "no"),
+		KeyHint("enter", "confirms", "esc", "cancels"),
 	)
 }
 

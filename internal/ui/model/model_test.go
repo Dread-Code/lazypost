@@ -291,7 +291,7 @@ func TestTabCyclesBodyPanesOnly(t *testing.T) {
 
 	// initial focus is the sidebar; tab moves to the editor (skipping the bar)
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
-	w.waitFor(t, "ctrl+n/p field", 3*time.Second)
+	w.waitFor(t, "field", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
@@ -603,7 +603,7 @@ func TestDeleteCancelKeepsRequest(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
 	w.waitFor(t, "delete request", 3*time.Second)
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
-	w.waitFor(t, "y yes · n no", 3*time.Second) // confirm modal closed
+	w.waitFor(t, "yes", 3*time.Second) // confirm modal closed
 
 	if _, err := os.Stat(filepath.Join(root, "list.yaml")); err != nil {
 		t.Errorf("expected request file kept after cancel: %v", err)
@@ -962,7 +962,7 @@ func TestNewRequest(t *testing.T) {
 	w.waitFor(t, "Collection", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
-	w.waitFor(t, "ctrl+t method", 3*time.Second)
+	w.waitFor(t, "method", 3*time.Second)
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))

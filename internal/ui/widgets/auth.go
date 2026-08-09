@@ -196,7 +196,7 @@ func (a *AuthEditor) View() string {
 		rows = append(rows,
 			cursor(a.field == 0)+label.Render("name")+" "+a.keyName.View(),
 			cursor(a.field == 1)+label.Render("value")+a.keyValue.View(),
-			cursor(a.field == 2)+label.Render("send in")+in+HintStyle.Render("  (space to toggle)"),
+			cursor(a.field == 2)+label.Render("send in")+in+HintStyle.Render("  (")+KeyHint("space", "to toggle")+")",
 		)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)

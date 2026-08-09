@@ -167,6 +167,7 @@ func (t Theme) Apply() {
 	NoticeStyle = lipgloss.NewStyle().Foreground(t.Success)
 	KeyStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Info)
 	SectionStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Primary)
+	VersionStyle = lipgloss.NewStyle().Foreground(t.Input)
 	LegendTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Muted)
 	ActiveLegendTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Primary)
 	SelectedRowStyle = lipgloss.NewStyle().

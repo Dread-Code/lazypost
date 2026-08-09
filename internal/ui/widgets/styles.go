@@ -91,8 +91,11 @@ var (
 	LegendTitleStyle       lipgloss.Style
 	ActiveLegendTitleStyle lipgloss.Style
 	SelectedRowStyle       lipgloss.Style
-	TabStyle               lipgloss.Style
-	ActiveTabStyle         lipgloss.Style
+	// VersionStyle is the version label on the status bar: the theme's
+	// foreground, so it reads as plain text rather than a hint.
+	VersionStyle   lipgloss.Style
+	TabStyle       lipgloss.Style
+	ActiveTabStyle lipgloss.Style
 	// FieldStyle is the URL input box: a raised background with a little
 	// inner breathing room.
 	FieldStyle lipgloss.Style
@@ -241,6 +244,23 @@ func SectionLine(title string, width int) string {
 	return dash.Render("──") +
 		SectionStyle.Render(" "+title+" ") +
 		dash.Render(strings.Repeat("─", fill))
+}
+
+// KeyHint renders a hint label from shortcut/description pairs: each
+// shortcut is drawn in the key color and its description in the hint
+// style, with the pairs joined by " · ", so hints read "keys — what
+// they do" at a glance.
+func KeyHint(pairs ...string) string {
+	var b strings.Builder
+	for i := 0; i+1 < len(pairs); i += 2 {
+		if i > 0 {
+			b.WriteString(" · ")
+		}
+		b.WriteString(KeyStyle.Render(pairs[i]))
+		b.WriteString(" ")
+		b.WriteString(HintStyle.Render(pairs[i+1]))
+	}
+	return b.String()
 }
 
 // TruncateRunes shortens s to at most n runes, appending an ellipsis

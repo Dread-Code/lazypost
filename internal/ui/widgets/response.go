@@ -226,7 +226,7 @@ func (r *Response) View() string {
 	var content string
 	switch r.state {
 	case stIdle:
-		content = r.center(HintStyle.Render("press ctrl+r to send the request"))
+		content = r.center(HintStyle.Render("press ") + KeyHint("ctrl+r", "to send the request"))
 	case stLoading:
 		content = r.center(r.spinner.View() + " sending...")
 	case stError:

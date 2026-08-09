@@ -262,7 +262,7 @@ func (m *Model) deleteVariable(env, key string) tea.Cmd {
 // so the modal's keys are discoverable without ?.
 func (m *Model) envManagerView() string {
 	tabRow := ui.TabBar(m.envNames, m.palette.envTab, max(0, m.width-12), nil)
-	hint := ui.HintStyle.Render("enter activate · ctrl+e tab · a add · r edit · d delete · / filter · esc close")
+	hint := ui.KeyHint("enter", "activate", "ctrl+e", "tab", "a", "add", "r", "edit", "d", "delete", "/", "filter", "esc", "close")
 	return lipgloss.JoinVertical(lipgloss.Left, tabRow, m.palette.widget.View(), hint)
 }
 

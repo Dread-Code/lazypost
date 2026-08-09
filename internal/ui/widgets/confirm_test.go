@@ -12,7 +12,7 @@ func TestConfirmView(t *testing.T) {
 	if l := c.Label(); !strings.Contains(l, "delete request list authors?") {
 		t.Errorf("expected question in label, got %q", l)
 	}
-	if !strings.Contains(c.View(), "y yes · n no") {
+	if !strings.Contains(stripAnsiTab(c.View()), "y yes · n no") {
 		t.Errorf("expected hint in view, got:\n%s", c.View())
 	}
 }
