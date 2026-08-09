@@ -66,6 +66,44 @@ type Entry struct {
 
 const environmentsDir = "environments"
 
+// MarkerFile marks a directory as a collection by intent
+// ([[Design - collection marker file]]).
+const MarkerFile = ".lazypost"
+
+// Marker is the per-collection config file at a collection root. Name is
+// the display name for the title bar; Root optionally points at the real
+// collection root when the marker lives elsewhere.
+type Marker struct {
+	Name string `yaml:"name"`
+	Root string `yaml:"root,omitempty"`
+}
+
+// LoadMarker reads the marker for dir; it returns (nil, nil) when no
+// marker file exists.
+func LoadMarker(dir string) (*Marker, error) {
+	data, err := os.ReadFile(filepath.Join(dir, MarkerFile))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var m Marker
+	if err := yaml.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", filepath.Join(dir, MarkerFile), err)
+	}
+	return &m, nil
+}
+
+// WriteMarker creates the marker file for a collection at dir.
+func WriteMarker(dir, name string) error {
+	data, err := yaml.Marshal(Marker{Name: name})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, MarkerFile), data, 0o644)
+}
+
 func isYAML(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	return ext == ".yaml" || ext == ".yml"

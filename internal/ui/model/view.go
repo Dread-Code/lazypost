@@ -64,7 +64,7 @@ func (m Model) View() string {
 
 	title := lipgloss.JoinHorizontal(lipgloss.Left,
 		ui.TitleStyle.Render("lazypost"),
-		ui.HintStyle.Render("  "+ui.TruncateRunes(m.dir, m.width/2)),
+		ui.HintStyle.Render("  "+ui.TruncateRunes(m.collectionTitle(), m.width/2)),
 	)
 	envLabel := "env: none"
 	if name := m.activeEnvName(); name != "" {
@@ -280,6 +280,16 @@ func (m Model) statusBar() string {
 		gap = 1
 	}
 	return left + strings.Repeat(" ", gap) + right
+}
+
+// collectionTitle is what the title bar shows for the collection: the
+// .lazypost marker name when one exists, else the root path
+// ([[Design - collection marker file]]).
+func (m *Model) collectionTitle() string {
+	if m.collectionName != "" {
+		return m.collectionName
+	}
+	return m.dir
 }
 
 func rel(dir, path string) string {

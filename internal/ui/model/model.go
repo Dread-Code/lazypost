@@ -60,7 +60,8 @@ type paletteState struct {
 }
 
 // namerState is the name-input modal, used for new requests/folders
-// (dir/rename/old) and for key=value variable edits (envEdit/envNew).
+// (dir/rename/old), for key=value variable edits (envEdit/envNew), and
+// for naming a new collection (marker).
 type namerState struct {
 	widget  *ui.Namer
 	dir     string // folder the new request will be created in
@@ -68,6 +69,7 @@ type namerState struct {
 	old     string // path of the request being renamed
 	envEdit string // environment whose variables are being edited
 	envNew  bool   // "a" (add) instead of "r" (edit): a leading "/" creates an environment
+	marker  bool   // naming a new collection: enter writes a .lazypost marker
 }
 
 // confirmState is the y/n modal for destructive actions: deleting a
@@ -102,6 +104,15 @@ type Model struct {
 	envNames []string
 	envIdx   int // 0 = none
 
+	// collectionName is the display name from a .lazypost marker; when
+	// empty the title bar shows the root path
+	// ([[Design - collection marker file]]).
+	collectionName string
+
+	// needsMarker prompts for a collection name on first run and writes
+	// a .lazypost marker on confirm.
+	needsMarker bool
+
 	// store holds values chained between requests by script hooks
 	// ([[Design - request chaining store]]); memory-only per session.
 	store map[string]string
@@ -119,7 +130,34 @@ type Model struct {
 	noticeError bool
 }
 
-func New(dir string, entries []collection.Entry, envs map[string]map[string]string, envNames []string, st session.State) Model {
+// CollectionName returns the .lazypost marker name, or "" when the
+// collection has none (the title bar then shows the root path).
+func (m Model) CollectionName() string { return m.collectionName }
+
+// NeedsMarker reports whether this model will ask for a collection name
+// on first run.
+func (m Model) NeedsMarker() bool { return m.needsMarker }
+
+// markerPromptMsg asks the user to name a markerless collection on first
+// run ([[Design - collection marker file]]).
+type markerPromptMsg struct{}
+
+// Option tweaks how a collection is opened. Options are additive so the
+// existing New call sites (main + tests) keep compiling unchanged.
+type Option func(*Model)
+
+// WithCollectionName sets the display name from a .lazypost marker.
+func WithCollectionName(name string) Option {
+	return func(m *Model) { m.collectionName = name }
+}
+
+// WithMarkerPrompt asks for a collection name on first run when the root
+// has no .lazypost marker.
+func WithMarkerPrompt() Option {
+	return func(m *Model) { m.needsMarker = true }
+}
+
+func New(dir string, entries []collection.Entry, envs map[string]map[string]string, envNames []string, st session.State, opts ...Option) Model {
 	m := Model{
 		dir:      dir,
 		envs:     envs,
@@ -137,10 +175,18 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.historyWidget = ui.NewHistory(40, 10)
 	m.focus = pSidebar
 	m.restore(st)
+	for _, opt := range opts {
+		opt(&m)
+	}
 	return m
 }
 
-func (m Model) Init() tea.Cmd { return nil }
+func (m Model) Init() tea.Cmd {
+	if m.needsMarker {
+		return func() tea.Msg { return markerPromptMsg{} }
+	}
+	return nil
+}
 
 // Update is a thin router: typed messages first, then the open overlay,
 // then global keys, then the focused pane. Actions live in actions.go,
@@ -173,6 +219,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.response, cmd = m.response.Update(msg)
 		return m, cmd
+
+	case markerPromptMsg:
+		return m.openCollectionMarker()
 	}
 
 	// A modal overlay is open: every message (keys, filter matches,

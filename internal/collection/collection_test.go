@@ -254,3 +254,54 @@ func TestDefaultName(t *testing.T) {
 		}
 	}
 }
+
+func TestMarkerRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	if err := WriteMarker(dir, "My API collection"); err != nil {
+		t.Fatalf("WriteMarker: %v", err)
+	}
+	m, err := LoadMarker(dir)
+	if err != nil {
+		t.Fatalf("LoadMarker: %v", err)
+	}
+	if m == nil || m.Name != "My API collection" || m.Root != "" {
+		t.Fatalf("LoadMarker = %+v, want name %q with empty root", m, "My API collection")
+	}
+}
+
+func TestMarkerAbsent(t *testing.T) {
+	dir := t.TempDir()
+	m, err := LoadMarker(dir)
+	if err != nil {
+		t.Fatalf("LoadMarker: %v", err)
+	}
+	if m != nil {
+		t.Fatalf("LoadMarker = %+v, want nil for a markerless dir", m)
+	}
+}
+
+func TestMarkerMalformed(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, MarkerFile), []byte("{{not yaml"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadMarker(dir); err == nil {
+		t.Fatal("LoadMarker on malformed marker: want error, got nil")
+	}
+}
+
+func TestMarkerNotInTree(t *testing.T) {
+	dir := t.TempDir()
+	if err := WriteMarker(dir, "n"); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	for _, e := range entries {
+		if e.Name == MarkerFile {
+			t.Fatalf("Load included the marker %q as a tree entry", MarkerFile)
+		}
+	}
+}

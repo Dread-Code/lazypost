@@ -26,8 +26,25 @@ func main() {
 		return
 	}
 
-	root := resolveRoot(*dir)
-	root = canonicalRoot(root)
+	resolved := resolveRoot(*dir)
+	root := canonicalRoot(resolved)
+
+	// Resolve the .lazypost marker: a marker with root set points at the
+	// real collection elsewhere ([[Design - collection marker file]]).
+	marker, err := collection.LoadMarker(root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "lazypost: cannot read marker in %q: %v\n", root, err)
+		os.Exit(1)
+	}
+	if marker != nil && marker.Root != "" {
+		root = canonicalRoot(marker.Root)
+		if redirected, err := collection.LoadMarker(root); err != nil {
+			fmt.Fprintf(os.Stderr, "lazypost: cannot read marker in %q: %v\n", root, err)
+			os.Exit(1)
+		} else {
+			marker = redirected
+		}
+	}
 
 	// Load the collection tree and environments once, up front; the
 	// model treats them as immutable snapshots.
@@ -51,7 +68,9 @@ func main() {
 	}
 	ui.ThemeByName(st.Theme).Apply()
 
-	p := tea.NewProgram(model.New(root, entries, envs, envNames, st), tea.WithAltScreen())
+	opts := markerOptions(*dir, resolved, marker)
+
+	p := tea.NewProgram(model.New(root, entries, envs, envNames, st, opts...), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "lazypost: %v\n", err)
 		os.Exit(1)
@@ -83,4 +102,18 @@ func canonicalRoot(root string) string {
 		return abs
 	}
 	return root
+}
+
+// markerOptions decides how the model opens the collection. A present
+// marker supplies its name; a missing marker on a user-chosen directory
+// (-dir or the cwd fallback) prompts for a name on first run. The
+// auto-detected sample-collections/collections stay implicit.
+func markerOptions(dir, resolved string, marker *collection.Marker) []model.Option {
+	if marker != nil {
+		return []model.Option{model.WithCollectionName(marker.Name)}
+	}
+	if dir != "" || resolved == "." {
+		return []model.Option{model.WithMarkerPrompt()}
+	}
+	return nil
 }

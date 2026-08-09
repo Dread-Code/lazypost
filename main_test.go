@@ -4,6 +4,10 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"lazypost/internal/collection"
+	"lazypost/internal/session"
+	"lazypost/internal/ui/model"
 )
 
 func TestResolveRootExplicitWins(t *testing.T) {
@@ -46,4 +50,40 @@ func TestCanonicalRootMakesAbsolute(t *testing.T) {
 	if got := canonicalRoot(filepath.Join(dir, "sub")); got != filepath.Join(dir, "sub") {
 		t.Errorf("canonicalRoot of an absolute path changed it: %q", got)
 	}
+}
+
+func TestMarkerOptionsWithMarker(t *testing.T) {
+	opts := markerOptions("", ".", &collection.Marker{Name: "My API"})
+	m := newModelWithOpts(opts)
+	if m.CollectionName() != "My API" || m.NeedsMarker() {
+		t.Errorf("with marker: got name=%q prompt=%v, want name=My API prompt=false", m.CollectionName(), m.NeedsMarker())
+	}
+}
+
+func TestMarkerOptionsExplicitDirPrompts(t *testing.T) {
+	m := newModelWithOpts(markerOptions("/some/dir", ".", nil))
+	if !m.NeedsMarker() {
+		t.Error("explicit -dir without marker should prompt")
+	}
+}
+
+func TestMarkerOptionsCwdFallbackPrompts(t *testing.T) {
+	m := newModelWithOpts(markerOptions("", ".", nil))
+	if !m.NeedsMarker() {
+		t.Error("cwd fallback without marker should prompt")
+	}
+}
+
+func TestMarkerOptionsImplicitCollectionsNoPrompt(t *testing.T) {
+	for _, resolved := range []string{"sample-collections", "collections"} {
+		m := newModelWithOpts(markerOptions("", resolved, nil))
+		if m.NeedsMarker() {
+			t.Errorf("resolved %q should stay implicit (no prompt)", resolved)
+		}
+	}
+}
+
+// newModelWithOpts applies the options to a model just to inspect them.
+func newModelWithOpts(opts []model.Option) model.Model {
+	return model.New("dir", nil, nil, nil, session.State{}, opts...)
 }

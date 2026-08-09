@@ -1,11 +1,37 @@
 package model
 
 import (
+	"path/filepath"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"lazypost/internal/app"
 	"lazypost/internal/collection"
 )
+
+// openCollectionMarker opens the namer to name a markerless collection
+// on first run ([[Design - collection marker file]]).
+func (m *Model) openCollectionMarker() (tea.Model, tea.Cmd) {
+	m.overlay = ovNamer
+	m.namer.marker = true
+	m.namer.widget.SetLabel("Collection name")
+	return m, m.namer.widget.OpenPrefilled(filepath.Base(m.dir))
+}
+
+// createCollection writes the .lazypost marker for the root and adopts
+// the name; the void dir stays open with just that file on disk.
+func (m *Model) createCollection(name string) (tea.Model, tea.Cmd) {
+	_, err := app.CreateCollection(m.dir, name)
+	if err != nil {
+		m.setNotice("create collection failed: "+err.Error(), true)
+		return m, nil
+	}
+	m.needsMarker = false
+	m.collectionName = name
+	m.overlay = noOverlay
+	m.setNotice("collection '"+name+"' created", false)
+	return m, nil
+}
 
 // save persists the composed request to disk, then refreshes the sidebar
 // so the new/changed file appears in the tree.

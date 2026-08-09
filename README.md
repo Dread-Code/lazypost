@@ -87,7 +87,14 @@ Requires Go 1.25+.
 
 ## Collection format
 
-A collection is a directory of YAML files (subdirectories become tree nodes):
+A collection is a directory of YAML files (subdirectories become tree nodes). A `.lazypost` marker marks a directory as a collection and supplies its display name:
+
+```yaml
+name: My API collection      # title bar name
+root: ~/APIs/main            # optional: point here at the real collection root
+```
+
+Opening a directory you choose (`-dir` or the current directory) without a marker asks for a name and writes the marker on confirm; `esc` opens it anyway without writing. `./sample-collections` / `./collections` are treated as collections without a marker.
 
 ```yaml
 name: create post
