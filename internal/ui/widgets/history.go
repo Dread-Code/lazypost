@@ -12,6 +12,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"lazypost/internal/app"
+
+	"lazypost/internal/ui/themes"
 )
 
 // HistoryItem is one past send shown in the history overlay.
@@ -60,16 +62,16 @@ func (d historyDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 	if titleW < 4 {
 		titleW = 4
 	}
-	title := TruncateRunes(it.HistoryTitle(), titleW)
-	summary := lipgloss.NewStyle().Foreground(ColorMuted).Render(it.Summary)
+	title := themes.TruncateRunes(it.HistoryTitle(), titleW)
+	summary := lipgloss.NewStyle().Foreground(themes.ColorMuted).Render(it.Summary)
 	if !selected {
 		// a failed send wears its error color in the summary; a success
 		// wears the success color so the list scans by outcome
 		switch {
 		case it.Req.Err != nil:
-			summary = ErrorStyle.Render(it.Summary)
+			summary = themes.ErrorStyle.Render(it.Summary)
 		case it.Req.Res != nil:
-			summary = lipgloss.NewStyle().Foreground(StatusColor(it.Req.Res.StatusCode)).Render(it.Summary)
+			summary = lipgloss.NewStyle().Foreground(themes.StatusColor(it.Req.Res.StatusCode)).Render(it.Summary)
 		}
 	}
 	pad := avail - lipgloss.Width(title) - lipgloss.Width(summary)
@@ -79,7 +81,7 @@ func (d historyDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 	line := "  " + title + strings.Repeat(" ", pad) + summary
 	if selected {
 		line = "▸ " + title + strings.Repeat(" ", pad) + summary
-		line = SelectedRowStyle.Render(padRunes(line, avail))
+		line = themes.SelectedRowStyle.Render(padRunes(line, avail))
 	}
 	fmt.Fprint(w, line)
 }
@@ -102,7 +104,7 @@ func NewHistory(width, height int) *History {
 	h.list.SetShowPagination(false)
 	h.list.SetShowStatusBar(false)
 	h.list.DisableQuitKeybindings()
-	h.list.Styles.NoItems = HintStyle
+	h.list.Styles.NoItems = themes.HintStyle
 	return h
 }
 
@@ -159,7 +161,7 @@ func (h *History) CursorDown() { h.list.CursorDown() }
 
 func (h *History) View() string {
 	if len(h.list.VisibleItems()) == 0 {
-		return HintStyle.Render("no requests sent yet")
+		return themes.HintStyle.Render("no requests sent yet")
 	}
 	return h.list.View()
 }

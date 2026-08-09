@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	ui "lazypost/internal/ui/widgets"
+	"lazypost/internal/ui/themes"
 )
 
 // openHelp shows the keybindings reference (?) as a read-only overlay.
@@ -93,19 +93,19 @@ func helpContent(maxW int) string {
 	for _, s := range helpSections() {
 		// section headers are dash runs, so they double as separators —
 		// no blank lines needed, keeping the panel short on small screens
-		fmt.Fprintln(&b, ui.SectionLine(s.title, layout.width))
+		fmt.Fprintln(&b, themes.SectionLine(s.title, layout.width))
 		if layout.single {
 			for _, r := range s.rows {
 				if r.k1 == "" {
 					continue
 				}
-				fmt.Fprintln(&b, "  "+ui.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+r.a1)
+				fmt.Fprintln(&b, "  "+themes.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+r.a1)
 			}
 			continue
 		}
 		for _, r := range s.rows {
-			fmt.Fprintln(&b, "  "+ui.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+pad(r.a1, layout.actW)+
-				"    "+ui.KeyStyle.Render(pad(r.k2, layout.keyW2))+"  "+pad(r.a2, layout.actW2))
+			fmt.Fprintln(&b, "  "+themes.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+pad(r.a1, layout.actW)+
+				"    "+themes.KeyStyle.Render(pad(r.k2, layout.keyW2))+"  "+pad(r.a2, layout.actW2))
 		}
 	}
 	return strings.TrimSuffix(b.String(), "\n")

@@ -12,6 +12,8 @@ import (
 
 	"lazypost/internal/httpclient"
 	"lazypost/internal/render"
+
+	"lazypost/internal/ui/themes"
 )
 
 type respState int
@@ -44,7 +46,7 @@ func NewResponse(width, height int) *Response {
 	r := &Response{width: width, height: height}
 	r.spinner = spinner.New()
 	r.spinner.Spinner = spinner.Dot
-	r.spinner.Style = lipgloss.NewStyle().Foreground(ColorPrimary)
+	r.spinner.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
 	r.body = viewport.New(width, height)
 	r.headers = viewport.New(width, height)
 	r.resize()
@@ -92,15 +94,15 @@ func highlightJSONColors(kind render.Kind, lit string) string {
 	var color lipgloss.AdaptiveColor
 	switch kind {
 	case render.KindKey:
-		color = ColorPrimary
+		color = themes.ColorPrimary
 	case render.KindString:
-		color = ColorSuccess
+		color = themes.ColorSuccess
 	case render.KindNumber:
-		color = ColorInfo
+		color = themes.ColorInfo
 	case render.KindLiteral:
-		color = ColorWarn
+		color = themes.ColorWarn
 	default: // KindPunctuation
-		color = ColorMuted
+		color = themes.ColorMuted
 	}
 	return lipgloss.NewStyle().Foreground(color).Render(lit)
 }
@@ -226,11 +228,11 @@ func (r *Response) View() string {
 	var content string
 	switch r.state {
 	case stIdle:
-		content = r.center(HintStyle.Render("press ") + KeyHint("ctrl+r", "to send the request"))
+		content = r.center(themes.HintStyle.Render("press ") + themes.KeyHint("ctrl+r", "to send the request"))
 	case stLoading:
 		content = r.center(r.spinner.View() + " sending...")
 	case stError:
-		content = r.center(ErrorStyle.Render("error: " + r.err.Error()))
+		content = r.center(themes.ErrorStyle.Render("error: " + r.err.Error()))
 	case stDone:
 		if r.tab == 0 {
 			content = r.body.View()
@@ -238,8 +240,8 @@ func (r *Response) View() string {
 			content = r.headers.View()
 		}
 	}
-	divider := Rule(max(0, r.width-4))
-	return lipgloss.JoinVertical(lipgloss.Left, TabBar(respTabs, r.tab, max(0, r.width-4), &ResponseAccent), divider, content)
+	divider := themes.Rule(max(0, r.width-4))
+	return lipgloss.JoinVertical(lipgloss.Left, themes.TabBar(respTabs, r.tab, max(0, r.width-4), &themes.ResponseAccent), divider, content)
 }
 
 // center places the idle/loading/error placeholder in the middle of the
@@ -261,7 +263,7 @@ func (r *Response) StatusLine() string {
 	if r.state != stDone || r.res == nil {
 		return ""
 	}
-	style := lipgloss.NewStyle().Foreground(StatusColor(r.res.StatusCode)).Bold(true)
+	style := lipgloss.NewStyle().Foreground(themes.StatusColor(r.res.StatusCode)).Bold(true)
 	return style.Render(r.res.Summary())
 }
 

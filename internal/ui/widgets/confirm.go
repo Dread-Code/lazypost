@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"lazypost/internal/ui/themes"
 )
 
 // Confirm is a small yes/no modal, opened before destructive actions like
@@ -31,8 +33,8 @@ func (c *Confirm) View() string {
 	// the question lives on the modal's border title (model/view.go
 	// renderModal), so the content is just the hint
 	return lipgloss.JoinVertical(lipgloss.Left,
-		KeyHint("y", "yes", "n", "no"),
-		KeyHint("enter", "confirms", "esc", "cancels"),
+		themes.KeyHint("y", "yes", "n", "no"),
+		themes.KeyHint("enter", "confirms", "esc", "cancels"),
 	)
 }
 

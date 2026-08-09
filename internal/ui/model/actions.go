@@ -6,6 +6,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"lazypost/internal/ui/widgets"
+
+	"lazypost/internal/ui/themes"
 )
 
 // Action is one selectable command: the palette lists all of them, and
@@ -71,7 +73,7 @@ func (m *Model) paletteActions() []Action {
 // openThemePicker reopens the palette as a theme list; moving the cursor
 // live-previews each theme, enter applies and persists it, esc reverts.
 func (m *Model) openThemePicker() (tea.Model, tea.Cmd) {
-	names := ui.ThemeNames()
+	names := themes.ThemeNames()
 	items := make([]ui.PaletteItem, len(names))
 	for i, n := range names {
 		items[i] = ui.PaletteItem{Title: n}
@@ -86,7 +88,7 @@ func (m *Model) openThemePicker() (tea.Model, tea.Cmd) {
 	m.palette.prev = m.focus
 	// remember the theme in effect so esc can restore it (the persisted
 	// name is empty on first run, when the default theme is active)
-	m.palette.prevTheme = ui.ThemeByName(m.state.Theme).Name
+	m.palette.prevTheme = themes.ThemeByName(m.state.Theme).Name
 	m.palette.theme = true
 	m.overlay = ovPalette
 	return m, nil
@@ -99,7 +101,7 @@ func (m *Model) previewTheme() (tea.Model, tea.Cmd) {
 	if it == nil {
 		return m, nil
 	}
-	ui.ThemeByName(it.Title).Apply()
+	themes.ThemeByName(it.Title).Apply()
 	return m, nil
 }
 
@@ -114,7 +116,7 @@ func (m *Model) applySelectedTheme() (tea.Model, tea.Cmd) {
 	m.palette.theme = false
 	m.palette.prevTheme = ""
 	name := it.Title
-	ui.ThemeByName(name).Apply()
+	themes.ThemeByName(name).Apply()
 	m.state.Theme = name
 	m.setNotice("theme: "+name, false)
 	return m, m.saveState()
@@ -147,7 +149,7 @@ func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.palette.theme = false
 			// a theme previewed but not confirmed is undone on cancel
 			if m.palette.prevTheme != "" {
-				ui.ThemeByName(m.palette.prevTheme).Apply()
+				themes.ThemeByName(m.palette.prevTheme).Apply()
 				m.palette.prevTheme = ""
 			}
 			return m, m.enter(m.palette.prev)

@@ -8,6 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"lazypost/internal/ui/themes"
 )
 
 // PaletteItem is one selectable command in the palette.
@@ -47,20 +49,20 @@ func (d paletteDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 	if titleW < 4 {
 		titleW = 4
 	}
-	title := TruncateRunes(it.Title, titleW)
+	title := themes.TruncateRunes(it.Title, titleW)
 	detail := ""
 	if it.Shortcut == "" && it.Detail != "" {
 		// "= value" hangs off the title so "key = value" reads as one
 		detail = " " + it.Detail
-		title = TruncateRunes(it.Title, avail-2-lipgloss.Width(detail))
+		title = themes.TruncateRunes(it.Title, avail-2-lipgloss.Width(detail))
 		if lipgloss.Width(title)+lipgloss.Width(detail) > avail-2 {
-			detail = TruncateRunes(detail, avail-2-lipgloss.Width(title))
+			detail = themes.TruncateRunes(detail, avail-2-lipgloss.Width(title))
 		}
 	}
 
 	right := ""
 	if it.Shortcut != "" {
-		right = lipgloss.NewStyle().Foreground(ColorMuted).Render(it.Shortcut)
+		right = lipgloss.NewStyle().Foreground(themes.ColorMuted).Render(it.Shortcut)
 	}
 	if selected {
 		// the whole row becomes a solid block; every segment flips to the
@@ -70,7 +72,7 @@ func (d paletteDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 			row += strings.Repeat(" ", pad)
 		}
 		row += it.Shortcut
-		row = SelectedRowStyle.Render(padRunes(row, avail))
+		row = themes.SelectedRowStyle.Render(padRunes(row, avail))
 		fmt.Fprint(w, row)
 		return
 	}
@@ -103,14 +105,14 @@ func NewPalette(width, height int) *Palette {
 	p.list.SetFilteringEnabled(true)
 	p.list.DisableQuitKeybindings()
 	p.list.FilterInput.Prompt = "› "
-	p.list.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(ColorPrimary)
-	p.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(ColorPrimary)
-	p.list.FilterInput.TextStyle = lipgloss.NewStyle().Foreground(InputColor)
-	p.list.FilterInput.PlaceholderStyle = lipgloss.NewStyle().Foreground(ColorMuted)
+	p.list.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	p.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	p.list.FilterInput.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
+	p.list.FilterInput.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
 	// the default TitleBar pads 1 line under the filter; kill it so the
 	// typed query sits flush above the items
 	p.list.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 0, 1)
-	p.list.Styles.NoItems = HintStyle
+	p.list.Styles.NoItems = themes.HintStyle
 	return p
 }
 

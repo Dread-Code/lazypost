@@ -10,6 +10,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"lazypost/internal/render"
+
+	"lazypost/internal/ui/themes"
 )
 
 // cursorBlock marks the edit position; styled after the textarea cursor.
@@ -202,15 +204,15 @@ func luaPaintColors(kind render.LuaKind, lit string) string {
 	var color lipgloss.AdaptiveColor
 	switch kind {
 	case render.LuaKeyword:
-		color = ColorPrimary
+		color = themes.ColorPrimary
 	case render.LuaString:
-		color = ColorSuccess
+		color = themes.ColorSuccess
 	case render.LuaComment:
-		color = ColorMuted
+		color = themes.ColorMuted
 	case render.LuaNumber:
-		color = ColorInfo
+		color = themes.ColorInfo
 	case render.LuaOperator:
-		color = ColorDim
+		color = themes.ColorDim
 	default: // LuaIdentifier
 		return lit
 	}
@@ -244,7 +246,7 @@ func (s *scriptEditor) View() string {
 		} else {
 			rendered = render.HighlightLua(lines[i], luaPaintColors)
 		}
-		b.WriteString(HintStyle.Render(fmt.Sprintf("%*d ", gutterW, i+1)))
+		b.WriteString(themes.HintStyle.Render(fmt.Sprintf("%*d ", gutterW, i+1)))
 		b.WriteString(truncateRunesAnsi(rendered, visibleW))
 		if i < end-1 {
 			b.WriteString("\n")
@@ -276,7 +278,7 @@ func (s *scriptEditor) renderCursorLine(line string, col int) string {
 }
 
 func (s *scriptEditor) placeholderView() string {
-	p := HintStyle.Render(s.placeholder)
+	p := themes.HintStyle.Render(s.placeholder)
 	if s.focused {
 		p = cursorBlock.Render(" ") + p
 	}

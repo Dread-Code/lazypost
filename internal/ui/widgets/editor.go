@@ -9,6 +9,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"lazypost/internal/collection"
+
+	"lazypost/internal/ui/themes"
 )
 
 type Section int
@@ -194,8 +196,8 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 }
 
 func (e *Editor) View() string {
-	tabRow := TabBar(sectionTabs, int(e.section), max(0, e.width-2), &EditorAccent)
-	divider := Rule(max(0, e.width-2))
+	tabRow := themes.TabBar(sectionTabs, int(e.section), max(0, e.width-2), &themes.EditorAccent)
+	divider := themes.Rule(max(0, e.width-2))
 
 	var content string
 	switch e.section {
@@ -217,7 +219,7 @@ func (e *Editor) View() string {
 // scriptsView renders a pre/post toggle row (like the auth type row) with
 // only the focused script's textarea below it.
 func (e *Editor) scriptsView() string {
-	toggleRow := HintStyle.Render("hook ") + TabBar([]string{"pre", "post"}, e.field, max(0, e.width-2), &EditorAccent)
+	toggleRow := themes.HintStyle.Render("hook ") + themes.TabBar([]string{"pre", "post"}, e.field, max(0, e.width-2), &themes.EditorAccent)
 
 	var content string
 	if e.field == 1 {

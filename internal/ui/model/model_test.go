@@ -14,7 +14,8 @@ import (
 
 	"lazypost/internal/collection"
 	"lazypost/internal/session"
-	ui "lazypost/internal/ui/widgets"
+
+	"lazypost/internal/ui/themes"
 )
 
 func loadSample(t *testing.T) Model {
@@ -741,9 +742,9 @@ func TestSwitchTheme(t *testing.T) {
 func TestThemePickerLivePreview(t *testing.T) {
 	// self-contained: reset the default theme (an earlier test may have
 	// applied solarized) and start from a fresh, unpersisted model
-	ui.DefaultTheme.Apply()
+	themes.DefaultTheme.Apply()
 	m := loadSample(t)
-	if got := lipgloss.AdaptiveColor(ui.ColorPrimary); got != ui.Themes["dracula"].Primary {
+	if got := lipgloss.AdaptiveColor(themes.ColorPrimary); got != themes.Themes["dracula"].Primary {
 		t.Fatalf("test setup: expected dracula active, got %v", got)
 	}
 
@@ -757,7 +758,7 @@ func TestThemePickerLivePreview(t *testing.T) {
 	// moving the cursor previews the theme without closing the picker
 	m2, _ = mm.updatePalette(tea.KeyMsg{Type: tea.KeyDown})
 	mm = m2.(*Model)
-	if got := lipgloss.AdaptiveColor(ui.ColorPrimary); got != ui.Themes["catppuccin"].Primary {
+	if got := lipgloss.AdaptiveColor(themes.ColorPrimary); got != themes.Themes["catppuccin"].Primary {
 		t.Errorf("down should preview catppuccin, got %v", got)
 	}
 	if mm.overlay != ovPalette {
@@ -770,12 +771,53 @@ func TestThemePickerLivePreview(t *testing.T) {
 	// esc cancels and restores the theme that was active on open
 	m2, _ = mm.updatePalette(tea.KeyMsg{Type: tea.KeyEsc})
 	mm = m2.(*Model)
-	if got := lipgloss.AdaptiveColor(ui.ColorPrimary); got != ui.Themes["dracula"].Primary {
+	if got := lipgloss.AdaptiveColor(themes.ColorPrimary); got != themes.Themes["dracula"].Primary {
 		t.Errorf("esc should revert to dracula, got %v", got)
 	}
 	if mm.overlay != noOverlay {
 		t.Error("esc should close the picker")
 	}
+}
+
+// TestThemePickerListsUserThemes: a theme loaded from the user themes
+// dir appears in the picker after the presets, can be applied, and
+// persists its name.
+func TestThemePickerListsUserThemes(t *testing.T) {
+	themes.DefaultTheme.Apply()
+	themeDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(themeDir, "zen.yaml"), []byte("primary: {light: \"#111111\", dark: \"#222222\"}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := themes.LoadUserThemes(themeDir); err != nil {
+		t.Fatalf("LoadUserThemes: %v", err)
+	}
+	t.Cleanup(themes.ResetUserThemes)
+
+	m := loadSample(t)
+	m2, _ := m.openThemePicker()
+	mm := m2.(*Model)
+
+	// walk down the picker (presets then user themes) until zen shows
+	for range 8 {
+		if it := mm.palette.widget.Selected(); it != nil && it.Title == "zen" {
+			break
+		}
+		mm2, _ := mm.updatePalette(tea.KeyMsg{Type: tea.KeyDown})
+		mm = mm2.(*Model)
+	}
+	if it := mm.palette.widget.Selected(); it == nil || it.Title != "zen" {
+		t.Fatalf("user theme should be reachable in the picker, got %+v", it)
+	}
+
+	m2, _ = mm.updatePalette(tea.KeyMsg{Type: tea.KeyEnter})
+	mm = m2.(*Model)
+	if mm.state.Theme != "zen" {
+		t.Errorf("applying a user theme should persist its name, got %q", mm.state.Theme)
+	}
+	if got := lipgloss.AdaptiveColor(themes.ColorPrimary); got != (lipgloss.AdaptiveColor{Light: "#111111", Dark: "#222222"}) {
+		t.Errorf("user theme not applied, primary = %v", got)
+	}
+	themes.DefaultTheme.Apply() // leave the default theme active for later tests
 }
 
 func TestEnvManagerTabsAndActivate(t *testing.T) {

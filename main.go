@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -11,7 +12,7 @@ import (
 	"lazypost/internal/collection"
 	"lazypost/internal/session"
 	"lazypost/internal/ui/model"
-	"lazypost/internal/ui/widgets"
+	"lazypost/internal/ui/themes"
 )
 
 var version = "dev"
@@ -66,7 +67,15 @@ func main() {
 		fmt.Fprintf(os.Stderr, "lazypost: cannot load session state: %v\n", err)
 		os.Exit(1)
 	}
-	ui.ThemeByName(st.Theme).Apply()
+	// Load user themes before applying the session theme, so a user
+	// theme persisted in state resolves at startup. A missing themes dir
+	// or an unreadable config dir is never fatal.
+	if dir, err := session.ConfigDir(); err == nil {
+		_, _ = themes.LoadUserThemes(filepath.Join(dir, "themes"))
+	} else {
+		log.Printf("lazypost: cannot locate config dir: %v", err)
+	}
+	themes.ThemeByName(st.Theme).Apply()
 
 	opts := markerOptions(*dir, resolved, marker)
 	opts = append(opts, model.WithVersion(version))

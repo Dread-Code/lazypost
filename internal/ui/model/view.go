@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/cellbuf"
 
-	"lazypost/internal/ui/widgets"
+	"lazypost/internal/ui/themes"
 )
 
 // geometry derives pane sizes from the terminal size. Both layout() and
@@ -72,19 +72,19 @@ func (m Model) View() string {
 		bar += strings.Repeat(" ", m.width-w)
 	}
 
-	sidebar := renderPane("Collection", m.sidebar.View(), &ui.SidebarAccent, m.focus == pSidebar, g.sidebarW, g.contentH, true)
+	sidebar := renderPane("Collection", m.sidebar.View(), &themes.SidebarAccent, m.focus == pSidebar, g.sidebarW, g.contentH, true)
 
 	reqTitle := "Request"
 	if p := m.editor.ActivePath(); p != "" {
 		reqTitle += " · " + rel(m.dir, p)
 	}
-	editor := renderPane(reqTitle, m.editor.View(), &ui.EditorAccent, m.focus == pEditor, g.rightW, g.editorH, false)
+	editor := renderPane(reqTitle, m.editor.View(), &themes.EditorAccent, m.focus == pEditor, g.rightW, g.editorH, false)
 
 	respTitle := "Response"
 	if s := m.response.StatusLine(); s != "" {
 		respTitle += " · " + s
 	}
-	response := renderPane(respTitle, m.response.View(), &ui.ResponseAccent, m.focus == pResponse, g.rightW, g.respH, false)
+	response := renderPane(respTitle, m.response.View(), &themes.ResponseAccent, m.focus == pResponse, g.rightW, g.respH, false)
 
 	right := lipgloss.JoinVertical(lipgloss.Left, editor, response)
 	content := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right)
@@ -99,9 +99,9 @@ func (m Model) View() string {
 		}
 		content := m.palette.widget.View()
 		if m.palette.theme {
-			content += "\n" + ui.KeyHint("↑↓", "preview", "enter", "apply", "esc", "cancel")
+			content += "\n" + themes.KeyHint("↑↓", "preview", "enter", "apply", "esc", "cancel")
 		} else {
-			content += "\n" + ui.KeyHint("↑↓", "navigate", "enter", "run", "esc", "close")
+			content += "\n" + themes.KeyHint("↑↓", "navigate", "enter", "run", "esc", "close")
 		}
 		frame = overlayPalette(frame, title, content, m.width, m.height)
 	case ovEnv:
@@ -111,7 +111,7 @@ func (m Model) View() string {
 	case ovConfirm:
 		frame = overlayPalette(frame, m.confirm.widget.Label(), m.confirm.widget.View(), m.width, m.height)
 	case ovHistory:
-		content := m.historyWidget.View() + "\n" + ui.KeyHint("enter", "restore", "ctrl+r", "resend", "esc", "close")
+		content := m.historyWidget.View() + "\n" + themes.KeyHint("enter", "restore", "ctrl+r", "resend", "esc", "close")
 		frame = overlayPalette(frame, "Request history", content, m.width, m.height)
 	case ovHelp:
 		frame = overlayPalette(frame, "Keybindings", helpContent(m.width-8), m.width, m.height)
@@ -220,16 +220,16 @@ func renderModal(title, content string) string {
 		}
 	}
 	// modals sit on top of the frame, so they always wear the focused look
-	style := ui.ModalStyle
+	style := themes.ModalStyle
 	border := style.GetBorderStyle()
 	borderStyle := lipgloss.NewStyle()
 	if c := style.GetBorderTopForeground(); c != nil {
 		borderStyle = borderStyle.Foreground(c)
 	}
-	titleW := lipgloss.Width(lipgloss.NewStyle().Bold(true).Foreground(ui.ColorMuted).Render(" " + title + " "))
+	titleW := lipgloss.Width(lipgloss.NewStyle().Bold(true).Foreground(themes.ColorMuted).Render(" " + title + " "))
 	// room for the title (with its own padding) plus a dash on each side
 	boxW := max(contentW+4, titleW+4)
-	topLine := legendLine(border, borderStyle, ui.ActiveLegendTitleStyle, title, boxW, alignRight)
+	topLine := legendLine(border, borderStyle, themes.ActiveLegendTitleStyle, title, boxW, alignRight)
 	body := style.Border(border, false, true, true, true).
 		Padding(0, 1).
 		Width(boxW - 2).
@@ -245,13 +245,13 @@ func renderModal(title, content string) string {
 // also always wears the accent. The legend hugs the left when legendLeft
 // is set, otherwise it's centered. lipgloss's top border is disabled and
 // rebuilt by hand so the title shares the border line.
-func renderPane(title, content string, accent *ui.PaneAccent, focused bool, w, h int, legendLeft bool) string {
-	style := ui.PaneStyle
+func renderPane(title, content string, accent *themes.PaneAccent, focused bool, w, h int, legendLeft bool) string {
+	style := themes.PaneStyle
 	legendTitle := accent.Legend
 	if focused {
 		style = accent.Active
 	}
-	title = ui.TruncateRunes(title, w-4)
+	title = themes.TruncateRunes(title, w-4)
 
 	border := style.GetBorderStyle()
 	borderStyle := lipgloss.NewStyle()
@@ -273,30 +273,30 @@ func (m Model) statusBar() string {
 	var help string
 	switch m.focus {
 	case pSidebar:
-		help = ui.KeyHint("↑↓ ctrl+n/p", "nav loads", "enter", "url", "a", "add", "d", "del", "r", "rename", "?", "help")
+		help = themes.KeyHint("↑↓ ctrl+n/p", "nav loads", "enter", "url", "a", "add", "d", "del", "r", "rename", "?", "help")
 	case pBar:
-		help = ui.KeyHint("ctrl+t", "method", "enter", "send", "esc", "back")
+		help = themes.KeyHint("ctrl+t", "method", "enter", "send", "esc", "back")
 	case pEditor:
-		help = ui.KeyHint("ctrl+n/p", "field", "alt+←→", "tab", "ctrl+t", "auth type", "ctrl+s", "save", "ctrl+r", "send")
+		help = themes.KeyHint("ctrl+n/p", "field", "alt+←→", "tab", "ctrl+t", "auth type", "ctrl+s", "save", "ctrl+r", "send")
 	case pResponse:
-		help = ui.KeyHint("←→ or b/h", "tabs", "↑↓", "scroll", "?", "help", "q", "quit")
+		help = themes.KeyHint("←→ or b/h", "tabs", "↑↓", "scroll", "?", "help", "q", "quit")
 	}
 
 	// right side: the file root and version sit at the far right,
 	// transient notices to their left, so the identity stays put while
 	// notices come and go
-	right := ui.HintStyle.Render(ui.TruncateRunes(m.collectionTitle(), m.width/4))
+	right := themes.HintStyle.Render(themes.TruncateRunes(m.collectionTitle(), m.width/4))
 	if m.version != "" {
-		right += "  " + ui.VersionStyle.Render(m.version)
+		right += "  " + themes.VersionStyle.Render(m.version)
 	}
 	if m.notice != "" {
-		text := ui.TruncateRunes(m.notice, m.width/3)
+		text := themes.TruncateRunes(m.notice, m.width/3)
 		if m.noticeError {
 			text = "✖ " + text
-			right = ui.ErrorStyle.Render(text) + "  " + right
+			right = themes.ErrorStyle.Render(text) + "  " + right
 		} else {
 			text = "✓ " + text
-			right = ui.NoticeStyle.Render(text) + "  " + right
+			right = themes.NoticeStyle.Render(text) + "  " + right
 		}
 	}
 	limit := m.width - lipgloss.Width(right) - 1

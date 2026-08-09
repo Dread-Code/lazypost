@@ -6,6 +6,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"lazypost/internal/ui/themes"
 )
 
 var Methods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
@@ -22,7 +24,7 @@ func cycleMethod(cur string, n int) string {
 
 // URLBar owns the request's method and URL — the only place they are
 // edited ([[Design - request top bar]]). The URL renders in a raised
-// field box (FieldStyle) with semantic parts colored live as it is
+// field box (themes.FieldStyle) with semantic parts colored live as it is
 // edited. A right adornment (the env badge) can be attached via SetRight;
 // its width is reserved from the field so the bar never overflows. Key
 // hints are not rendered here — the status bar shows them for the focused
@@ -52,7 +54,7 @@ func (u *URLBar) SetRight(s string) {
 // field's side padding, the right adornment, and the cursor column.
 func (u *URLBar) resize() {
 	// bar = pill + gap + field(padding 2 + width+1) + gap + right
-	urlW := u.width - lipgloss.Width(MethodBadge(u.method)) - 1 - 3 - 2
+	urlW := u.width - lipgloss.Width(themes.MethodBadge(u.method)) - 1 - 3 - 2
 	if u.right != "" {
 		urlW -= lipgloss.Width(u.right) + 2
 	}
@@ -94,7 +96,7 @@ func (u *URLBar) Update(msg tea.Msg) (*URLBar, tea.Cmd) {
 // The width is maintained by Resize/Focus/Blur/SetRequest, never here —
 // View must be free of side effects.
 func (u *URLBar) View() string {
-	line := lipgloss.JoinHorizontal(lipgloss.Top, MethodBadge(u.method), " ", u.fieldView())
+	line := lipgloss.JoinHorizontal(lipgloss.Top, themes.MethodBadge(u.method), " ", u.fieldView())
 	if u.right != "" {
 		line += "  " + u.right
 	}
@@ -104,7 +106,7 @@ func (u *URLBar) View() string {
 // fieldView wraps the URL input in one background column of breathing
 // room on each side (the input's own cells carry the background too).
 func (u *URLBar) fieldView() string {
-	pad := FieldStyle.Render(" ")
+	pad := themes.FieldStyle.Render(" ")
 	return pad + u.url.View() + pad
 }
 

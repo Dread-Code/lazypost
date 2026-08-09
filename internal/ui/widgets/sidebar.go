@@ -12,6 +12,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"lazypost/internal/collection"
+
+	"lazypost/internal/ui/themes"
 )
 
 type item struct {
@@ -47,17 +49,17 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 	case collection.Dir:
 		// the collection root renders as a plain bold label without the
 		// trailing slash; nested dirs keep the muted name/ look
-		name := TruncateRunes(e.Name, avail)
+		name := themes.TruncateRunes(e.Name, avail)
 		if e.Depth < 0 {
 			if selected {
 				line = lipgloss.NewStyle().Bold(true).Render(name)
 			} else {
-				line = lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render(name)
+				line = lipgloss.NewStyle().Bold(true).Foreground(themes.ColorPrimary).Render(name)
 			}
 		} else if selected {
 			line = lipgloss.NewStyle().Bold(true).Render(name + "/")
 		} else {
-			line = lipgloss.NewStyle().Bold(true).Foreground(ColorMuted).Render(name + "/")
+			line = lipgloss.NewStyle().Bold(true).Foreground(themes.ColorMuted).Render(name + "/")
 		}
 	default:
 		// method badge(6) + space(1)
@@ -71,9 +73,9 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 			// selection background; keep the row one solid unit
 			method = lipgloss.NewStyle().Bold(true).Render(method)
 		} else {
-			method = MethodStyle(e.Req.Method).Render(method)
+			method = themes.MethodStyle(e.Req.Method).Render(method)
 		}
-		name := TruncateRunes(e.Name, nameW)
+		name := themes.TruncateRunes(e.Name, nameW)
 		line = method + " " + name
 	}
 
@@ -90,7 +92,7 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 	// all sit on the selection background so the fill reads as one unit.
 	row := cursor + indent + line
 	if selected {
-		row = SelectedRowStyle.Render(padRunes(row, m.Width()))
+		row = themes.SelectedRowStyle.Render(padRunes(row, m.Width()))
 	}
 	fmt.Fprint(w, row)
 }
@@ -139,7 +141,7 @@ func NewSidebar(entries []collection.Entry, root string, width, height int) *Sid
 	s.list.SetShowStatusBar(false)
 	s.list.SetFilteringEnabled(false)
 	s.list.DisableQuitKeybindings()
-	s.list.Styles.NoItems = HintStyle
+	s.list.Styles.NoItems = themes.HintStyle
 	return s
 }
 

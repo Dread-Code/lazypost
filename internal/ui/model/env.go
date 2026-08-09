@@ -10,6 +10,8 @@ import (
 
 	"lazypost/internal/collection"
 	"lazypost/internal/ui/widgets"
+
+	"lazypost/internal/ui/themes"
 )
 
 // openEnvManager shows the environment manager: a tab bar of environments
@@ -141,7 +143,7 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(km, keyDelete):
 			if env := m.envTabName(); env != "" {
 				if key := m.selectedVarName(); key != "" {
-					m.confirm.widget.Ask("delete variable " + ui.TruncateRunes(key, 30) + "?")
+					m.confirm.widget.Ask("delete variable " + themes.TruncateRunes(key, 30) + "?")
 					m.overlay = ovConfirm
 					m.confirm.env = env
 					m.confirm.key = key
@@ -261,8 +263,8 @@ func (m *Model) deleteVariable(env, key string) tea.Cmd {
 // environments above the active tab's variables, with an action hint row
 // so the modal's keys are discoverable without ?.
 func (m *Model) envManagerView() string {
-	tabRow := ui.TabBar(m.envNames, m.palette.envTab, max(0, m.width-12), nil)
-	hint := ui.KeyHint("enter", "activate", "ctrl+e", "tab", "a", "add", "r", "edit", "d", "delete", "/", "filter", "esc", "close")
+	tabRow := themes.TabBar(m.envNames, m.palette.envTab, max(0, m.width-12), nil)
+	hint := themes.KeyHint("enter", "activate", "ctrl+e", "tab", "a", "add", "r", "edit", "d", "delete", "/", "filter", "esc", "close")
 	return lipgloss.JoinVertical(lipgloss.Left, tabRow, m.palette.widget.View(), hint)
 }
 

@@ -63,15 +63,26 @@ func Save(dir string, s State) error {
 	return os.WriteFile(file, data, 0o644)
 }
 
-// stateFile returns $XDG_CONFIG_HOME/lazypost/state.yaml (or
-// ~/.config/lazypost/state.yaml), falling back to the platform config dir.
-func stateFile() (string, error) {
+// ConfigDir returns the lazypost config directory:
+// $XDG_CONFIG_HOME/lazypost (or ~/.config/lazypost), falling back to the
+// platform config dir.
+func ConfigDir() (string, error) {
 	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
-		return filepath.Join(dir, "lazypost", "state.yaml"), nil
+		return filepath.Join(dir, "lazypost"), nil
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "lazypost", "state.yaml"), nil
+	return filepath.Join(dir, "lazypost"), nil
+}
+
+// stateFile returns $XDG_CONFIG_HOME/lazypost/state.yaml (or
+// ~/.config/lazypost/state.yaml), falling back to the platform config dir.
+func stateFile() (string, error) {
+	dir, err := ConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "state.yaml"), nil
 }

@@ -6,6 +6,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"lazypost/internal/collection"
+
+	"lazypost/internal/ui/themes"
 )
 
 var authTypes = []string{"none", "basic", "bearer", "apikey"}
@@ -163,22 +165,22 @@ func (a *AuthEditor) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (a *AuthEditor) View() string {
-	types := TabBar(authTypes, a.authIdx(), max(0, a.width-2), &EditorAccent)
+	types := themes.TabBar(authTypes, a.authIdx(), max(0, a.width-2), &themes.EditorAccent)
 	rows := []string{
-		HintStyle.Render("type ") + types,
+		themes.HintStyle.Render("type ") + types,
 	}
 
-	label := lipgloss.NewStyle().Width(10).Foreground(ColorMuted)
+	label := lipgloss.NewStyle().Width(10).Foreground(themes.ColorMuted)
 	cursor := func(active bool) string {
 		if active && a.focused {
-			return lipgloss.NewStyle().Foreground(ColorPrimary).Render("▸ ")
+			return lipgloss.NewStyle().Foreground(themes.ColorPrimary).Render("▸ ")
 		}
 		return "  "
 	}
 
 	switch a.authType {
 	case "none":
-		rows = append(rows, HintStyle.Render("no authentication"))
+		rows = append(rows, themes.HintStyle.Render("no authentication"))
 	case "basic":
 		rows = append(rows,
 			cursor(a.field == 0)+label.Render("username")+" "+a.username.View(),
@@ -191,12 +193,12 @@ func (a *AuthEditor) View() string {
 	case "apikey":
 		in := a.keyIn
 		if a.authType == "apikey" && a.field == 2 && a.focused {
-			in = lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render(in)
+			in = lipgloss.NewStyle().Foreground(themes.ColorPrimary).Bold(true).Render(in)
 		}
 		rows = append(rows,
 			cursor(a.field == 0)+label.Render("name")+" "+a.keyName.View(),
 			cursor(a.field == 1)+label.Render("value")+a.keyValue.View(),
-			cursor(a.field == 2)+label.Render("send in")+in+HintStyle.Render("  (")+KeyHint("space", "to toggle")+")",
+			cursor(a.field == 2)+label.Render("send in")+in+themes.HintStyle.Render("  (")+themes.KeyHint("space", "to toggle")+")",
 		)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)

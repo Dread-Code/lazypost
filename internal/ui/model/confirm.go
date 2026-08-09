@@ -6,7 +6,8 @@ import (
 
 	"lazypost/internal/app"
 	"lazypost/internal/collection"
-	"lazypost/internal/ui/widgets"
+
+	"lazypost/internal/ui/themes"
 )
 
 // openDeleteConfirm shows the confirm modal for deleting e (a request or
@@ -16,7 +17,7 @@ func (m *Model) openDeleteConfirm(e *collection.Entry) tea.Cmd {
 	if e.Kind == collection.Dir {
 		kind = "folder"
 	}
-	label := "delete " + kind + " " + ui.TruncateRunes(e.Name, 30) + "?"
+	label := "delete " + kind + " " + themes.TruncateRunes(e.Name, 30) + "?"
 	m.confirm.widget.Ask(label)
 	m.overlay = ovConfirm
 	m.confirm.target = e

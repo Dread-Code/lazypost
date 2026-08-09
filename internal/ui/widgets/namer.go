@@ -6,6 +6,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"lazypost/internal/ui/themes"
 )
 
 // Namer is a small modal that asks for a name, opened with `a` over a
@@ -28,10 +30,10 @@ func NewNamer() *Namer {
 	n.input.Placeholder = "e.g. list things"
 	n.input.CharLimit = 80
 	n.input.Width = 40
-	n.input.PromptStyle = lipgloss.NewStyle().Foreground(ColorPrimary)
-	n.input.Cursor.Style = lipgloss.NewStyle().Foreground(ColorPrimary)
-	n.input.TextStyle = lipgloss.NewStyle().Foreground(InputColor)
-	n.input.PlaceholderStyle = lipgloss.NewStyle().Foreground(ColorMuted)
+	n.input.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	n.input.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	n.input.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
+	n.input.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
 	return n
 }
 
@@ -113,6 +115,6 @@ func (n *Namer) View() string {
 	// renderModal), so the content is the input plus the key hint
 	return lipgloss.JoinVertical(lipgloss.Left,
 		n.input.View(),
-		KeyHint("enter", "confirm", "esc", "cancel"),
+		themes.KeyHint("enter", "confirm", "esc", "cancel"),
 	)
 }

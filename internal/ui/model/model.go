@@ -14,6 +14,8 @@ import (
 	"lazypost/internal/httpclient"
 	"lazypost/internal/session"
 	"lazypost/internal/ui/widgets"
+
+	"lazypost/internal/ui/themes"
 )
 
 type responseMsg struct {
@@ -198,9 +200,9 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 // active environment (the single place the env label is rendered).
 func (m *Model) updateEnvBadge() {
 	if name := m.activeEnvName(); name != "" {
-		m.urlbar.SetRight(ui.EnvBadge("env: " + name))
+		m.urlbar.SetRight(themes.EnvBadge("env: " + name))
 	} else {
-		m.urlbar.SetRight(ui.HintStyle.Render("env: none"))
+		m.urlbar.SetRight(themes.HintStyle.Render("env: none"))
 	}
 }
 
