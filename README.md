@@ -34,6 +34,17 @@ GET https://api.example.com/posts          ctrl+t method
 
 ## Install
 
+Pre-built binaries (macOS arm64/amd64, Linux arm64/amd64) are published on [GitHub Releases](https://github.com/Dread-Code/lazypost/releases). One-line install (checksum-verified, defaults to `~/.local/bin`):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Dread-Code/lazypost/main/install.sh | sh
+# or pin a version, or pick an install directory:
+curl -fsSL https://raw.githubusercontent.com/Dread-Code/lazypost/main/install.sh | sh -s -- v0.1.0
+PREFIX=/usr/local sh install.sh   # e.g. after downloading install.sh
+```
+
+Or build from source:
+
 ```sh
 go build -o lazypost .
 ```
