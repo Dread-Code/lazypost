@@ -13,10 +13,15 @@ type Theme struct {
 	Warn    lipgloss.AdaptiveColor
 	Error   lipgloss.AdaptiveColor
 	Info    lipgloss.AdaptiveColor
+	Accent  lipgloss.AdaptiveColor
 	Muted   lipgloss.AdaptiveColor
 	Border  lipgloss.AdaptiveColor
 	Input   lipgloss.AdaptiveColor
-	Methods map[string]lipgloss.AdaptiveColor
+	// Selection is the background fill of the highlighted row in lists
+	// (sidebar, palette, history); OnSelection is the text color on it.
+	Selection   lipgloss.AdaptiveColor
+	OnSelection lipgloss.AdaptiveColor
+	Methods     map[string]lipgloss.AdaptiveColor
 }
 
 // adaptive is a tiny helper for the palette literals below.
@@ -32,16 +37,19 @@ var DefaultTheme = Themes["dracula"]
 // only for now.
 var Themes = map[string]Theme{
 	"dracula": {
-		Name:    "dracula",
-		Primary: adaptive("#5A56E0", "#BD93F9"), // purple
-		Dim:     adaptive("#8A8A8A", "#6272A4"),
-		Success: adaptive("#008000", "#50FA7B"),
-		Warn:    adaptive("#B58900", "#F1FA8C"),
-		Error:   adaptive("#CC0000", "#FF5555"),
-		Info:    adaptive("#0066CC", "#8BE9FD"),
-		Muted:   adaptive("#999999", "#6272A4"),
-		Border:  adaptive("#DDDDDD", "#44475A"),
-		Input:   adaptive("#44475A", "#F8F8F2"),
+		Name:        "dracula",
+		Primary:     adaptive("#5A56E0", "#BD93F9"), // purple
+		Dim:         adaptive("#8A8A8A", "#6272A4"),
+		Success:     adaptive("#008000", "#50FA7B"),
+		Warn:        adaptive("#B58900", "#F1FA8C"),
+		Error:       adaptive("#CC0000", "#FF5555"),
+		Info:        adaptive("#0066CC", "#8BE9FD"),
+		Accent:      adaptive("#F92672", "#FF79C6"),
+		Muted:       adaptive("#999999", "#6272A4"),
+		Border:      adaptive("#DDDDDD", "#44475A"),
+		Input:       adaptive("#44475A", "#F8F8F2"),
+		Selection:   adaptive("#5A56E0", "#BD93F9"),
+		OnSelection: adaptive("#FFFFFF", "#282A36"),
 		Methods: map[string]lipgloss.AdaptiveColor{
 			"GET":     adaptive("#008000", "#50FA7B"),
 			"POST":    adaptive("#B58900", "#F1FA8C"),
@@ -54,16 +62,19 @@ var Themes = map[string]Theme{
 	},
 
 	"catppuccin": {
-		Name:    "catppuccin",
-		Primary: adaptive("#8839EF", "#CBA6F7"), // mauve
-		Dim:     adaptive("#6C7086", "#45475A"),
-		Success: adaptive("#40A02B", "#A6E3A1"),
-		Warn:    adaptive("#DF8E1D", "#F9E2AF"),
-		Error:   adaptive("#D20F39", "#F38BA8"),
-		Info:    adaptive("#1E66F5", "#89B4FA"),
-		Muted:   adaptive("#9CA0B0", "#6C7086"),
-		Border:  adaptive("#CCD0DA", "#313244"),
-		Input:   adaptive("#4C4F69", "#CDD6F4"),
+		Name:        "catppuccin",
+		Primary:     adaptive("#8839EF", "#CBA6F7"), // mauve
+		Dim:         adaptive("#6C7086", "#45475A"),
+		Success:     adaptive("#40A02B", "#A6E3A1"),
+		Warn:        adaptive("#DF8E1D", "#F9E2AF"),
+		Error:       adaptive("#D20F39", "#F38BA8"),
+		Info:        adaptive("#1E66F5", "#89B4FA"),
+		Accent:      adaptive("#EA76CB", "#F5C2E7"),
+		Muted:       adaptive("#9CA0B0", "#6C7086"),
+		Border:      adaptive("#CCD0DA", "#313244"),
+		Input:       adaptive("#4C4F69", "#CDD6F4"),
+		Selection:   adaptive("#8839EF", "#CBA6F7"),
+		OnSelection: adaptive("#FFFFFF", "#1E1E2E"),
 		Methods: map[string]lipgloss.AdaptiveColor{
 			"GET":     adaptive("#40A02B", "#A6E3A1"),
 			"POST":    adaptive("#DF8E1D", "#F9E2AF"),
@@ -76,16 +87,19 @@ var Themes = map[string]Theme{
 	},
 
 	"solarized": {
-		Name:    "solarized",
-		Primary: adaptive("#268BD2", "#268BD2"), // blue
-		Dim:     adaptive("#93A1A1", "#586E75"),
-		Success: adaptive("#859900", "#859900"),
-		Warn:    adaptive("#B58900", "#B58900"),
-		Error:   adaptive("#DC322F", "#DC322F"),
-		Info:    adaptive("#2AA198", "#2AA198"),
-		Muted:   adaptive("#93A1A1", "#586E75"),
-		Border:  adaptive("#EEE8D5", "#073642"),
-		Input:   adaptive("#657B83", "#839496"),
+		Name:        "solarized",
+		Primary:     adaptive("#268BD2", "#268BD2"), // blue
+		Dim:         adaptive("#93A1A1", "#586E75"),
+		Success:     adaptive("#859900", "#859900"),
+		Warn:        adaptive("#B58900", "#B58900"),
+		Error:       adaptive("#DC322F", "#DC322F"),
+		Info:        adaptive("#2AA198", "#2AA198"),
+		Accent:      adaptive("#D33682", "#D33682"),
+		Muted:       adaptive("#93A1A1", "#586E75"),
+		Border:      adaptive("#EEE8D5", "#073642"),
+		Input:       adaptive("#657B83", "#839496"),
+		Selection:   adaptive("#268BD2", "#268BD2"),
+		OnSelection: adaptive("#FDF6E3", "#002B36"),
 		Methods: map[string]lipgloss.AdaptiveColor{
 			"GET":     adaptive("#859900", "#859900"),
 			"POST":    adaptive("#B58900", "#B58900"),
@@ -120,7 +134,9 @@ func (t Theme) Apply() {
 	ColorWarn = t.Warn
 	ColorError = t.Error
 	ColorInfo = t.Info
+	ColorAccent = t.Accent
 	ColorMuted = t.Muted
+	ColorBorder = t.Border
 
 	methodColors = map[string]lipgloss.AdaptiveColor{}
 	for k, v := range t.Methods {
@@ -135,10 +151,21 @@ func (t Theme) Apply() {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(t.Primary)
 
+	// Overlays sit on top of the frame and are always "focused", so they
+	// share the active border language.
+	ModalStyle = ActivePaneStyle
+
 	TitleStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Primary)
 	HintStyle = lipgloss.NewStyle().Foreground(t.Muted)
 	ErrorStyle = lipgloss.NewStyle().Foreground(t.Error)
 	NoticeStyle = lipgloss.NewStyle().Foreground(t.Success)
+	KeyStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Info)
+	SectionStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Primary)
+	LegendTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Muted)
+	ActiveLegendTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Primary)
+	SelectedRowStyle = lipgloss.NewStyle().
+		Foreground(t.OnSelection).
+		Background(t.Selection)
 
 	TabStyle = lipgloss.NewStyle().
 		Padding(0, 2).
@@ -150,5 +177,29 @@ func (t Theme) Apply() {
 		Bold(true).
 		Underline(true)
 
+	// Per-section accents: one hue per pane for its focused border, legend
+	// title, and active tab. The collection is the app identity (primary),
+	// the request editor is information (info), the response is the result
+	// (success) — modals keep the plain primary accent.
+	SidebarAccent = paneAccent(t.Primary)
+	EditorAccent = paneAccent(t.Info)
+	ResponseAccent = paneAccent(t.Success)
+
 	InputColor = t.Input
+}
+
+// paneAccent bundles the three focused styles of a section around one
+// accent color.
+func paneAccent(accent lipgloss.AdaptiveColor) PaneAccent {
+	return PaneAccent{
+		Active: lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(accent),
+		Legend: lipgloss.NewStyle().Bold(true).Foreground(accent),
+		ActiveTab: lipgloss.NewStyle().
+			Padding(0, 2).
+			Foreground(accent).
+			Bold(true).
+			Underline(true),
+	}
 }

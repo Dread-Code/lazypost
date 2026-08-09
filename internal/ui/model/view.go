@@ -64,21 +64,20 @@ func (m Model) View() string {
 
 	title := lipgloss.JoinHorizontal(lipgloss.Left,
 		ui.TitleStyle.Render("lazypost"),
-		ui.HintStyle.Render("  "+ui.TruncateRunes(m.collectionTitle(), m.width/2)),
+		ui.HintStyle.Render("  │  "),
+		lipgloss.NewStyle().Bold(true).Render(ui.TruncateRunes(m.collectionTitle(), m.width/2)),
 	)
-	envLabel := "env: none"
+	var envBadge string
 	if name := m.activeEnvName(); name != "" {
-		envLabel = "env: " + name
+		envBadge = ui.EnvBadge("env: " + name)
+	} else {
+		envBadge = ui.HintStyle.Render("env: none")
 	}
-	envStyle := ui.HintStyle
-	if m.activeEnvName() != "" {
-		envStyle = lipgloss.NewStyle().Foreground(ui.ColorInfo)
-	}
-	gap := m.width - lipgloss.Width(title) - lipgloss.Width(envLabel)
+	gap := m.width - lipgloss.Width(title) - lipgloss.Width(envBadge)
 	if gap < 1 {
 		gap = 1
 	}
-	titleBar := title + strings.Repeat(" ", gap) + envStyle.Render(envLabel)
+	titleBar := title + strings.Repeat(" ", gap) + envBadge
 
 	bar := m.urlbar.View()
 	// pad the bar to full width so the frame stays exactly terminal-sized
@@ -86,19 +85,19 @@ func (m Model) View() string {
 		bar += strings.Repeat(" ", m.width-w)
 	}
 
-	sidebar := renderPane("Collection", m.sidebar.View(), m.focus == pSidebar, g.sidebarW, g.contentH, true)
+	sidebar := renderPane("Collection", m.sidebar.View(), &ui.SidebarAccent, m.focus == pSidebar, g.sidebarW, g.contentH, true)
 
 	reqTitle := "Request"
 	if p := m.editor.ActivePath(); p != "" {
 		reqTitle += " · " + rel(m.dir, p)
 	}
-	editor := renderPane(reqTitle, m.editor.View(), m.focus == pEditor, g.rightW, g.editorH, false)
+	editor := renderPane(reqTitle, m.editor.View(), &ui.EditorAccent, m.focus == pEditor, g.rightW, g.editorH, false)
 
 	respTitle := "Response"
 	if s := m.response.StatusLine(); s != "" {
 		respTitle += " · " + s
 	}
-	response := renderPane(respTitle, m.response.View(), m.focus == pResponse, g.rightW, g.respH, false)
+	response := renderPane(respTitle, m.response.View(), &ui.ResponseAccent, m.focus == pResponse, g.rightW, g.respH, false)
 
 	right := lipgloss.JoinVertical(lipgloss.Left, editor, response)
 	content := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right)
@@ -111,7 +110,13 @@ func (m Model) View() string {
 		if m.palette.theme {
 			title = "Switch theme"
 		}
-		frame = overlayPalette(frame, title, m.palette.widget.View(), m.width, m.height)
+		content := m.palette.widget.View()
+		if m.palette.theme {
+			content += "\n" + ui.HintStyle.Render("↑↓ preview · enter apply · esc cancel")
+		} else {
+			content += "\n" + ui.HintStyle.Render("↑↓ navigate · enter run · esc close")
+		}
+		frame = overlayPalette(frame, title, content, m.width, m.height)
 	case ovEnv:
 		frame = overlayPalette(frame, "Environments", m.envManagerView(), m.width, m.height)
 	case ovNamer:
@@ -119,19 +124,28 @@ func (m Model) View() string {
 	case ovConfirm:
 		frame = overlayPalette(frame, m.confirm.widget.Label(), m.confirm.widget.View(), m.width, m.height)
 	case ovHistory:
-		frame = overlayPalette(frame, "Request history", m.historyWidget.View(), m.width, m.height)
+		content := m.historyWidget.View() + "\n" + ui.HintStyle.Render("enter restore · ctrl+r resend · esc close")
+		frame = overlayPalette(frame, "Request history", content, m.width, m.height)
 	case ovHelp:
-		frame = overlayPalette(frame, "Keybindings", helpContent(), m.width, m.height)
+		frame = overlayPalette(frame, "Keybindings", helpContent(m.width-8), m.width, m.height)
 	}
 	return frame
 }
 
-// overlayPalette draws the palette box over the frame with an ANSI-aware
-// cell buffer, so the frame content beside the box survives. The box hugs
-// its content width and drops from the top (like a quick-open), so it never
-// cuts the panes in two or sprawls across the pane borders.
+// dimFrame wraps a rendered frame in the faint attribute so an open modal
+// pops against it. Inner color codes only set attributes (never reset), so
+// the dim survives until the trailing reset.
+func dimFrame(frame string) string {
+	return "\x1b[2m" + frame + "\x1b[0m"
+}
+
+// overlayPalette draws the modal box over the dimmed frame with an
+// ANSI-aware cell buffer, so the frame content beside the box survives
+// as a faded backdrop. The box hugs its content width and drops from the
+// top (like a quick-open), so it never cuts the panes in two or sprawls
+// across the pane borders.
 func overlayPalette(frame, title, paletteView string, termW, termH int) string {
-	box := renderModal(title, paletteView)
+	box := "\x1b[0m" + renderModal(title, paletteView)
 	boxLines := strings.Split(box, "\n")
 	boxW := lipgloss.Width(boxLines[0])
 	boxH := len(boxLines)
@@ -145,14 +159,20 @@ func overlayPalette(frame, title, paletteView string, termW, termH int) string {
 	}
 
 	buf := cellbuf.NewBuffer(termW, termH)
-	cellbuf.SetContent(buf, frame)
+	cellbuf.SetContent(buf, dimFrame(frame))
 
 	start := (termH - boxH) / 2
 	if start < 1 {
 		start = 1
 	}
 	if start+boxH > termH {
-		start = termH - boxH
+		// a modal taller than the terminal pins to the top so its head
+		// (title + first sections) stays visible
+		if boxH > termH {
+			start = 0
+		} else {
+			start = termH - boxH
+		}
 	}
 	cellbuf.SetContentRect(buf, box, cellbuf.Rect(pad, start, boxW, boxH))
 	return strings.ReplaceAll(cellbuf.Render(buf), "\r\n", "\n")
@@ -169,9 +189,10 @@ const (
 
 // legendLine builds a fieldset-style top border: the title sits on the
 // border, split into two dash runs (1 col each for the corners) at the
-// chosen alignment.
-func legendLine(border lipgloss.Border, borderStyle lipgloss.Style, title string, w int, align legendAlign) string {
-	titleStyled := lipgloss.NewStyle().Bold(true).Foreground(ui.ColorMuted).Render(" " + title + " ")
+// chosen alignment. titleStyle styles the legend text (muted for resting
+// panes, primary for the focused pane and modals).
+func legendLine(border lipgloss.Border, borderStyle, titleStyle lipgloss.Style, title string, w int, align legendAlign) string {
+	titleStyled := titleStyle.Render(" " + title + " ")
 	titleW := lipgloss.Width(titleStyled)
 	avail := (w - 2) - titleW
 	if avail < 0 {
@@ -202,7 +223,8 @@ func legendLine(border lipgloss.Border, borderStyle lipgloss.Style, title string
 
 // renderModal draws a modal box whose title sits right-aligned on the top
 // border, matching the pane legend style ([[Design - command palette]] and
-// friends). The box hugs the wider of the content or the title.
+// friends). The box hugs the wider of the content or the title; content
+// gets one column of breathing room inside the border.
 func renderModal(title, content string) string {
 	contentW := 0
 	for _, l := range strings.Split(content, "\n") {
@@ -210,7 +232,8 @@ func renderModal(title, content string) string {
 			contentW = w
 		}
 	}
-	style := ui.PaneStyle
+	// modals sit on top of the frame, so they always wear the focused look
+	style := ui.ModalStyle
 	border := style.GetBorderStyle()
 	borderStyle := lipgloss.NewStyle()
 	if c := style.GetBorderTopForeground(); c != nil {
@@ -218,21 +241,28 @@ func renderModal(title, content string) string {
 	}
 	titleW := lipgloss.Width(lipgloss.NewStyle().Bold(true).Foreground(ui.ColorMuted).Render(" " + title + " "))
 	// room for the title (with its own padding) plus a dash on each side
-	boxW := max(contentW+2, titleW+4)
-	topLine := legendLine(border, borderStyle, title, boxW, alignRight)
-	body := style.Border(border, false, true, true, true).Width(boxW - 2).Render(content)
+	boxW := max(contentW+4, titleW+4)
+	topLine := legendLine(border, borderStyle, ui.ActiveLegendTitleStyle, title, boxW, alignRight)
+	body := style.Border(border, false, true, true, true).
+		Padding(0, 1).
+		Width(boxW - 2).
+		Render(content)
 	return lipgloss.JoinVertical(lipgloss.Left, topLine, body)
 }
 
 // renderPane draws a fieldset-style pane: the title sits on the top
 // border, which splits into two dash runs around it (like an HTML
-// fieldset legend). The legend hugs the left when legendLeft is set,
-// otherwise it's centered. lipgloss's top border is disabled and rebuilt
-// by hand so the title shares the border line.
-func renderPane(title, content string, focused bool, w, h int, legendLeft bool) string {
+// fieldset legend). accent is the pane's section hue: the legend title
+// always wears it (section identity), and the border wears it while the
+// pane is focused (muted when resting). The active tab inside the pane
+// also always wears the accent. The legend hugs the left when legendLeft
+// is set, otherwise it's centered. lipgloss's top border is disabled and
+// rebuilt by hand so the title shares the border line.
+func renderPane(title, content string, accent *ui.PaneAccent, focused bool, w, h int, legendLeft bool) string {
 	style := ui.PaneStyle
+	legendTitle := accent.Legend
 	if focused {
-		style = ui.ActivePaneStyle
+		style = accent.Active
 	}
 	title = ui.TruncateRunes(title, w-4)
 
@@ -245,7 +275,7 @@ func renderPane(title, content string, focused bool, w, h int, legendLeft bool) 
 	if legendLeft {
 		align = alignLeft
 	}
-	topLine := legendLine(border, borderStyle, title, w, align)
+	topLine := legendLine(border, borderStyle, legendTitle, title, w, align)
 
 	// body: no top border (the legend line takes its place)
 	body := style.Border(border, false, true, true, true).Width(w - 2).Height(h - 2).Render(content)
@@ -256,21 +286,24 @@ func (m Model) statusBar() string {
 	var help string
 	switch m.focus {
 	case pSidebar:
-		help = "↑↓ ctrl+n/p nav loads · enter url · a add · d del · r rename · ctrl+e env · ctrl+l url · ctrl+/ palette · ? help · ctrl+h history · ctrl+r send · q quit"
+		help = "↑↓ ctrl+n/p nav loads · enter url · a add · d del · r rename · ? help"
 	case pBar:
-		help = "ctrl+t method · enter send · esc back · ctrl+/ palette · ctrl+h history · ctrl+g export curl · ctrl+r send"
+		help = "ctrl+t method · enter send · esc back"
 	case pEditor:
-		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+/ palette · ctrl+h history · ctrl+s save · ctrl+r send"
+		help = "ctrl+n/p field · alt+←→ tab · ctrl+t auth type · ctrl+s save · ctrl+r send"
 	case pResponse:
-		help = "←→ or b/h tabs · ↑↓ scroll · ctrl+/ palette · ? help · ctrl+h history · ctrl+g curl · q quit"
+		help = "←→ or b/h tabs · ↑↓ scroll · ? help · q quit"
 	}
 
 	right := ""
 	if m.notice != "" {
+		text := ui.TruncateRunes(m.notice, m.width/3)
 		if m.noticeError {
-			right = ui.ErrorStyle.Render(ui.TruncateRunes(m.notice, m.width/3))
+			text = "✖ " + text
+			right = ui.ErrorStyle.Render(text)
 		} else {
-			right = ui.NoticeStyle.Render(ui.TruncateRunes(m.notice, m.width/3))
+			text = "✓ " + text
+			right = ui.NoticeStyle.Render(text)
 		}
 	}
 	left := ui.HintStyle.Render(ui.TruncateRunes(help, m.width-lipgloss.Width(right)-1))

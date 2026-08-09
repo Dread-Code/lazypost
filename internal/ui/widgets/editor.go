@@ -72,7 +72,7 @@ func NewEditor(width, height int) *Editor {
 }
 
 func (e *Editor) resize() {
-	inner := e.width - 4 // pane border
+	inner := e.width - 2 // pane content width
 	if inner < 10 {
 		inner = 10
 	}
@@ -83,7 +83,7 @@ func (e *Editor) resize() {
 	e.post.SetWidth(inner)
 	e.auth.SetWidth(inner)
 
-	contentH := e.height - 1 // tab row
+	contentH := e.height - 2 // tab row + divider
 	if contentH < 1 {
 		contentH = 1
 	}
@@ -194,7 +194,8 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 }
 
 func (e *Editor) View() string {
-	tabRow := TabBar(sectionTabs, int(e.section))
+	tabRow := TabBar(sectionTabs, int(e.section), max(0, e.width-2), &EditorAccent)
+	divider := Rule(max(0, e.width-2))
 
 	var content string
 	switch e.section {
@@ -210,21 +211,13 @@ func (e *Editor) View() string {
 		content = e.auth.View()
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, tabRow, content)
+	return lipgloss.JoinVertical(lipgloss.Left, tabRow, divider, content)
 }
 
 // scriptsView renders a pre/post toggle row (like the auth type row) with
 // only the focused script's textarea below it.
 func (e *Editor) scriptsView() string {
-	var toggles []string
-	for i, name := range []string{"pre", "post"} {
-		if e.field == i {
-			toggles = append(toggles, ActiveTabStyle.Render(name))
-		} else {
-			toggles = append(toggles, TabStyle.Render(name))
-		}
-	}
-	toggleRow := HintStyle.Render("hook ") + strings.Join(toggles, "")
+	toggleRow := HintStyle.Render("hook ") + TabBar([]string{"pre", "post"}, e.field, max(0, e.width-2), &EditorAccent)
 
 	var content string
 	if e.field == 1 {

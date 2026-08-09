@@ -43,12 +43,15 @@ func (m *Model) envTabName() string {
 	return m.envNames[m.palette.envTab]
 }
 
-// loadEnvTab populates the palette with the current tab's variables.
+// loadEnvTab populates the palette with the current tab's variables. The
+// key renders as the row title, the value hangs off it as "= value" so
+// "key = value" reads as one line ([[Design - environment manager
+// modal]]).
 func (m *Model) loadEnvTab() {
 	items := []ui.PaletteItem{}
 	if env := m.envTabName(); env != "" {
 		for k, v := range m.envs[env] {
-			items = append(items, ui.PaletteItem{Title: k + " = " + v})
+			items = append(items, ui.PaletteItem{Title: k, Detail: "= " + v})
 		}
 	}
 	m.palette.widget.SetItems(items)
@@ -253,24 +256,23 @@ func (m *Model) deleteVariable(env, key string) tea.Cmd {
 }
 
 // envManagerView renders the environment manager overlay: a tab bar of
-// environments above the active tab's variables.
+// environments above the active tab's variables, with an action hint row
+// so the modal's keys are discoverable without ?.
 func (m *Model) envManagerView() string {
-	tabRow := ui.TabBar(m.envNames, m.palette.envTab)
-	return lipgloss.JoinVertical(lipgloss.Left, tabRow, m.palette.widget.View())
+	tabRow := ui.TabBar(m.envNames, m.palette.envTab, max(0, m.width-12), nil)
+	hint := ui.HintStyle.Render("enter activate · ctrl+e tab · a add · r edit · d delete · / filter · esc close")
+	return lipgloss.JoinVertical(lipgloss.Left, tabRow, m.palette.widget.View(), hint)
 }
 
 // cycleEnv advances the active environment: none → env1 → env2 → … → none.
+// The title bar's env badge is the single status display — no notice is
+// raised, so there is only ever one env label on screen.
 func (m *Model) cycleEnv() {
 	if len(m.envNames) == 0 {
 		return
 	}
 	// +1 slot for "none" at index 0
 	m.envIdx = (m.envIdx + 1) % (len(m.envNames) + 1)
-	if name := m.activeEnvName(); name != "" {
-		m.setNotice("environment: "+name, false)
-	} else {
-		m.setNotice("environment: none", false)
-	}
 }
 
 func (m *Model) activeEnvName() string {

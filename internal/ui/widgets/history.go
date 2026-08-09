@@ -49,7 +49,7 @@ func (d historyDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 	}
 	selected := index == m.Index()
 
-	avail := m.Width() - 2
+	avail := m.Width()
 	if avail < 10 {
 		avail = 10
 	}
@@ -62,17 +62,25 @@ func (d historyDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 	}
 	title := TruncateRunes(it.HistoryTitle(), titleW)
 	summary := lipgloss.NewStyle().Foreground(ColorMuted).Render(it.Summary)
-
-	cursor := "  "
-	if selected {
-		cursor = lipgloss.NewStyle().Foreground(ColorPrimary).Render("▸ ")
-		title = lipgloss.NewStyle().Foreground(ColorPrimary).Render(title)
+	if !selected {
+		// a failed send wears its error color in the summary; a success
+		// wears the success color so the list scans by outcome
+		switch {
+		case it.Req.Err != nil:
+			summary = ErrorStyle.Render(it.Summary)
+		case it.Req.Res != nil:
+			summary = lipgloss.NewStyle().Foreground(StatusColor(it.Req.Res.StatusCode)).Render(it.Summary)
+		}
 	}
 	pad := avail - lipgloss.Width(title) - lipgloss.Width(summary)
 	if pad < 0 {
 		pad = 0 // a long summary (e.g. an error) can exceed the row
 	}
-	line := cursor + title + strings.Repeat(" ", pad) + summary
+	line := "  " + title + strings.Repeat(" ", pad) + summary
+	if selected {
+		line = "▸ " + title + strings.Repeat(" ", pad) + summary
+		line = SelectedRowStyle.Render(padRunes(line, avail))
+	}
 	fmt.Fprint(w, line)
 }
 
@@ -94,6 +102,7 @@ func NewHistory(width, height int) *History {
 	h.list.SetShowPagination(false)
 	h.list.SetShowStatusBar(false)
 	h.list.DisableQuitKeybindings()
+	h.list.Styles.NoItems = HintStyle
 	return h
 }
 
@@ -148,4 +157,9 @@ func (h *History) Selected() *HistoryItem {
 func (h *History) CursorUp()   { h.list.CursorUp() }
 func (h *History) CursorDown() { h.list.CursorDown() }
 
-func (h *History) View() string { return h.list.View() }
+func (h *History) View() string {
+	if len(h.list.VisibleItems()) == 0 {
+		return HintStyle.Render("no requests sent yet")
+	}
+	return h.list.View()
+}

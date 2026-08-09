@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"strings"
-
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -61,6 +59,15 @@ func (a *AuthEditor) SetWidth(w int) {
 }
 
 func (a *AuthEditor) SetHeight(_ int) {}
+
+func (a *AuthEditor) authIdx() int {
+	for i, t := range authTypes {
+		if t == a.authType {
+			return i
+		}
+	}
+	return 0
+}
 
 // inputs returns the fields visible for the current auth type; nil for
 // "none". The apikey keyIn toggle row is tracked separately by field.
@@ -156,16 +163,9 @@ func (a *AuthEditor) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (a *AuthEditor) View() string {
-	var types []string
-	for _, t := range authTypes {
-		if t == a.authType {
-			types = append(types, ActiveTabStyle.Render(t))
-		} else {
-			types = append(types, TabStyle.Render(t))
-		}
-	}
+	types := TabBar(authTypes, a.authIdx(), max(0, a.width-2), &EditorAccent)
 	rows := []string{
-		HintStyle.Render("type ") + strings.Join(types, ""),
+		HintStyle.Render("type ") + types,
 	}
 
 	label := lipgloss.NewStyle().Width(10).Foreground(ColorMuted)

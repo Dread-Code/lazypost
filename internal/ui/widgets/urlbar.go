@@ -42,9 +42,9 @@ func NewURLBar(width int) *URLBar {
 }
 
 // resize gives the text input as much room as possible: total width minus
-// the "METHOD " prefix, and minus the hint while the bar is focused.
+// the "METHOD " pill prefix, and minus the hint while the bar is focused.
 func (u *URLBar) resize() {
-	urlW := u.width - len(u.method) - 1 // "METHOD " prefix
+	urlW := u.width - lipgloss.Width(MethodBadge(u.method)) - 1
 	if u.url.Focused() {
 		urlW -= len(barHint)
 	}
@@ -87,7 +87,7 @@ func (u *URLBar) Update(msg tea.Msg) (*URLBar, tea.Cmd) {
 // The width is maintained by Resize/Focus/Blur/SetRequest, never here —
 // View must be free of side effects.
 func (u *URLBar) View() string {
-	method := MethodStyle(u.method).Render(u.method)
+	method := MethodBadge(u.method)
 	hint := ""
 	if u.url.Focused() {
 		hint = HintStyle.Render(barHint)

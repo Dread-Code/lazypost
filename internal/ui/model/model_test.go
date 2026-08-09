@@ -9,10 +9,12 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
 
 	"lazypost/internal/collection"
 	"lazypost/internal/session"
+	ui "lazypost/internal/ui/widgets"
 )
 
 func loadSample(t *testing.T) Model {
@@ -734,6 +736,46 @@ func TestSwitchTheme(t *testing.T) {
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestThemePickerLivePreview(t *testing.T) {
+	// self-contained: reset the default theme (an earlier test may have
+	// applied solarized) and start from a fresh, unpersisted model
+	ui.DefaultTheme.Apply()
+	m := loadSample(t)
+	if got := lipgloss.AdaptiveColor(ui.ColorPrimary); got != ui.Themes["dracula"].Primary {
+		t.Fatalf("test setup: expected dracula active, got %v", got)
+	}
+
+	// open the picker; the cursor starts on dracula (the active theme)
+	m2, _ := m.openThemePicker()
+	mm := m2.(*Model)
+	if mm.palette.prevTheme != "dracula" {
+		t.Errorf("expected dracula remembered for revert, got %q", mm.palette.prevTheme)
+	}
+
+	// moving the cursor previews the theme without closing the picker
+	m2, _ = mm.updatePalette(tea.KeyMsg{Type: tea.KeyDown})
+	mm = m2.(*Model)
+	if got := lipgloss.AdaptiveColor(ui.ColorPrimary); got != ui.Themes["catppuccin"].Primary {
+		t.Errorf("down should preview catppuccin, got %v", got)
+	}
+	if mm.overlay != ovPalette {
+		t.Error("preview must not close the picker")
+	}
+	if mm.state.Theme != "" {
+		t.Errorf("preview must not persist to state, got %q", mm.state.Theme)
+	}
+
+	// esc cancels and restores the theme that was active on open
+	m2, _ = mm.updatePalette(tea.KeyMsg{Type: tea.KeyEsc})
+	mm = m2.(*Model)
+	if got := lipgloss.AdaptiveColor(ui.ColorPrimary); got != ui.Themes["dracula"].Primary {
+		t.Errorf("esc should revert to dracula, got %v", got)
+	}
+	if mm.overlay != noOverlay {
+		t.Error("esc should close the picker")
+	}
 }
 
 func TestEnvManagerTabsAndActivate(t *testing.T) {

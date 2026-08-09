@@ -47,27 +47,33 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 	case collection.Dir:
 		// the collection root renders as a plain bold label without the
 		// trailing slash; nested dirs keep the muted name/ look
+		name := TruncateRunes(e.Name, avail)
 		if e.Depth < 0 {
-			name := lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render(TruncateRunes(e.Name, avail))
-			if !selected {
-				name = lipgloss.NewStyle().Bold(true).Foreground(ColorMuted).Render(TruncateRunes(e.Name, avail))
+			if selected {
+				line = lipgloss.NewStyle().Bold(true).Render(name)
+			} else {
+				line = lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render(name)
 			}
-			line = name
+		} else if selected {
+			line = lipgloss.NewStyle().Bold(true).Render(name + "/")
 		} else {
-			name := lipgloss.NewStyle().Bold(true).Foreground(ColorMuted).Render(TruncateRunes(e.Name+"/", avail))
-			line = name
+			line = lipgloss.NewStyle().Bold(true).Foreground(ColorMuted).Render(name + "/")
 		}
 	default:
-		// method badge(7) + space(1)
-		nameW := avail - 8
+		// method badge(6) + space(1)
+		nameW := avail - 7
 		if nameW < 3 {
 			nameW = 3
 		}
-		method := MethodStyle(e.Req.Method).Render(pad(e.Req.Method, 7))
-		name := TruncateRunes(e.Name, nameW)
+		method := pad(e.Req.Method, 6)
 		if selected {
-			name = lipgloss.NewStyle().Foreground(ColorPrimary).Render(name)
+			// on the highlight block the method color would fight the
+			// selection background; keep the row one solid unit
+			method = lipgloss.NewStyle().Bold(true).Render(method)
+		} else {
+			method = MethodStyle(e.Req.Method).Render(method)
 		}
+		name := TruncateRunes(e.Name, nameW)
 		line = method + " " + name
 	}
 
@@ -77,9 +83,25 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 	}
 	cursor := " "
 	if selected {
-		cursor = lipgloss.NewStyle().Foreground(ColorPrimary).Render("▸")
+		cursor = "▸"
 	}
-	fmt.Fprint(w, cursor+indent+line)
+
+	// The highlighted row becomes a solid block: cursor, method, and name
+	// all sit on the selection background so the fill reads as one unit.
+	row := cursor + indent + line
+	if selected {
+		row = SelectedRowStyle.Render(padRunes(row, m.Width()))
+	}
+	fmt.Fprint(w, row)
+}
+
+// padRunes right-pads s to at most n display columns with spaces, so a
+// row background fill spans the whole list width.
+func padRunes(s string, n int) string {
+	if w := lipgloss.Width(s); w < n {
+		return s + strings.Repeat(" ", n-w)
+	}
+	return s
 }
 
 func pad(s string, n int) string {

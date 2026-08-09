@@ -110,6 +110,9 @@ func (n *Namer) Update(msg tea.Msg) tea.Cmd {
 
 func (n *Namer) View() string {
 	// the label lives on the modal's border title (model/view.go
-	// renderModal), so the content is just the input
-	return n.input.View()
+	// renderModal), so the content is the input plus the key hint
+	return lipgloss.JoinVertical(lipgloss.Left,
+		n.input.View(),
+		HintStyle.Render("enter confirm · esc cancel"),
+	)
 }

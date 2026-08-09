@@ -53,7 +53,7 @@ func NewResponse(width, height int) *Response {
 
 func (r *Response) resize() {
 	w := r.width - 4
-	h := r.height - 5
+	h := r.height - 6 // tab row + divider + borders
 	if w < 4 {
 		w = 4
 	}
@@ -226,11 +226,11 @@ func (r *Response) View() string {
 	var content string
 	switch r.state {
 	case stIdle:
-		content = HintStyle.Render("press ctrl+r to send the request")
+		content = r.center(HintStyle.Render("press ctrl+r to send the request"))
 	case stLoading:
-		content = r.spinner.View() + " sending..."
+		content = r.center(r.spinner.View() + " sending...")
 	case stError:
-		content = ErrorStyle.Render("error: " + r.err.Error())
+		content = r.center(ErrorStyle.Render("error: " + r.err.Error()))
 	case stDone:
 		if r.tab == 0 {
 			content = r.body.View()
@@ -238,7 +238,22 @@ func (r *Response) View() string {
 			content = r.headers.View()
 		}
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, TabBar(respTabs, r.tab), content)
+	divider := Rule(max(0, r.width-4))
+	return lipgloss.JoinVertical(lipgloss.Left, TabBar(respTabs, r.tab, max(0, r.width-4), &ResponseAccent), divider, content)
+}
+
+// center places the idle/loading/error placeholder in the middle of the
+// pane so the empty response reads as a state, not a missing feature.
+func (r *Response) center(content string) string {
+	w := r.width - 4
+	h := r.height - 6 // tab row + divider + borders
+	if w < 4 {
+		w = 4
+	}
+	if h < 1 {
+		h = 1
+	}
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, content)
 }
 
 // StatusLine renders the response summary for the pane title.

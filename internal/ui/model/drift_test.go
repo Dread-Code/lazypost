@@ -58,12 +58,13 @@ func TestDocumentedKeysMatchBindings(t *testing.T) {
 }
 
 // Every documented key is actually shown in the panel (so the panel stays
-// a faithful reference).
+// a faithful reference). The panel is checked at a wide width, where the
+// two-column layout is active.
 func TestPanelShowsDocumentedKeys(t *testing.T) {
 	prev := lipgloss.DefaultRenderer().ColorProfile()
 	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
 	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
-	panel := stripAnsiView(helpContent())
+	panel := stripAnsiView(helpContent(160))
 
 	docs := []string{"ctrl+/", "ctrl+h", "?", "ctrl+r", "ctrl+s", "ctrl+e",
 		"ctrl+l", "ctrl+g", "ctrl+n/p", "enter", "esc", "tab"}

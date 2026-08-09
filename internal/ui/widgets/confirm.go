@@ -30,7 +30,10 @@ func (c *Confirm) Label() string { return c.label }
 func (c *Confirm) View() string {
 	// the question lives on the modal's border title (model/view.go
 	// renderModal), so the content is just the hint
-	return lipgloss.NewStyle().Foreground(ColorMuted).Render("y yes · n no")
+	return lipgloss.JoinVertical(lipgloss.Left,
+		HintStyle.Render("y yes · n no"),
+		HintStyle.Render("enter confirms · esc cancels"),
+	)
 }
 
 // sanitizeLabel guards against multi-line labels leaking into the overlay.

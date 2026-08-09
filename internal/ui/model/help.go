@@ -3,7 +3,6 @@ package model
 import (
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -33,52 +32,140 @@ func (m *Model) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// helpContent renders the static grouped keybinding reference: two-column
-// rows per pane, aligned like the README table. Section headers are
-// accent-colored, the key column is cyan so "what do I press" jumps out,
-// and the actions stay in the default foreground.
-func helpContent() string {
-	header := func(s string) string {
-		return ui.TitleStyle.Render(s)
+// helpRow is one binding pair: two key/action cells side by side. The
+// right cell may be empty (its slot renders blank).
+type helpRow struct {
+	k1, a1 string
+	k2, a2 string
+}
+
+// helpSection is a titled group of binding rows.
+type helpSection struct {
+	title string
+	rows  []helpRow
+}
+
+// helpSections is the single source of the keybindings panel's content.
+// It must stay in sync with keys.go and the action registry — the drift
+// tests enforce that every documented key is a live binding and appears
+// here.
+func helpSections() []helpSection {
+	return []helpSection{
+		{"Global", []helpRow{
+			{"ctrl+/", "command palette", "?", "keybindings"},
+			{"ctrl+h", "request history", "ctrl+r", "send request"},
+			{"ctrl+e", "cycle environment", "ctrl+s", "save request"},
+			{"ctrl+l", "focus URL bar", "ctrl+g", "export as curl"},
+			{"tab", "switch panes", "", ""},
+		}},
+		{"Collection · sidebar", []helpRow{
+			{"↑/↓ ctrl+n/p", "navigate + load", "enter", "url / toggle folder"},
+			{"a", "add request/folder", "n", "new request"},
+			{"d", "delete", "r", "rename"},
+		}},
+		{"URL bar", []helpRow{
+			{"ctrl+t", "cycle method", "enter", "send"},
+			{"esc", "back to previous pane", "paste", "import curl"},
+		}},
+		{"Editor", []helpRow{
+			{"ctrl+n/p", "section", "alt+←→", "tabs"},
+			{"ctrl+t", "auth type", "ctrl+s", "save"},
+		}},
+		{"Response", []helpRow{
+			{"←/→ or b/h", "tabs", "↑/↓", "scroll"},
+			{"q", "quit", "", ""},
+		}},
 	}
-	key := func(s string) string {
-		return lipgloss.NewStyle().Bold(true).Foreground(ui.ColorInfo).Render(s)
+}
+
+// helpContent renders the grouped keybinding reference as an aligned
+// two-column table whose section headers speak the pane-legend language
+// ("── Title ──"). maxW caps the content width; on a terminal too narrow
+// for two columns it falls back to one column (rows instead of pairs).
+// The panel hugs its content, so it never overflows horizontally.
+func helpContent(maxW int) string {
+	layout := helpLayoutFor(helpSections())
+	if layout.width > maxW {
+		layout = helpLayoutSingle(helpSections())
 	}
-	row := func(k1, a1, k2, a2 string) string {
-		// both the key and the action columns are padded to fixed widths,
-		// so the second key column starts at the same offset on every row
-		return "  " + key(pad(k1, 18)) + pad(a1, 26) + "    " + key(pad(k2, 18)) + a2
-	}
+
 	var b strings.Builder
-	fmt.Fprintln(&b, header("Global"))
-	fmt.Fprintln(&b, row("ctrl+/", "command palette", "?", "keybindings panel"))
-	fmt.Fprintln(&b, row("ctrl+h", "request history", "ctrl+r", "send request"))
-	fmt.Fprintln(&b, row("ctrl+e", "cycle environment", "ctrl+s", "save request"))
-	fmt.Fprintln(&b, row("ctrl+l", "jump to URL bar", "ctrl+g", "export as curl"))
-	fmt.Fprintln(&b, row("tab", "switch panes", "", ""))
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, header("Collection · sidebar"))
-	fmt.Fprintln(&b, row("↑/↓ ctrl+n/p", "navigate + load", "enter", "url bar / toggle folder"))
-	fmt.Fprintln(&b, row("a", "add request/folder", "n", "new request"))
-	fmt.Fprintln(&b, row("d", "delete", "r", "rename"))
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, header("URL bar"))
-	fmt.Fprintln(&b, row("ctrl+t", "cycle method", "enter", "send"))
-	fmt.Fprintln(&b, row("esc", "back to previous pane", "paste", "import curl"))
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, header("Editor"))
-	fmt.Fprintln(&b, row("ctrl+n/p", "section", "alt+←→", "tabs"))
-	fmt.Fprintln(&b, row("ctrl+t", "auth type", "ctrl+s", "save"))
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, header("Response"))
-	fmt.Fprintln(&b, row("←/→ or b/h", "tabs", "↑/↓", "scroll"))
-	fmt.Fprintln(&b, row("q", "quit", "", ""))
+	for _, s := range helpSections() {
+		// section headers are dash runs, so they double as separators —
+		// no blank lines needed, keeping the panel short on small screens
+		fmt.Fprintln(&b, ui.SectionLine(s.title, layout.width))
+		if layout.single {
+			for _, r := range s.rows {
+				if r.k1 == "" {
+					continue
+				}
+				fmt.Fprintln(&b, "  "+ui.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+r.a1)
+			}
+			continue
+		}
+		for _, r := range s.rows {
+			fmt.Fprintln(&b, "  "+ui.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+pad(r.a1, layout.actW)+
+				"    "+ui.KeyStyle.Render(pad(r.k2, layout.keyW2))+"  "+pad(r.a2, layout.actW2))
+		}
+	}
 	return strings.TrimSuffix(b.String(), "\n")
+}
+
+// helpColumns is the two-column layout: per-column key/action widths
+// derived from the content, so alignment survives edits.
+type helpLayout struct {
+	single bool
+	width  int
+	keyW   int
+	actW   int
+	keyW2  int
+	actW2  int
+}
+
+// helpColumnsSingle is the narrow-terminal fallback: one column of rows.
+func helpLayoutSingle(sections []helpSection) helpLayout {
+	keyW, actW := 0, 0
+	for _, s := range sections {
+		for _, r := range s.rows {
+			keyW = max(keyW, lipgloss.Width(r.k1))
+			actW = max(actW, lipgloss.Width(r.a1))
+		}
+	}
+	return helpLayout{
+		single: true,
+		width:  2 + keyW + 2 + actW,
+		keyW:   keyW,
+		actW:   actW,
+	}
+}
+
+// helpLayoutFor computes the two-column widths from the actual content.
+func helpLayoutFor(sections []helpSection) helpLayout {
+	keyW, actW, keyW2, actW2 := 0, 0, 0, 0
+	for _, s := range sections {
+		for _, r := range s.rows {
+			keyW = max(keyW, lipgloss.Width(r.k1))
+			actW = max(actW, lipgloss.Width(r.a1))
+			keyW2 = max(keyW2, lipgloss.Width(r.k2))
+			actW2 = max(actW2, lipgloss.Width(r.a2))
+		}
+	}
+	col1 := 2 + keyW + 2 + actW
+	// col2 excludes its own leading indent — the row already carries the
+	// gap between the columns
+	col2 := keyW2 + 2 + actW2
+	return helpLayout{
+		width: col1 + 4 + col2,
+		keyW:  keyW,
+		actW:  actW,
+		keyW2: keyW2,
+		actW2: actW2,
+	}
 }
 
 // pad right-pads s to w display columns (rune-count based).
 func pad(s string, w int) string {
-	if n := utf8.RuneCountInString(s); n < w {
+	if n := lipgloss.Width(s); n < w {
 		return s + strings.Repeat(" ", w-n)
 	}
 	return s

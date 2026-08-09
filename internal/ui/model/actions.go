@@ -68,8 +68,8 @@ func (m *Model) paletteActions() []Action {
 	)
 }
 
-// openThemePicker reopens the palette as a theme list; enter applies the
-// selected theme and persists it in session state.
+// openThemePicker reopens the palette as a theme list; moving the cursor
+// live-previews each theme, enter applies and persists it, esc reverts.
 func (m *Model) openThemePicker() (tea.Model, tea.Cmd) {
 	names := ui.ThemeNames()
 	items := make([]ui.PaletteItem, len(names))
@@ -84,12 +84,26 @@ func (m *Model) openThemePicker() (tea.Model, tea.Cmd) {
 	m.palette.widget.Resize(w, m.minPaletteHeight(len(items)))
 	m.palette.widget.Open()
 	m.palette.prev = m.focus
+	// remember the theme in effect so esc can restore it (the persisted
+	// name is empty on first run, when the default theme is active)
+	m.palette.prevTheme = ui.ThemeByName(m.state.Theme).Name
 	m.palette.theme = true
 	m.overlay = ovPalette
 	return m, nil
 }
 
-// applySelectedTheme applies the theme highlighted in the picker and
+// previewTheme live-applies the theme under the cursor so the user sees
+// it before confirming; nothing is persisted until enter.
+func (m *Model) previewTheme() (tea.Model, tea.Cmd) {
+	it := m.palette.widget.Selected()
+	if it == nil {
+		return m, nil
+	}
+	ui.ThemeByName(it.Title).Apply()
+	return m, nil
+}
+
+// applySelectedTheme confirms the theme highlighted in the picker and
 // persists it in session state.
 func (m *Model) applySelectedTheme() (tea.Model, tea.Cmd) {
 	it := m.palette.widget.Selected()
@@ -98,6 +112,7 @@ func (m *Model) applySelectedTheme() (tea.Model, tea.Cmd) {
 	}
 	m.overlay = noOverlay
 	m.palette.theme = false
+	m.palette.prevTheme = ""
 	name := it.Title
 	ui.ThemeByName(name).Apply()
 	m.state.Theme = name
@@ -130,16 +145,28 @@ func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(km, keyEsc) || key.Matches(km, keyQuit):
 			m.overlay = noOverlay
 			m.palette.theme = false
+			// a theme previewed but not confirmed is undone on cancel
+			if m.palette.prevTheme != "" {
+				ui.ThemeByName(m.palette.prevTheme).Apply()
+				m.palette.prevTheme = ""
+			}
 			return m, m.enter(m.palette.prev)
 
 		// bubbles routes every key to the filter input in Filtering state
 		// and disables its nav bindings, so move the cursor ourselves. j/k
-		// stay free for the filter query.
+		// stay free for the filter query. In the theme picker, moving the
+		// cursor live-previews the highlighted theme.
 		case key.Matches(km, keyUp) || key.Matches(km, keyCtrlP):
 			m.palette.widget.CursorUp()
+			if m.palette.theme {
+				return m.previewTheme()
+			}
 			return m, nil
 		case key.Matches(km, keyDown) || key.Matches(km, keyCtrlN):
 			m.palette.widget.CursorDown()
+			if m.palette.theme {
+				return m.previewTheme()
+			}
 			return m, nil
 
 		case key.Matches(km, keyEnter):
@@ -162,14 +189,14 @@ func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// paletteWidth sizes the palette to its widest item (+ shortcut), capped so
-// the dialog stays tight and centered instead of sprawling across the pane
-// borders ([[Design - command palette]]).
+// paletteWidth sizes the palette to its widest item (+ shortcut/detail),
+// capped so the dialog stays tight and centered instead of sprawling
+// across the pane borders ([[Design - command palette]]).
 func (m *Model) paletteWidth(items []ui.PaletteItem) int {
 	w := m.width - 8
 	longest := 0
 	for _, it := range items {
-		l := lipgloss.Width(it.Title) + lipgloss.Width(it.Shortcut)
+		l := lipgloss.Width(it.Title) + max(lipgloss.Width(it.Shortcut), lipgloss.Width(it.Detail))
 		if l > longest {
 			longest = l
 		}

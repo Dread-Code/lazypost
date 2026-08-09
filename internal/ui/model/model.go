@@ -52,11 +52,13 @@ const (
 // palette, the theme picker (theme), and the environment manager
 // (envTab/envFiltering browse its variables).
 type paletteState struct {
-	widget       *ui.Palette
-	prev         pane // pane to restore when the overlay closes
-	theme        bool // palette is a theme picker instead of commands
-	envTab       int  // active environment index into envNames
-	envFiltering bool // "/" typed: letters filter instead of acting
+	widget    *ui.Palette
+	prev      pane   // pane to restore when the overlay closes
+	theme     bool   // palette is a theme picker instead of commands
+	prevTheme string // theme active when the picker opened (esc reverts to it)
+	envTab    int    // active environment index into envNames
+	// envFiltering is set when "/" typed: letters filter instead of acting
+	envFiltering bool
 }
 
 // namerState is the name-input modal, used for new requests/folders

@@ -14,6 +14,9 @@ import (
 type PaletteItem struct {
 	Title    string
 	Shortcut string
+	// Detail renders right after the title (e.g. "= value" for env
+	// variables); it is only shown when Shortcut is empty.
+	Detail string
 }
 
 func (i PaletteItem) FilterValue() string { return i.Title }
@@ -32,28 +35,51 @@ func (d paletteDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 	}
 	selected := index == m.Index()
 
-	avail := m.Width() - 2
+	avail := m.Width()
 	if avail < 10 {
 		avail = 10
 	}
 
-	// budget: cursor(2) + title + shortcut (only when one exists, so
-	// shortcut-less items like theme names get the full width)
+	// budget: cursor(2) + title + detail/shortcut (right side gets the
+	// shortcut, a detail sits right after the title)
 	sw := lipgloss.Width(it.Shortcut)
-	titleW := avail - 2 - sw
+	titleW := avail - 2 - sw - 2
 	if titleW < 4 {
 		titleW = 4
 	}
 	title := TruncateRunes(it.Title, titleW)
-	shortcut := lipgloss.NewStyle().Foreground(ColorMuted).Render(it.Shortcut)
-
-	cursor := "  "
-	if selected {
-		cursor = lipgloss.NewStyle().Foreground(ColorPrimary).Render("▸ ")
-		title = lipgloss.NewStyle().Foreground(ColorPrimary).Render(title)
+	detail := ""
+	if it.Shortcut == "" && it.Detail != "" {
+		// "= value" hangs off the title so "key = value" reads as one
+		detail = " " + it.Detail
+		title = TruncateRunes(it.Title, avail-2-lipgloss.Width(detail))
+		if lipgloss.Width(title)+lipgloss.Width(detail) > avail-2 {
+			detail = TruncateRunes(detail, avail-2-lipgloss.Width(title))
+		}
 	}
-	line := cursor + title + strings.Repeat(" ", max(0, avail-lipgloss.Width(title)-lipgloss.Width(shortcut))) + shortcut
-	fmt.Fprint(w, line)
+
+	right := ""
+	if it.Shortcut != "" {
+		right = lipgloss.NewStyle().Foreground(ColorMuted).Render(it.Shortcut)
+	}
+	if selected {
+		// the whole row becomes a solid block; every segment flips to the
+		// selection foreground so the fill reads as one unit
+		row := "▸ " + title + detail
+		if pad := avail - lipgloss.Width(row) - lipgloss.Width(it.Shortcut); pad > 0 {
+			row += strings.Repeat(" ", pad)
+		}
+		row += it.Shortcut
+		row = SelectedRowStyle.Render(padRunes(row, avail))
+		fmt.Fprint(w, row)
+		return
+	}
+	row := "  " + title + detail
+	if pad := avail - lipgloss.Width(row) - sw; pad > 0 {
+		row += strings.Repeat(" ", pad)
+	}
+	row += right
+	fmt.Fprint(w, row)
 }
 
 // Palette is a fuzzy-filterable command overlay: a bubbles list with
@@ -84,6 +110,7 @@ func NewPalette(width, height int) *Palette {
 	// the default TitleBar pads 1 line under the filter; kill it so the
 	// typed query sits flush above the items
 	p.list.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 0, 1)
+	p.list.Styles.NoItems = HintStyle
 	return p
 }
 
