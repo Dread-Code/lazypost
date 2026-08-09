@@ -34,9 +34,12 @@ type Theme struct {
 	Error   lipgloss.AdaptiveColor `yaml:"error"`
 	Info    lipgloss.AdaptiveColor `yaml:"info"`
 	Accent  lipgloss.AdaptiveColor `yaml:"accent"`
-	Muted   lipgloss.AdaptiveColor `yaml:"muted"`
-	Border  lipgloss.AdaptiveColor `yaml:"border"`
-	Input   lipgloss.AdaptiveColor `yaml:"input"`
+	// Key is the shortcut keys in hints and the keybindings panel —
+	// a distinct hue from the section accents so keys stand out.
+	Key    lipgloss.AdaptiveColor `yaml:"key"`
+	Muted  lipgloss.AdaptiveColor `yaml:"muted"`
+	Border lipgloss.AdaptiveColor `yaml:"border"`
+	Input  lipgloss.AdaptiveColor `yaml:"input"`
 	// Field is the background of the URL input box (raised, subtle tones).
 	Field lipgloss.AdaptiveColor `yaml:"field"`
 	// Selection is the background fill of the highlighted row in lists
@@ -64,13 +67,23 @@ func copyColorMap(src map[string]lipgloss.AdaptiveColor) map[string]lipgloss.Ada
 	return dst
 }
 
+// defaultPresetName is the theme used when none is selected; it also
+// leads the picker.
+const defaultPresetName = "dracula"
+
 // DefaultTheme is the fallback when no theme is selected. Dracula.
-var DefaultTheme = Themes["dracula"]
+var DefaultTheme = Themes[defaultPresetName]
 
 // Themes are the embedded presets, loaded from themes/*.yaml at package
 // init. User themes live in ~/.config/lazypost/themes/*.yaml and are
 // merged after these by LoadUserThemes — see ThemeByName/ThemeNames.
 var Themes = loadPresets()
+
+// presetOrder is the picker order of the embedded presets: the default
+// theme first, then the rest in the alphabetical order go:embed reads
+// them. It is derived from the files, so adding a preset is just
+// dropping a YAML into themes/ — no list to keep in sync.
+var presetOrder []string
 
 // loadPresets parses every embedded themes/*.yaml into the preset
 // registry, keyed by filename. These files are ours, so a parse failure
@@ -87,6 +100,7 @@ func loadPresets() map[string]Theme {
 			continue
 		}
 		name := strings.TrimSuffix(e.Name(), ".yaml")
+		presetOrder = append(presetOrder, name)
 		data, err := presetFS.ReadFile("themes/" + e.Name())
 		if err != nil {
 			log.Printf("lazypost: skipping preset %q: %v", name, err)
@@ -99,6 +113,15 @@ func loadPresets() map[string]Theme {
 		}
 		t.Name = name
 		themes[name] = t
+	}
+	// ReadDir yields sorted names; move the default theme to the front.
+	sort.Strings(presetOrder)
+	for i, n := range presetOrder {
+		if n == defaultPresetName {
+			presetOrder = append(presetOrder[:i], presetOrder[i+1:]...)
+			presetOrder = append([]string{defaultPresetName}, presetOrder...)
+			break
+		}
 	}
 	return themes
 }
@@ -190,6 +213,7 @@ func mergeTheme(base, t Theme) Theme {
 	overlay(&base.Error, t.Error)
 	overlay(&base.Info, t.Info)
 	overlay(&base.Accent, t.Accent)
+	overlay(&base.Key, t.Key)
 	overlay(&base.Muted, t.Muted)
 	overlay(&base.Border, t.Border)
 	overlay(&base.Input, t.Input)
@@ -210,7 +234,7 @@ func mergeTheme(base, t Theme) Theme {
 func validThemeColors(t Theme) bool {
 	colors := []lipgloss.AdaptiveColor{
 		t.Primary, t.Dim, t.Success, t.Warn, t.Error, t.Info,
-		t.Accent, t.Muted, t.Border, t.Input, t.Field,
+		t.Accent, t.Key, t.Muted, t.Border, t.Input, t.Field,
 		t.Selection, t.OnSelection,
 	}
 	for _, c := range colors {
@@ -259,13 +283,11 @@ func ThemeByName(name string) Theme {
 	return DefaultTheme
 }
 
-// presetNames is the canonical picker order of the embedded presets.
-var presetNames = []string{"dracula", "catppuccin", "solarized", "gruvbox", "nord", "tokyonight", "one-dark", "monokai"}
-
-// ThemeNames returns the embedded preset names in their canonical order,
-// followed by the loaded user theme names in lexicographic order.
+// ThemeNames returns the embedded preset names in picker order (the
+// default first, then alphabetical), followed by the loaded user theme
+// names in lexicographic order.
 func ThemeNames() []string {
-	names := append([]string{}, presetNames...)
+	names := append([]string{}, presetOrder...)
 	users := make([]string, 0, len(userThemes))
 	for name := range userThemes {
 		users = append(users, name)
@@ -309,7 +331,7 @@ func (t Theme) Apply() {
 	HintStyle = lipgloss.NewStyle().Foreground(t.Muted)
 	ErrorStyle = lipgloss.NewStyle().Foreground(t.Error)
 	NoticeStyle = lipgloss.NewStyle().Foreground(t.Success)
-	KeyStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Info)
+	KeyStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Key)
 	SectionStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Primary)
 	VersionStyle = lipgloss.NewStyle().Foreground(t.Input)
 	LegendTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Muted)

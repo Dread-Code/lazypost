@@ -17,6 +17,7 @@ warn: {light: "#B58900", dark: "#F1FA8C"}      # 4xx status, placeholders
 error: {light: "#CC0000", dark: "#FF5555"}     # 5xx status, failures
 info: {light: "#0066CC", dark: "#8BE9FD"}      # keys in hints, editor accent
 accent: {light: "#F92672", dark: "#FF79C6"}    # env badge pill
+key: {light: "#B4530A", dark: "#FFB86C"}        # shortcut keys in hints and the keybindings panel
 muted: {light: "#999999", dark: "#6272A4"}     # hint text
 border: {light: "#DDDDDD", dark: "#44475A"}    # pane borders when unfocused
 input: {light: "#44475A", dark: "#F8F8F2"}     # text color in inputs/editor

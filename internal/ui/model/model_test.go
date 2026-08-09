@@ -41,20 +41,28 @@ type watcher struct {
 
 func (w *watcher) waitFor(t *testing.T, substr string, timeout time.Duration) {
 	t.Helper()
+	if !w.contains(substr, timeout) {
+		t.Fatalf("timeout waiting for %q in output", substr)
+	}
+}
+
+// contains reads rendered output into the buffer until substr appears,
+// without failing the test (waitFor does).
+func (w *watcher) contains(substr string, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	b := make([]byte, 4096)
 	for time.Now().Before(deadline) {
 		n, err := w.r.Read(b)
 		w.buf.Write(b[:n])
 		if strings.Contains(w.buf.String(), substr) {
-			return
+			return true
 		}
 		if err != nil && err != io.EOF {
-			t.Fatalf("read output: %v", err)
+			return false
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("timeout waiting for %q in output", substr)
+	return false
 }
 
 func TestAppBootsAndQuits(t *testing.T) {
@@ -729,9 +737,12 @@ func TestSwitchTheme(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "solarized", 3*time.Second) // theme picker lists presets
 
-	// select solarized (third item; nav down twice then enter)
-	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	// select solarized: the picker order follows the preset files (default
+	// first, then alphabetical), so walk down until it is the highlighted
+	// row instead of assuming a fixed index
+	for i := 0; i < 12 && !w.contains("▸ solarized", 200*time.Millisecond); i++ {
+		tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	}
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	w.waitFor(t, "theme: solarized", 3*time.Second)
 

@@ -3,6 +3,7 @@ package themes
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -10,10 +11,13 @@ import (
 )
 
 func TestThemePresets(t *testing.T) {
-	if len(Themes) != len(presetNames) {
-		t.Errorf("expected %d embedded presets, got %d", len(presetNames), len(Themes))
+	if len(Themes) != len(presetOrder) {
+		t.Errorf("expected %d embedded presets, got %d", len(presetOrder), len(Themes))
 	}
-	for _, name := range presetNames {
+	if presetOrder[0] != defaultPresetName {
+		t.Errorf("default theme %q should lead the picker, got %q", defaultPresetName, presetOrder[0])
+	}
+	for _, name := range presetOrder {
 		th, ok := Themes[name]
 		if !ok {
 			t.Errorf("%s preset missing", name)
@@ -25,7 +29,7 @@ func TestThemePresets(t *testing.T) {
 		// presets are complete files: every color pair must be set, or a
 		// partially written preset YAML would silently render blank
 		for _, c := range []lipgloss.AdaptiveColor{th.Primary, th.Dim, th.Success, th.Warn,
-			th.Error, th.Info, th.Accent, th.Muted, th.Border, th.Input, th.Field,
+			th.Error, th.Info, th.Accent, th.Key, th.Muted, th.Border, th.Input, th.Field,
 			th.Selection, th.OnSelection} {
 			if c.Light == "" || c.Dark == "" {
 				t.Errorf("preset %s has a partially set color: %+v", name, c)
@@ -129,13 +133,13 @@ func TestThemeNamesListsUserThemesAfterPresets(t *testing.T) {
 		t.Fatalf("LoadUserThemes: %v", err)
 	}
 	names := ThemeNames()
-	if len(names) != len(presetNames)+1 {
-		t.Fatalf("expected %d presets + 1 user theme, got %v", len(presetNames), names)
+	if len(names) != len(presetOrder)+1 {
+		t.Fatalf("expected %d presets + 1 user theme, got %v", len(presetOrder), names)
 	}
-	if len(names) < 3 || names[0] != "dracula" || names[1] != "catppuccin" || names[2] != "solarized" {
-		t.Errorf("presets should lead in canonical order, got %v", names)
+	if !slices.Equal(names[:len(presetOrder)], presetOrder) {
+		t.Errorf("presets should follow the file-derived picker order %v, got %v", presetOrder, names[:len(presetOrder)])
 	}
-	if names[len(presetNames)] != "zen" {
+	if names[len(presetOrder)] != "zen" {
 		t.Errorf("user theme should follow the presets, got %v", names)
 	}
 }

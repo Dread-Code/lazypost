@@ -5,6 +5,7 @@ warn: {light: "#DF8E1D", dark: "#F9E2AF"}
 error: {light: "#D20F39", dark: "#F38BA8"}
 info: {light: "#1E66F5", dark: "#89B4FA"}
 accent: {light: "#EA76CB", dark: "#F5C2E7"}
+key: {light: "#FE640B", dark: "#FAB387"}
 muted: {light: "#9CA0B0", dark: "#6C7086"}
 border: {light: "#CCD0DA", dark: "#313244"}
 input: {light: "#4C4F69", dark: "#CDD6F4"}
