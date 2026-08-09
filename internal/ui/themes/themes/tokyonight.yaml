@@ -1,0 +1,21 @@
+primary: {light: "#8C5FD0", dark: "#BB9AF7"}
+dim: {light: "#565F89", dark: "#565F89"}
+success: {light: "#659B2F", dark: "#9ECE6A"}
+warn: {light: "#A87F2F", dark: "#E0AF68"}
+error: {light: "#C93E59", dark: "#F7768E"}
+info: {light: "#3D94BC", dark: "#7DCFFF"}
+accent: {light: "#CC742C", dark: "#FF9E64"}
+muted: {light: "#565F89", dark: "#565F89"}
+border: {light: "#C0C5DA", dark: "#2F3549"}
+input: {light: "#1A1B26", dark: "#C0CAF5"}
+field: {light: "#DDE0E8", dark: "#1A1B26"}
+selection: {light: "#8C5FD0", dark: "#33467C"}
+on_selection: {light: "#FFFFFF", dark: "#1A1B26"}
+methods:
+  GET: {light: "#659B2F", dark: "#9ECE6A"}
+  POST: {light: "#A87F2F", dark: "#E0AF68"}
+  PUT: {light: "#4E72C4", dark: "#7AA2F7"}
+  PATCH: {light: "#8C5FD0", dark: "#BB9AF7"}
+  DELETE: {light: "#C93E59", dark: "#F7768E"}
+  HEAD: {light: "#565F89", dark: "#565F89"}
+  OPTIONS: {light: "#565F89", dark: "#565F89"}

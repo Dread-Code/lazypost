@@ -10,10 +10,10 @@ import (
 )
 
 func TestThemePresets(t *testing.T) {
-	if len(Themes) != 3 {
-		t.Errorf("expected 3 embedded presets, got %d", len(Themes))
+	if len(Themes) != len(presetNames) {
+		t.Errorf("expected %d embedded presets, got %d", len(presetNames), len(Themes))
 	}
-	for _, name := range []string{"dracula", "catppuccin", "solarized"} {
+	for _, name := range presetNames {
 		th, ok := Themes[name]
 		if !ok {
 			t.Errorf("%s preset missing", name)
@@ -129,13 +129,13 @@ func TestThemeNamesListsUserThemesAfterPresets(t *testing.T) {
 		t.Fatalf("LoadUserThemes: %v", err)
 	}
 	names := ThemeNames()
-	if len(names) != 4 {
-		t.Fatalf("expected 3 presets + 1 user theme, got %v", names)
+	if len(names) != len(presetNames)+1 {
+		t.Fatalf("expected %d presets + 1 user theme, got %v", len(presetNames), names)
 	}
-	if names[0] != "dracula" || names[1] != "catppuccin" || names[2] != "solarized" {
+	if len(names) < 3 || names[0] != "dracula" || names[1] != "catppuccin" || names[2] != "solarized" {
 		t.Errorf("presets should lead in canonical order, got %v", names)
 	}
-	if names[3] != "zen" {
+	if names[len(presetNames)] != "zen" {
 		t.Errorf("user theme should follow the presets, got %v", names)
 	}
 }

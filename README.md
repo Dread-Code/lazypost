@@ -35,7 +35,7 @@ Requests are plain YAML files in a directory tree, so a collection is just a fol
 - **Keybindings panel** — `?` for a grouped reference of every binding
 - **curl import/export** — paste a `curl` command to import it; `ctrl+g` copies the current request as curl
 - **Command palette** — `ctrl+/` to run any action, including switching themes and managing environments
-- **Themes** — dracula / catppuccin / solarized presets
+- **Themes** — dracula / catppuccin / solarized / gruvbox / nord / tokyonight / one-dark / monokai presets, plus custom YAML themes
 - **Session persistence** — active environment, last request, collapsed folders, active editor tab, and theme survive relaunch
 
 ## Install
@@ -204,7 +204,7 @@ Globals: `req` (method, url, body, headers, query — mutable in `pre`), `env` (
 
 ## Themes
 
-Three presets ship built in — dracula (default), catppuccin, solarized — switchable at runtime from the palette (`ctrl+/` → **Switch theme**); the chosen theme is remembered between runs.
+Eight presets ship built in — dracula (default), catppuccin, solarized, gruvbox, nord, tokyonight, one-dark, monokai — switchable at runtime from the palette (`ctrl+/` → **Switch theme**); the chosen theme is remembered between runs.
 
 Custom themes live in `~/.config/lazypost/themes/<name>.yaml` (or `$XDG_CONFIG_HOME/lazypost/themes/`). Each file mirrors the theme colors as `light`/`dark` hex pairs; every key is optional and falls back to the default theme. See [`docs/themes/example.yaml`](docs/themes/example.yaml) for an annotated template.
 

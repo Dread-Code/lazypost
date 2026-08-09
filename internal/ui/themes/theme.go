@@ -259,10 +259,13 @@ func ThemeByName(name string) Theme {
 	return DefaultTheme
 }
 
+// presetNames is the canonical picker order of the embedded presets.
+var presetNames = []string{"dracula", "catppuccin", "solarized", "gruvbox", "nord", "tokyonight", "one-dark", "monokai"}
+
 // ThemeNames returns the embedded preset names in their canonical order,
 // followed by the loaded user theme names in lexicographic order.
 func ThemeNames() []string {
-	names := []string{"dracula", "catppuccin", "solarized"}
+	names := append([]string{}, presetNames...)
 	users := make([]string, 0, len(userThemes))
 	for name := range userThemes {
 		users = append(users, name)
