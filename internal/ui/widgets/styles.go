@@ -18,6 +18,7 @@ var (
 	ColorAccent  lipgloss.AdaptiveColor
 	ColorMuted   lipgloss.AdaptiveColor
 	ColorBorder  lipgloss.AdaptiveColor
+	ColorField   lipgloss.AdaptiveColor
 	// InputColor is text color in inputs/textareas (was hardcoded #FFFFFF).
 	InputColor lipgloss.AdaptiveColor
 )
@@ -92,6 +93,25 @@ var (
 	SelectedRowStyle       lipgloss.Style
 	TabStyle               lipgloss.Style
 	ActiveTabStyle         lipgloss.Style
+	// FieldStyle is the URL input box: a raised background with a little
+	// inner breathing room.
+	FieldStyle lipgloss.Style
+
+	// URL token styles color the semantic parts of the URL under edit
+	// ([[Design - url bar]]): scheme in info, host in primary, port and
+	// separators dim, path and query values at the default foreground,
+	// query keys in info, fragments dim italic, and {{var}} placeholders
+	// in warn.
+	URLSchemeStyle     lipgloss.Style
+	URLUserInfoStyle   lipgloss.Style
+	URLHostStyle       lipgloss.Style
+	URLPortStyle       lipgloss.Style
+	URLPathStyle       lipgloss.Style
+	URLQueryKeyStyle   lipgloss.Style
+	URLQueryValueStyle lipgloss.Style
+	URLQuerySepStyle   lipgloss.Style
+	URLFragmentStyle   lipgloss.Style
+	URLVarStyle        lipgloss.Style
 )
 
 // PaneAccent is the focused look of one section: its border, legend

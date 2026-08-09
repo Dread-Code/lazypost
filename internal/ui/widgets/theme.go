@@ -17,6 +17,8 @@ type Theme struct {
 	Muted   lipgloss.AdaptiveColor
 	Border  lipgloss.AdaptiveColor
 	Input   lipgloss.AdaptiveColor
+	// Field is the background of the URL input box (raised, subtle tones).
+	Field lipgloss.AdaptiveColor
 	// Selection is the background fill of the highlighted row in lists
 	// (sidebar, palette, history); OnSelection is the text color on it.
 	Selection   lipgloss.AdaptiveColor
@@ -48,6 +50,7 @@ var Themes = map[string]Theme{
 		Muted:       adaptive("#999999", "#6272A4"),
 		Border:      adaptive("#DDDDDD", "#44475A"),
 		Input:       adaptive("#44475A", "#F8F8F2"),
+		Field:       adaptive("#E9E9F0", "#343746"),
 		Selection:   adaptive("#5A56E0", "#BD93F9"),
 		OnSelection: adaptive("#FFFFFF", "#282A36"),
 		Methods: map[string]lipgloss.AdaptiveColor{
@@ -73,6 +76,7 @@ var Themes = map[string]Theme{
 		Muted:       adaptive("#9CA0B0", "#6C7086"),
 		Border:      adaptive("#CCD0DA", "#313244"),
 		Input:       adaptive("#4C4F69", "#CDD6F4"),
+		Field:       adaptive("#DCE0E8", "#313244"),
 		Selection:   adaptive("#8839EF", "#CBA6F7"),
 		OnSelection: adaptive("#FFFFFF", "#1E1E2E"),
 		Methods: map[string]lipgloss.AdaptiveColor{
@@ -98,6 +102,7 @@ var Themes = map[string]Theme{
 		Muted:       adaptive("#93A1A1", "#586E75"),
 		Border:      adaptive("#EEE8D5", "#073642"),
 		Input:       adaptive("#657B83", "#839496"),
+		Field:       adaptive("#EEE8D5", "#073642"),
 		Selection:   adaptive("#268BD2", "#268BD2"),
 		OnSelection: adaptive("#FDF6E3", "#002B36"),
 		Methods: map[string]lipgloss.AdaptiveColor{
@@ -137,6 +142,7 @@ func (t Theme) Apply() {
 	ColorAccent = t.Accent
 	ColorMuted = t.Muted
 	ColorBorder = t.Border
+	ColorField = t.Field
 
 	methodColors = map[string]lipgloss.AdaptiveColor{}
 	for k, v := range t.Methods {
@@ -176,6 +182,23 @@ func (t Theme) Apply() {
 		Foreground(t.Primary).
 		Bold(true).
 		Underline(true)
+
+	// The URL input box: the raised background is part of every cell of
+	// the field (padding + styled input), so it never has holes.
+	FieldStyle = lipgloss.NewStyle().
+		Background(t.Field)
+
+	// URL token styles ([[Design - url bar]]).
+	URLSchemeStyle = lipgloss.NewStyle().Foreground(t.Info)
+	URLUserInfoStyle = lipgloss.NewStyle().Foreground(t.Warn)
+	URLHostStyle = lipgloss.NewStyle().Foreground(t.Primary)
+	URLPortStyle = lipgloss.NewStyle().Foreground(t.Dim)
+	URLPathStyle = lipgloss.NewStyle()
+	URLQueryKeyStyle = lipgloss.NewStyle().Foreground(t.Info)
+	URLQueryValueStyle = lipgloss.NewStyle()
+	URLQuerySepStyle = lipgloss.NewStyle().Foreground(t.Dim)
+	URLFragmentStyle = lipgloss.NewStyle().Foreground(t.Dim).Italic(true)
+	URLVarStyle = lipgloss.NewStyle().Foreground(t.Warn)
 
 	// Per-section accents: one hue per pane for its focused border, legend
 	// title, and active tab. The collection is the app identity (primary),

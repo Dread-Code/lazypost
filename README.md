@@ -9,8 +9,7 @@ An API client that lives in your terminal — a [Posting](https://posting.sh)-in
 Requests are plain YAML files in a directory tree, so a collection is just a folder you can version-control, diff, and share.
 
 ```
-lazypost  │  sample-collections                          env: dev
- GET  https://api.example.com/posts        ctrl+t method · enter send
+ GET  https://api.example.com/posts                              env: dev
 ╭ Collection ────────────────╮ ╭─ Request · posts/create ────────────────╮
 │ ▸ posts/                   │ │  Query  Headers  Body  Auth  Scripts    │
 │     POST create            │ │ ──────────────────────────────────────  │

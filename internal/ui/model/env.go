@@ -176,6 +176,7 @@ func (m *Model) selectedVarName() string {
 func (m *Model) setEnv(name string) {
 	if name == "" {
 		m.envIdx = 0
+		m.updateEnvBadge()
 		return
 	}
 	if idx := slices.Index(m.envNames, name); idx >= 0 {
@@ -183,6 +184,7 @@ func (m *Model) setEnv(name string) {
 	} else {
 		m.envIdx = 0
 	}
+	m.updateEnvBadge()
 }
 
 // reloadEnvs re-reads environments from disk and re-resolves envIdx so a
@@ -273,6 +275,7 @@ func (m *Model) cycleEnv() {
 	}
 	// +1 slot for "none" at index 0
 	m.envIdx = (m.envIdx + 1) % (len(m.envNames) + 1)
+	m.updateEnvBadge()
 }
 
 func (m *Model) activeEnvName() string {

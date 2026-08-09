@@ -29,7 +29,7 @@ func (m Model) geometry() geometry {
 		sidebarW = 40
 	}
 	rightW := m.width - sidebarW - 1
-	contentH := m.height - 3 // title bar + URL bar + status bar
+	contentH := m.height - 2 // URL bar + status bar
 	editorH := contentH * 55 / 100
 	return geometry{
 		sidebarW: sidebarW,
@@ -57,28 +57,14 @@ func (m *Model) layout() {
 // renderer drop lines (e.g. the title bar).
 func (m Model) View() string {
 	if m.width < 60 || m.height < 20 {
-		return "terminal too small — resize to use lazypost"
+		return "terminal too small — resize the window"
 	}
 
 	g := m.geometry()
 
-	title := lipgloss.JoinHorizontal(lipgloss.Left,
-		ui.TitleStyle.Render("lazypost"),
-		ui.HintStyle.Render("  │  "),
-		lipgloss.NewStyle().Bold(true).Render(ui.TruncateRunes(m.collectionTitle(), m.width/2)),
-	)
-	var envBadge string
-	if name := m.activeEnvName(); name != "" {
-		envBadge = ui.EnvBadge("env: " + name)
-	} else {
-		envBadge = ui.HintStyle.Render("env: none")
-	}
-	gap := m.width - lipgloss.Width(title) - lipgloss.Width(envBadge)
-	if gap < 1 {
-		gap = 1
-	}
-	titleBar := title + strings.Repeat(" ", gap) + envBadge
-
+	// the URL bar carries the env badge at its right end; the app name is
+	// absent from the UI, the file root and version live at the status
+	// bar's right
 	bar := m.urlbar.View()
 	// pad the bar to full width so the frame stays exactly terminal-sized
 	if w := lipgloss.Width(bar); w < m.width {
@@ -103,7 +89,7 @@ func (m Model) View() string {
 	content := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, right)
 
 	status := m.statusBar()
-	frame := lipgloss.JoinVertical(lipgloss.Left, titleBar, bar, content, status)
+	frame := lipgloss.JoinVertical(lipgloss.Left, bar, content, status)
 	switch m.overlay {
 	case ovPalette:
 		title := "Command palette"
@@ -295,15 +281,21 @@ func (m Model) statusBar() string {
 		help = "←→ or b/h tabs · ↑↓ scroll · ? help · q quit"
 	}
 
-	right := ""
+	// right side: the file root and version sit at the far right,
+	// transient notices to their left, so the identity stays put while
+	// notices come and go
+	right := ui.HintStyle.Render(ui.TruncateRunes(m.collectionTitle(), m.width/4))
+	if m.version != "" {
+		right += "  " + ui.HintStyle.Render(m.version)
+	}
 	if m.notice != "" {
 		text := ui.TruncateRunes(m.notice, m.width/3)
 		if m.noticeError {
 			text = "✖ " + text
-			right = ui.ErrorStyle.Render(text)
+			right = ui.ErrorStyle.Render(text) + "  " + right
 		} else {
 			text = "✓ " + text
-			right = ui.NoticeStyle.Render(text)
+			right = ui.NoticeStyle.Render(text) + "  " + right
 		}
 	}
 	left := ui.HintStyle.Render(ui.TruncateRunes(help, m.width-lipgloss.Width(right)-1))

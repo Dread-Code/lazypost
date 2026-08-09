@@ -60,7 +60,7 @@ func TestAppBootsAndQuits(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}
 
-	w.waitFor(t, "lazypost", 3*time.Second)
+	w.waitFor(t, "sample-collections", 3*time.Second)
 	w.waitFor(t, "Collection", 3*time.Second)
 	w.waitFor(t, "Request", 3*time.Second)
 	w.waitFor(t, "Response", 3*time.Second)

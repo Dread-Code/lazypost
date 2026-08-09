@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -21,37 +20,46 @@ func cycleMethod(cur string, n int) string {
 	return Methods[0]
 }
 
-const barHint = "  ctrl+t method · enter send · esc back"
-
 // URLBar owns the request's method and URL — the only place they are
-// edited ([[Design - request top bar]]).
+// edited ([[Design - request top bar]]). The URL renders in a raised
+// field box (FieldStyle) with semantic parts colored live as it is
+// edited. A right adornment (the env badge) can be attached via SetRight;
+// its width is reserved from the field so the bar never overflows. Key
+// hints are not rendered here — the status bar shows them for the focused
+// pane.
 type URLBar struct {
 	method string
-	url    textinput.Model
+	url    urlField
 	width  int
+	right  string
 }
 
 func NewURLBar(width int) *URLBar {
 	u := &URLBar{method: "GET", width: width}
-	u.url = textinput.New()
-	u.url.Placeholder = "https://api.example.com/endpoint"
-	u.url.Prompt = ""
-	u.url.CharLimit = 2048
+	u.url = *newURLField("https://api.example.com/endpoint")
 	u.resize()
 	return u
 }
 
-// resize gives the text input as much room as possible: total width minus
-// the "METHOD " pill prefix, and minus the hint while the bar is focused.
+// SetRight attaches a right-aligned adornment (the env badge); its width
+// is reserved from the URL field.
+func (u *URLBar) SetRight(s string) {
+	u.right = s
+	u.resize()
+}
+
+// resize sizes the URL field: total width minus the "METHOD " pill, the
+// field's side padding, the right adornment, and the cursor column.
 func (u *URLBar) resize() {
-	urlW := u.width - lipgloss.Width(MethodBadge(u.method)) - 1
-	if u.url.Focused() {
-		urlW -= len(barHint)
+	// bar = pill + gap + field(padding 2 + width+1) + gap + right
+	urlW := u.width - lipgloss.Width(MethodBadge(u.method)) - 1 - 3 - 2
+	if u.right != "" {
+		urlW -= lipgloss.Width(u.right) + 2
 	}
 	if urlW < 10 {
 		urlW = 10
 	}
-	u.url.Width = urlW
+	u.url.SetWidth(urlW)
 }
 
 func (u *URLBar) Resize(width int) {
@@ -61,11 +69,10 @@ func (u *URLBar) Resize(width int) {
 
 func (u *URLBar) Focus() tea.Cmd {
 	// entering the bar always puts the cursor at the end, so the URL is
-	// ready to edit (bubbles textinput keeps the position it was left at)
-	u.url.CursorEnd()
-	cmd := u.url.Focus()
-	u.resize() // hint room depends on focus; run after the state flips
-	return cmd
+	// ready to edit
+	u.url.Focus()
+	u.resize()
+	return nil
 }
 func (u *URLBar) Blur() {
 	u.url.Blur()
@@ -87,12 +94,18 @@ func (u *URLBar) Update(msg tea.Msg) (*URLBar, tea.Cmd) {
 // The width is maintained by Resize/Focus/Blur/SetRequest, never here —
 // View must be free of side effects.
 func (u *URLBar) View() string {
-	method := MethodBadge(u.method)
-	hint := ""
-	if u.url.Focused() {
-		hint = HintStyle.Render(barHint)
+	line := lipgloss.JoinHorizontal(lipgloss.Top, MethodBadge(u.method), " ", u.fieldView())
+	if u.right != "" {
+		line += "  " + u.right
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, method, " ", u.url.View(), hint)
+	return line
+}
+
+// fieldView wraps the URL input in one background column of breathing
+// room on each side (the input's own cells carry the background too).
+func (u *URLBar) fieldView() string {
+	pad := FieldStyle.Render(" ")
+	return pad + u.url.View() + pad
 }
 
 func (u *URLBar) Method() string { return u.method }

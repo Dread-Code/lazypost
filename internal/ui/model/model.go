@@ -128,6 +128,10 @@ type Model struct {
 
 	state session.State
 
+	// version is the build stamp (e.g. "v0.2.0"), shown at the status
+	// bar's far right; empty in plain `go test` builds.
+	version string
+
 	notice      string
 	noticeError bool
 }
@@ -159,6 +163,12 @@ func WithMarkerPrompt() Option {
 	return func(m *Model) { m.needsMarker = true }
 }
 
+// WithVersion sets the build version stamped at compile time; it renders
+// at the status bar's far right.
+func WithVersion(v string) Option {
+	return func(m *Model) { m.version = v }
+}
+
 func New(dir string, entries []collection.Entry, envs map[string]map[string]string, envNames []string, st session.State, opts ...Option) Model {
 	m := Model{
 		dir:      dir,
@@ -177,10 +187,21 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 	m.historyWidget = ui.NewHistory(40, 10)
 	m.focus = pSidebar
 	m.restore(st)
+	m.updateEnvBadge()
 	for _, opt := range opts {
 		opt(&m)
 	}
 	return m
+}
+
+// updateEnvBadge keeps the URL bar's right adornment in sync with the
+// active environment (the single place the env label is rendered).
+func (m *Model) updateEnvBadge() {
+	if name := m.activeEnvName(); name != "" {
+		m.urlbar.SetRight(ui.EnvBadge("env: " + name))
+	} else {
+		m.urlbar.SetRight(ui.HintStyle.Render("env: none"))
+	}
 }
 
 func (m Model) Init() tea.Cmd {

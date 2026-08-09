@@ -69,6 +69,7 @@ func main() {
 	ui.ThemeByName(st.Theme).Apply()
 
 	opts := markerOptions(*dir, resolved, marker)
+	opts = append(opts, model.WithVersion(version))
 
 	p := tea.NewProgram(model.New(root, entries, envs, envNames, st, opts...), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
