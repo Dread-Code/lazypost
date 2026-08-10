@@ -92,13 +92,25 @@ func TestSetRequestPreservesName(t *testing.T) {
 	}
 }
 
-// The editor exposes the active field's vim mode for the pane title.
+// The editor exposes the active field's vim mode for the footer row.
 func TestEditorModeLabel(t *testing.T) {
 	e := NewEditor(60, 20)
 	e.Focus()
-	// focusing the editor lands on the Query textarea: always insert
-	if got := e.ModeLabel(); got != "" {
-		t.Errorf("initial mode label = %q, want empty (insert)", got)
+	// focusing the editor lands on the Query code field: NORMAL on entry
+	if got := e.ModeLabel(); got != "—NORMAL—" {
+		t.Errorf("initial mode label = %q, want —NORMAL— (query)", got)
+	}
+	// the Query field is a code editor too: type 'i' to insert
+	e.query.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("i")})
+	if got := e.ModeLabel(); got != "—INSERT—" {
+		t.Errorf("query mode label in insert = %q, want —INSERT—", got)
+	}
+	// switch to the Headers tab: also a code field, NORMAL on entry
+	for e.section != SecHeaders {
+		e.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	}
+	if got := e.ModeLabel(); got != "—NORMAL—" {
+		t.Errorf("headers mode label = %q, want —NORMAL— on entry", got)
 	}
 	// switch to the Body tab: entering the code field resets to NORMAL
 	for e.section != SecBody {
@@ -123,15 +135,15 @@ func TestEditorModeLabel(t *testing.T) {
 	if got := e.ModeLabel(); got != "—NORMAL—" {
 		t.Errorf("scripts tab mode label = %q, want —NORMAL—", got)
 	}
-	// the footer row is rendered for code sections, empty elsewhere
+	// the footer row is rendered for code sections, empty on Auth
 	if !strings.Contains(e.View(), "—NORMAL—") {
 		t.Errorf("footer should render the mode, got:\n%s", e.View())
 	}
-	for e.section != SecQuery {
+	for e.section != SecAuth {
 		e.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
 	}
 	if got := e.ModeLabel(); got != "" {
-		t.Errorf("query tab mode label = %q, want empty (textarea)", got)
+		t.Errorf("auth tab mode label = %q, want empty (no code field)", got)
 	}
 }
 

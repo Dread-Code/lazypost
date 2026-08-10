@@ -253,6 +253,13 @@ func TestEditorViewFillsHeight(t *testing.T) {
 	if rows := strings.Count(out, "\n") + 1; rows != 5 {
 		t.Errorf("placeholder view has %d rows, want 5:\n%q", rows, out)
 	}
+	// a multi-line placeholder must not overflow the window: it fills
+	// exactly height rows (a 2-line placeholder in height 5)
+	e = New(60, 5, "line one\nline two", markerHighlighter{})
+	out = e.View()
+	if rows := strings.Count(out, "\n") + 1; rows != 5 {
+		t.Errorf("multi-line placeholder view has %d rows, want 5:\n%q", rows, out)
+	}
 	// a buffer longer than the window still renders exactly height rows
 	e.SetValue(strings.Repeat("x\n", 20))
 	out = e.View()

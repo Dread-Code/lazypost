@@ -845,8 +845,10 @@ func (e *Editor) placeholderView() string {
 	if e.focused {
 		p = st.CursorBlock.Render(" ") + p
 	}
-	if e.height > 1 {
-		p += strings.Repeat("\n", e.height-1)
+	// fill to exactly e.height rows, counting the placeholder's own
+	// lines (a multi-line placeholder must not overflow the window)
+	if rows := strings.Count(p, "\n") + 1; e.height > rows {
+		p += strings.Repeat("\n", e.height-rows)
 	}
 	return p
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/Dread-Code/codeeditor"
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -29,8 +28,8 @@ const (
 var sectionTabs = []string{"Query", "Headers", "Body", "Auth", "Scripts"}
 
 type Editor struct {
-	query   textarea.Model
-	headers textarea.Model
+	query   *codeeditor.Editor
+	headers *codeeditor.Editor
 	body    *codeeditor.Editor
 	auth    AuthEditor
 	pre     *codeeditor.Editor
@@ -51,24 +50,16 @@ type Editor struct {
 func NewEditor(width, height int) *Editor {
 	e := &Editor{width: width, height: height}
 
-	e.query = textarea.New()
-	e.query.Placeholder = "tag: news\n# one Name: Value per line"
-	e.query.Prompt = ""
-	e.query.ShowLineNumbers = false
-	e.query.CharLimit = -1
+	e.query = codeeditor.New(0, 0, "tag: news\n# one Name: Value per line", nil)
 
-	e.headers = textarea.New()
-	e.headers.Placeholder = "Content-Type: application/json\nAuthorization: Bearer ..."
-	e.headers.Prompt = ""
-	e.headers.ShowLineNumbers = false
-	e.headers.CharLimit = -1
+	e.headers = codeeditor.New(0, 0, "Content-Type: application/json\nAuthorization: Bearer ...", nil)
 
 	e.body = codeeditor.New(0, 0, `{"hello": "world"}`, jsonHighlighter())
 
 	e.pre = codeeditor.New(0, 0, "-- runs before the request", luaHighlighter())
 	e.post = codeeditor.New(0, 0, "-- runs after the response", luaHighlighter())
 
-	for _, ed := range []*codeeditor.Editor{e.body, e.pre, e.post} {
+	for _, ed := range []*codeeditor.Editor{e.query, e.headers, e.body, e.pre, e.post} {
 		ed.SetStyleProvider(editorStyles)
 		ed.SetYank(func(s string) { _ = clipboard.Write(s) })
 	}
@@ -83,8 +74,6 @@ func (e *Editor) resize() {
 	if inner < 10 {
 		inner = 10
 	}
-	e.query.SetWidth(inner)
-	e.headers.SetWidth(inner)
 	e.auth.SetWidth(inner)
 
 	contentH := e.height - 3 // tab row + divider + mode footer
@@ -96,8 +85,8 @@ func (e *Editor) resize() {
 	if scriptH < 1 {
 		scriptH = 1
 	}
-	e.query.SetHeight(contentH)
-	e.headers.SetHeight(contentH)
+	e.query.Resize(inner, contentH)
+	e.headers.Resize(inner, contentH)
 	e.body.Resize(inner, contentH)
 	e.pre.Resize(inner, scriptH)
 	e.post.Resize(inner, scriptH)
@@ -253,7 +242,7 @@ func padToHeight(content string, h int) string {
 
 // footer is the mode indicator row at the bottom of the editor: the
 // active code field's mode (—INSERT—/—NORMAL—/—VISUAL—), empty for the
-// textarea sections which have no modes.
+// Auth section which has no code field.
 func (e *Editor) footer() string {
 	if label := e.ModeLabel(); label != "" {
 		return themes.HintStyle.Render(label)
@@ -262,7 +251,7 @@ func (e *Editor) footer() string {
 }
 
 // scriptsView renders a pre/post toggle row (like the auth type row) with
-// only the focused script's textarea below it.
+// only the focused script's editor below it.
 func (e *Editor) scriptsView() string {
 	toggleRow := themes.HintStyle.Render("hook ") + themes.TabBar([]string{"pre", "post"}, e.field, max(0, e.width-2), &themes.EditorAccent)
 
@@ -389,9 +378,13 @@ func (e *Editor) ActivePath() string        { return e.activePath }
 func (e *Editor) SetActivePath(path string) { e.activePath = path }
 
 // Mode returns the editing mode of the code-editor field in the active
-// section; textarea sections (Query/Headers/Auth) are always insert.
+// section; the Auth section has no mode.
 func (e *Editor) Mode() codeeditor.Mode {
 	switch e.section {
+	case SecQuery:
+		return e.query.Mode()
+	case SecHeaders:
+		return e.headers.Mode()
 	case SecBody:
 		return e.body.Mode()
 	case SecScripts:
@@ -404,10 +397,10 @@ func (e *Editor) Mode() codeeditor.Mode {
 }
 
 // ModeLabel is the footer text for the active field's mode; empty for
-// the textarea sections, which have no modes.
+// the Auth section, which has no mode.
 func (e *Editor) ModeLabel() string {
 	switch e.section {
-	case SecBody, SecScripts:
+	case SecQuery, SecHeaders, SecBody, SecScripts:
 	default:
 		return ""
 	}
