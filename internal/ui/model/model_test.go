@@ -78,6 +78,40 @@ func TestAppBootsAndQuits(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+// q quits the app from the editor's normal mode (the code fields land
+// in NORMAL on focus, so tab + q is the exit path).
+func TestVimQQuitsInNormalMode(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "create post", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab}) // editor focus, Query lands NORMAL
+	w.waitFor(t, "—NORMAL—", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+// In insert mode q stays a printable char — typing it must not quit.
+// The wait substring is "qabc" because a bare "q" matches "Query" in
+// the tab bar ([[Gotcha - teatest waitFor must be unique to the
+// expected state]]).
+func TestVimQTypesInInsertMode(t *testing.T) {
+	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
+	w := &watcher{r: tm.Output()}
+
+	w.waitFor(t, "create post", 3*time.Second)
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("i")}) // insert
+	w.waitFor(t, "—INSERT—", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("qabc")})
+	w.waitFor(t, "qabc", 3*time.Second)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestLoadRequestIntoEditor(t *testing.T) {
 	tm := teatest.NewTestModel(t, loadSample(t), teatest.WithInitialTermSize(120, 40))
 	w := &watcher{r: tm.Output()}

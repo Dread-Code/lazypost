@@ -392,6 +392,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case pEditor:
+		// q quits from normal/visual mode (macros are unbound); in
+		// insert it stays a printable char
+		if key.Matches(km, keyQuit) && m.editor.InVimMode() {
+			return m, m.quit()
+		}
 		var cmd tea.Cmd
 		m.editor, cmd = m.editor.Update(msg)
 		return m, cmd

@@ -396,6 +396,11 @@ func (e *Editor) Mode() codeeditor.Mode {
 	return codeeditor.ModeInsert
 }
 
+// InVimMode reports whether the active code field is in normal or
+// visual mode (insert is plain editing). The model uses it to let q
+// quit the app without swallowing the printable q in insert mode.
+func (e *Editor) InVimMode() bool { return e.Mode() != codeeditor.ModeInsert }
+
 // ModeLabel is the footer text for the active field's mode; empty for
 // the Auth section, which has no mode.
 func (e *Editor) ModeLabel() string {
