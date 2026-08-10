@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"lazypost/internal/collection"
+	"lazypost/internal/render"
 
 	"lazypost/internal/ui/themes"
 )
@@ -38,6 +39,7 @@ type Editor struct {
 	focused bool
 
 	activePath string
+	title      string // display name from the loaded request; "" = none
 	width      int
 	height     int
 }
@@ -59,10 +61,10 @@ func NewEditor(width, height int) *Editor {
 	e.headers.ShowLineNumbers = false
 	e.headers.CharLimit = -1
 
-	e.body = newCodeEditor(0, 0, `{"hello": "world"}`, highlightJSONLine)
+	e.body = newCodeEditor(0, 0, `{"hello": "world"}`, jsonHighlighter())
 
-	e.pre = newCodeEditor(0, 0, "-- runs before the request", highlightLuaLine)
-	e.post = newCodeEditor(0, 0, "-- runs after the response", highlightLuaLine)
+	e.pre = newCodeEditor(0, 0, "-- runs before the request", luaHighlighter())
+	e.post = newCodeEditor(0, 0, "-- runs after the response", luaHighlighter())
 
 	e.auth = NewAuthEditor()
 	e.resize()
@@ -109,6 +111,7 @@ func (e *Editor) Focus() tea.Cmd {
 }
 
 func (e *Editor) Blur() {
+	e.FormatBody()
 	e.focused = false
 	e.query.Blur()
 	e.headers.Blur()
@@ -116,6 +119,17 @@ func (e *Editor) Blur() {
 	e.pre.Blur()
 	e.post.Blur()
 	e.auth.Blur()
+}
+
+// FormatBody pretty-prints the body like the response pane, mirroring the
+// response's FormattedBody ([[ADR-0016 Body JSON auto-format on save and
+// blur]] · [[ADR-0017]]). Valid JSON formats directly; bodies that are
+// invalid only because of raw {{placeholders}} in value positions (e.g.
+// `"userId": {{user_id}}`) are formatted around the placeholders by
+// render.FormatJSON. Genuinely non-JSON bodies (half-typed, plain text)
+// are left exactly as typed; idempotent for already-formatted bodies.
+func (e *Editor) FormatBody() {
+	e.body.SetValue(render.FormatJSON(e.body.Value()))
 }
 
 func (e *Editor) focusSection() tea.Cmd {
@@ -241,6 +255,9 @@ func (e *Editor) Request() *collection.Request {
 }
 
 func (e *Editor) name() string {
+	if e.title != "" {
+		return e.title
+	}
 	if e.activePath != "" {
 		base := e.activePath
 		if i := strings.LastIndex(base, "/"); i >= 0 {
@@ -295,6 +312,7 @@ func parseParams(s string) []collection.Param {
 // requests. Focus is decided by the caller; widgets are blurred here.
 func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 	e.activePath = path
+	e.title = req.Name
 	e.pre.SetValue(req.Pre)
 	e.post.SetValue(req.Post)
 
@@ -320,6 +338,7 @@ func (e *Editor) SetRequest(req *collection.Request, path string) tea.Cmd {
 // New resets the editor to a blank request.
 func (e *Editor) New() tea.Cmd {
 	e.activePath = ""
+	e.title = ""
 	e.pre.SetValue("")
 	e.post.SetValue("")
 	e.query.SetValue("")

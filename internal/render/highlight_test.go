@@ -94,27 +94,104 @@ func TestHighlightJSONInvalidIsIdentity(t *testing.T) {
 	}
 }
 
-// HighlightJSONFragment has no validity gate: it colors fragments the
-// way editors need, while the identity-gated HighlightJSON stays for
-// whole-document rendering (response pane).
-func TestHighlightJSONFragmentColoursWhileInvalid(t *testing.T) {
-	// unterminated string: invalid as JSON, but the fragment lexer still
-	// colors what it can (the key and punctuation) instead of returning
-	// the input unchanged
-	got := HighlightJSONFragment(`{"title": "`, paint)
-	if got == `{"title": "` || !strings.Contains(got, "<") {
+// The editor lexes the whole buffer at once, so object context survives
+// across lines: a key on a line after the opening brace must stay a key.
+// A line-scoped lex reclassifies every quoted string as a string and the
+// body renders in one color — the reported bug.
+func TestHighlightJSONLinesKeysStayKeys(t *testing.T) {
+	body := `{
+  "title": "{{title}}",
+  "userId": 42
+}`
+	want := []string{
+		pn("{"),
+		"  " + key(`"title"`) + pn(":") + " " + str(`"{{title}}"`) + pn(","),
+		"  " + key(`"userId"`) + pn(":") + " " + num("42"),
+		pn("}"),
+	}
+	got := HighlightJSONLines(body, paint)
+	if len(got) != len(want) {
+		t.Fatalf("HighlightJSONLines returned %d lines, want %d:\n%v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("line %d = %q, want %q", i+1, got[i], want[i])
+		}
+	}
+	// a string on the first line lexes as a string, not a key: the
+	// context, not the line position, decides
+	got = HighlightJSONLines(`"plain"`, paint)
+	if len(got) != 1 || got[0] != str(`"plain"`) {
+		t.Errorf("first-line string = %q, want %q", got, str(`"plain"`))
+	}
+}
+
+// HighlightJSONLines has no validity gate: it colors the buffer while it
+// is half-typed, and it must never lose or invent text (joining the
+// lines and stripping the markers yields the input).
+func TestHighlightJSONLinesFragmentWhileInvalid(t *testing.T) {
+	got := HighlightJSONLines(`{"title": "`, paint)
+	if len(got) != 1 || !strings.Contains(got[0], "<") {
 		t.Errorf("fragment should color tokens of invalid JSON, got %q", got)
 	}
-	// a valid JSON line colors exactly like the whole-document renderer
-	valid := `{"title": "hi"}`
-	if HighlightJSONFragment(valid, paint) != HighlightJSON(valid, paint) {
-		t.Errorf("fragment(valid) should match HighlightJSON(valid)")
+	cases := []string{
+		`{"title": "`,
+		"{\n  \"a\": 1,\n",
+		"not json",
+		"",
 	}
-	// empty and non-JSON still degrade without panicking
-	for _, in := range []string{"", "not json", `"unterminated`} {
-		out := HighlightJSONFragment(in, paint)
-		if out != in && !strings.Contains(out, "<") {
-			t.Errorf("fragment(%q) = %q", in, out)
+	for _, in := range cases {
+		got := HighlightJSONLines(in, paint)
+		if joined := stripMarkers(strings.Join(got, "\n")); joined != in {
+			t.Errorf("reconstruction failed for %q: got %q", in, joined)
 		}
+	}
+}
+
+// TestHighlightJSONSplit pins the cursor-seam contract: the prefix
+// restores the lexer state (so `"title"` after `{` is a key, not a
+// string), and a cut inside a token keeps the color on both sides.
+func TestHighlightJSONSplit(t *testing.T) {
+	// the prefix matters: without it the line lexes from root and the
+	// key becomes a string
+	_, without := HighlightJSONSplit("", `  "title": "hi"`, 0, paint)
+	if !strings.Contains(without, str(`"title"`)) {
+		t.Errorf("no-prefix line should lex the key as a string, got %q", without)
+	}
+	_, with := HighlightJSONSplit("{\n", `  "title": "hi"`, 0, paint)
+	if !strings.Contains(with, key(`"title"`)) {
+		t.Errorf("prefixed line should keep the key color, got %q", with)
+	}
+	// cut on a token boundary (the key's closing quote): both pieces
+	// join to the full painted line
+	pre, post := HighlightJSONSplit("{\n", `  "title": "hi"`, len(`  "title"`), paint)
+	if pre != "  "+key(`"title"`) {
+		t.Errorf("pre = %q, want %q", pre, "  "+key(`"title"`))
+	}
+	if post != pn(":")+" "+str(`"hi"`) {
+		t.Errorf("post = %q, want %q", post, pn(":")+" "+str(`"hi"`))
+	}
+	// mid-token cut inside the key: both halves keep the key color
+	pre, post = HighlightJSONSplit("{\n", `  "title": "hi"`, 7, paint)
+	if pre != "  "+key(`"titl`) {
+		t.Errorf("mid-key pre = %q, want %q", pre, "  "+key(`"titl`))
+	}
+	if post != key(`e"`)+pn(":")+" "+str(`"hi"`) {
+		t.Errorf("mid-key post = %q", post)
+	}
+	// mid-token cut inside a value string: the color survives the seam
+	pre, post = HighlightJSONSplit("{\n", `  "title": "hi"`, 12, paint)
+	if pre != "  "+key(`"title"`)+pn(":")+" "+str(`"`) {
+		t.Errorf("mid-string pre = %q", pre)
+	}
+	if post != str(`hi"`) {
+		t.Errorf("mid-string post = %q, want %q", post, str(`hi"`))
+	}
+	// cuts are clamped to the line
+	if pre, post := HighlightJSONSplit("{\n", `  "x": 1`, 999, paint); pre == "" || post != "" {
+		t.Errorf("overlong cut: pre = %q, post = %q", pre, post)
+	}
+	if pre, post := HighlightJSONSplit("{\n", `  "x": 1`, -3, paint); pre != "" || post == "" {
+		t.Errorf("negative cut: pre = %q, post = %q", pre, post)
 	}
 }

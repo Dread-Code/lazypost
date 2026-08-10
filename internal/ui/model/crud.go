@@ -36,6 +36,7 @@ func (m *Model) createCollection(name string) (tea.Model, tea.Cmd) {
 // save persists the composed request to disk, then refreshes the sidebar
 // so the new/changed file appears in the tree.
 func (m *Model) save() (tea.Model, tea.Cmd) {
+	m.editor.FormatBody()
 	req := m.editor.Request()
 	req.Method = m.urlbar.Method()
 	req.URL = m.urlbar.URL()

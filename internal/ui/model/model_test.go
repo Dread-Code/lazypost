@@ -540,7 +540,9 @@ func TestImportCurlIntoRequest(t *testing.T) {
 		t.Errorf("bar = %s %s", mm.urlbar.Method(), mm.urlbar.URL())
 	}
 	req := mm.editor.Request()
-	if req.Body != `{"a":1}` {
+	// the imported body is valid JSON, so it arrives formatted per
+	// [[ADR-0016 Body JSON auto-format on save and blur]]
+	if req.Body != "{\n  \"a\": 1\n}" {
 		t.Errorf("body = %q", req.Body)
 	}
 	if len(req.Headers) != 1 || req.Headers[0].Name != "Content-Type" {

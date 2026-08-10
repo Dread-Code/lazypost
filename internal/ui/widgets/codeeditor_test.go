@@ -21,7 +21,7 @@ func runeMsg(s string) tea.KeyMsg {
 }
 
 func TestScriptEditorTyping(t *testing.T) {
-	e := newCodeEditor(60, 10, "-- runs before", highlightLuaLine)
+	e := newCodeEditor(60, 10, "-- runs before", luaHighlighter())
 	typed(e, runeMsg("return true"))
 	if e.Value() != "return true" {
 		t.Errorf("typed value = %q", e.Value())
@@ -34,7 +34,7 @@ func TestScriptEditorTyping(t *testing.T) {
 // Regression: bubbletea reports a lone space as tea.KeySpace (not
 // KeyRunes), and the widget must insert it.
 func TestScriptEditorSpaceKey(t *testing.T) {
-	e := newCodeEditor(60, 10, "", highlightLuaLine)
+	e := newCodeEditor(60, 10, "", luaHighlighter())
 	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune(" ")})
 	if e.Value() != " " {
 		t.Errorf("space key inserted %q", e.Value())
@@ -47,7 +47,7 @@ func TestScriptEditorSpaceKey(t *testing.T) {
 }
 
 func TestScriptEditorBackspaceDeleteEnter(t *testing.T) {
-	e := newCodeEditor(60, 10, "", highlightLuaLine)
+	e := newCodeEditor(60, 10, "", luaHighlighter())
 	typed(e, runeMsg("abc"))
 	e.cursor = 1
 	typed(e, tea.KeyMsg{Type: tea.KeyBackspace})
@@ -68,7 +68,7 @@ func TestScriptEditorBackspaceDeleteEnter(t *testing.T) {
 }
 
 func TestScriptEditorCursorLines(t *testing.T) {
-	e := newCodeEditor(60, 10, "", highlightLuaLine)
+	e := newCodeEditor(60, 10, "", luaHighlighter())
 	typed(e, runeMsg("ab\ncd\ne"))
 	// cursor at end: line 2 ("e"), col 1
 	start, end := e.lineBounds([]rune(e.Value()), e.cursor)
@@ -105,7 +105,7 @@ func TestScriptEditorCursorLines(t *testing.T) {
 }
 
 func TestScriptEditorSetValueClamps(t *testing.T) {
-	e := newCodeEditor(60, 10, "", highlightLuaLine)
+	e := newCodeEditor(60, 10, "", luaHighlighter())
 	e.cursor = 500
 	e.SetValue("short")
 	if e.cursor != len([]rune("short")) {
@@ -121,7 +121,7 @@ func TestScriptEditorView(t *testing.T) {
 	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
 	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
 
-	e := newCodeEditor(60, 10, "", highlightLuaLine)
+	e := newCodeEditor(60, 10, "", luaHighlighter())
 	e.SetValue("local x = 1")
 	e.cursor = len([]rune(e.Value()))
 	e.Focus()
@@ -145,7 +145,7 @@ func TestScriptEditorView(t *testing.T) {
 }
 
 func TestScriptEditorPlaceholder(t *testing.T) {
-	e := newCodeEditor(60, 5, "-- runs before", highlightLuaLine)
+	e := newCodeEditor(60, 5, "-- runs before", luaHighlighter())
 	if !strings.Contains(e.View(), "-- runs before") {
 		t.Error("placeholder not rendered")
 	}
@@ -156,7 +156,7 @@ func TestScriptEditorPlaceholder(t *testing.T) {
 }
 
 func TestScriptEditorScrollFollowsCursor(t *testing.T) {
-	e := newCodeEditor(40, 3, "", highlightLuaLine)
+	e := newCodeEditor(40, 3, "", luaHighlighter())
 	e.SetValue("a\nb\nc\nd\ne")
 	if e.top != 0 {
 		t.Errorf("initial top = %d", e.top)
@@ -175,7 +175,7 @@ func TestScriptEditorScrollFollowsCursor(t *testing.T) {
 }
 
 func TestScriptEditorWideLineTruncated(t *testing.T) {
-	e := newCodeEditor(20, 5, "", highlightLuaLine)
+	e := newCodeEditor(20, 5, "", luaHighlighter())
 	e.SetValue(`return "` + strings.Repeat("x", 200) + `"`)
 	out := e.View()
 	if !strings.Contains(out, "…") {
@@ -183,14 +183,14 @@ func TestScriptEditorWideLineTruncated(t *testing.T) {
 	}
 }
 
-// The request Body tab is a codeEditor wired to the JSON fragment
-// highlighter; a valid JSON body must render with token colors.
+// The request Body tab is a codeEditor wired to the JSON highlighter; a
+// valid JSON body must render with token colors.
 func TestCodeEditorJSONBodyHighlighted(t *testing.T) {
 	prev := lipgloss.DefaultRenderer().ColorProfile()
 	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
 	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
 
-	e := newCodeEditor(60, 10, "", highlightJSONLine)
+	e := newCodeEditor(60, 10, "", jsonHighlighter())
 	e.SetValue(`{"title": "hi", "count": 1, "ok": true}`)
 	e.cursor = len([]rune(e.Value()))
 	e.Focus()
@@ -205,14 +205,79 @@ func TestCodeEditorJSONBodyHighlighted(t *testing.T) {
 	}
 }
 
+// Regression ([[Gotcha - request body renders uncolored while the
+// response highlights]]): keys and value strings must render in
+// different colors. A line-scoped lexer reclassifies every key as a
+// string and the whole body renders in one color.
+func TestCodeEditorJSONBodyKeysAndStringsDistinct(t *testing.T) {
+	prev := lipgloss.DefaultRenderer().ColorProfile()
+	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
+
+	e := newCodeEditor(60, 10, "", jsonHighlighter())
+	e.SetValue("{\n  \"title\": \"hi\",\n  \"count\": 2\n}")
+	e.cursor = len([]rune(e.Value()))
+	e.Focus()
+	out := e.View()
+	keyColor := fgColorAt(out, `"title"`)
+	strColor := fgColorAt(out, `"hi"`)
+	if keyColor == "" || strColor == "" {
+		t.Fatalf("no fg colors found:\n%s", out)
+	}
+	if keyColor == strColor {
+		t.Errorf("key and string render in the same color %s — body looks one-colored", keyColor)
+	}
+}
+
+// fgColorAt returns the last SGR 38;2;r;g;b sequence before lit in out.
+func fgColorAt(out, lit string) string {
+	i := strings.Index(out, lit)
+	if i < 0 {
+		return ""
+	}
+	for j := i - 1; j >= 0; j-- {
+		if out[j] == 'm' {
+			start := strings.LastIndex(out[:j+1], "\x1b[")
+			if start < 0 {
+				return ""
+			}
+			return out[start : j+1]
+		}
+	}
+	return ""
+}
+
+// Regression: the cursor line is re-painted with the preceding buffer as
+// lexer context, so a key on a later line keeps its key color while the
+// cursor sits on that line (line-scoped lexing would make it a string).
+func TestCodeEditorJSONBodyCursorLineKeepsContext(t *testing.T) {
+	prev := lipgloss.DefaultRenderer().ColorProfile()
+	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
+
+	e := newCodeEditor(60, 10, "", jsonHighlighter())
+	e.SetValue("{\n  \"title\": \"hi\",\n  \"count\": 2\n}")
+	e.cursor = len([]rune(e.Value())) // end of the last line
+	e.Focus()
+	out := e.View()
+	keyColor := fgColorAt(out, `"count"`)
+	strColor := fgColorAt(out, `"hi"`)
+	if keyColor == "" || strColor == "" {
+		t.Fatalf("no fg colors found:\n%s", out)
+	}
+	if keyColor == strColor {
+		t.Errorf("cursor line lost context: key and string share %s", keyColor)
+	}
+}
+
 // Regression: while editing, the buffer is usually not valid JSON yet —
-// the fragment highlighter must still color it (no identity gate).
+// the highlighter must still color it (no identity gate).
 func TestCodeEditorJSONBodyFragmentWhileEditing(t *testing.T) {
 	prev := lipgloss.DefaultRenderer().ColorProfile()
 	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
 	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
 
-	e := newCodeEditor(60, 10, "", highlightJSONLine)
+	e := newCodeEditor(60, 10, "", jsonHighlighter())
 	e.SetValue(`{"title": "`) // unterminated string: invalid JSON
 	e.cursor = len([]rune(e.Value()))
 	e.Focus()

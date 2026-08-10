@@ -108,6 +108,57 @@ func TestHighlightLuaReconstructs(t *testing.T) {
 	}
 }
 
+// TestHighlightLuaLines: whole-buffer lexing colors multi-line strings
+// and block comments on every continuation line, and joining the lines
+// reconstructs the input exactly.
+func TestHighlightLuaLines(t *testing.T) {
+	got := HighlightLuaLines("--[[ block\ncomment ]]", luaPaint)
+	want := []string{cm("--[[ block"), cm("comment ]]")}
+	if len(got) != len(want) {
+		t.Fatalf("HighlightLuaLines returned %d lines, want %d:\n%v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("line %d = %q, want %q", i+1, got[i], want[i])
+		}
+	}
+	// a long string keeps its color on the continuation line
+	got = HighlightLuaLines("local doc = [=[lvl\n2]=]", luaPaint)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 lines, got %d", len(got))
+	}
+	if !strings.Contains(got[1], st(`2]=]`)) {
+		t.Errorf("continuation line not colored as a string, got %q", got[1])
+	}
+	// reconstruction invariant: markers stripped, lines joined == input
+	for _, in := range []string{
+		"local x = 1",
+		"--[[ unterminated block comment",
+		"local a = \"multi\nline\"",
+		"",
+	} {
+		got := HighlightLuaLines(in, luaPaint)
+		if joined := stripMarkers(strings.Join(got, "\n")); joined != in {
+			t.Errorf("reconstruction failed for %q: got %q", in, joined)
+		}
+	}
+}
+
+// TestHighlightLuaSplit: the cursor seam keeps colors on both sides of a
+// cut inside a multi-line string.
+func TestHighlightLuaSplit(t *testing.T) {
+	prefix := "local s = [=[lvl\n"
+	line := "2]=]"
+	// cut inside the continuation: both halves stay string-colored
+	pre, post := HighlightLuaSplit(prefix, line, 1, luaPaint)
+	if pre != st("2") {
+		t.Errorf("pre = %q, want %q", pre, st("2"))
+	}
+	if post != st("]=]") {
+		t.Errorf("post = %q, want %q", post, st("]=]"))
+	}
+}
+
 func stripMarkers(s string) string {
 	var b strings.Builder
 	for {

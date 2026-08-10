@@ -30,8 +30,26 @@ var (
 // unterminated strings and comments are tolerated and any residual input
 // passes through uncolored rather than failing.
 func HighlightLua(src string, paint func(LuaKind, string) string) string {
+	return paintTokens(src, getLuaLexer(), paint, luaKind)
+}
+
+// HighlightLuaLines paints src line by line, lexing the whole buffer at
+// once so multi-line strings and block comments keep their color on
+// continuation lines.
+func HighlightLuaLines(src string, paint func(LuaKind, string) string) []string {
+	return paintLines(src, getLuaLexer(), luaKind, paint)
+}
+
+// HighlightLuaSplit paints line in the context of prefix and returns the
+// colored line split at cut (a byte offset into line); a cut inside a
+// token keeps its color on both sides.
+func HighlightLuaSplit(prefix, line string, cut int, paint func(LuaKind, string) string) (string, string) {
+	return paintSplit(prefix, line, cut, getLuaLexer(), luaKind, paint)
+}
+
+func getLuaLexer() chroma.Lexer {
 	luaLexerOnce.Do(func() { luaLexer = chroma.Coalesce(lexers.Get("lua")) })
-	return paintTokens(src, luaLexer, paint, luaKind)
+	return luaLexer
 }
 
 // luaKind maps chroma token types onto LuaKind; -1 means pass through.

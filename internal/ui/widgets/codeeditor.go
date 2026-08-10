@@ -17,10 +17,19 @@ import (
 // cursorBlock marks the edit position; styled after the textarea cursor.
 var cursorBlock = lipgloss.NewStyle().Reverse(true)
 
-// highlightLine paints one line of source. Each language wires its own
-// (Lua: render.HighlightLua, JSON: render.HighlightJSONFragment) so a
-// single editor core serves every code-ish field.
-type highlightLine func(line string) string
+// highlighter paints an entire buffer one line at a time and can re-paint
+// a single line around the cursor. Both paint whole buffers, so lexer
+// state survives across lines: JSON keys stay keys ([[ADR-0015]]), Lua
+// block comments and long strings keep their color on continuation lines.
+type highlighter struct {
+	// lines paints src and returns one colored string per source line.
+	lines func(src string) []string
+	// split paints line in the context of prefix and returns the colored
+	// line split at cut (a byte offset into line): the cursor seam. The
+	// prefix restores the token state, so a cut inside a token keeps the
+	// same color on both sides.
+	split func(prefix, line string, cut int) (string, string)
+}
 
 // codeEditor is a minimal single-buffer editor with per-line syntax
 // highlighting, replacing bubbles textarea for the script hooks and the
@@ -31,7 +40,7 @@ type highlightLine func(line string) string
 //
 // First-cut scope: typing, backspace/delete, enter, arrows, home/end,
 // cursor-follow vertical scroll. No selection, no undo, no horizontal
-// scroll; long strings spanning lines lose color on continuation lines.
+// scroll.
 type codeEditor struct {
 	value       string
 	cursor      int // rune offset into value
@@ -40,14 +49,49 @@ type codeEditor struct {
 	height      int
 	focused     bool
 	placeholder string
-	highlight   highlightLine
+	highlight   highlighter
 }
 
-func newCodeEditor(width, height int, placeholder string, highlight highlightLine) *codeEditor {
-	if highlight == nil {
-		highlight = func(line string) string { return line }
+func newCodeEditor(width, height int, placeholder string, hl highlighter) *codeEditor {
+	if hl.lines == nil {
+		hl.lines = func(src string) []string { return strings.Split(src, "\n") }
 	}
-	return &codeEditor{width: width, height: height, placeholder: placeholder, highlight: highlight}
+	if hl.split == nil {
+		hl.split = func(prefix, line string, cut int) (string, string) {
+			if cut < 0 {
+				cut = 0
+			}
+			if cut > len(line) {
+				cut = len(line)
+			}
+			return line[:cut], line[cut:]
+		}
+	}
+	return &codeEditor{width: width, height: height, placeholder: placeholder, highlight: hl}
+}
+
+// jsonHighlighter colors request bodies. The whole buffer is lexed at
+// once so the object context survives across lines and keys keep their
+// key color; a line-scoped lex reclassifies every key as a string and
+// the body renders in one color ([[Gotcha - request body renders
+// uncolored while the response highlights]]).
+func jsonHighlighter() highlighter {
+	return highlighter{
+		lines: func(src string) []string { return render.HighlightJSONLines(src, highlightJSONColors) },
+		split: func(prefix, line string, cut int) (string, string) {
+			return render.HighlightJSONSplit(prefix, line, cut, highlightJSONColors)
+		},
+	}
+}
+
+// luaHighlighter colors the script hooks (the Scripts tab).
+func luaHighlighter() highlighter {
+	return highlighter{
+		lines: func(src string) []string { return render.HighlightLuaLines(src, luaPaintColors) },
+		split: func(prefix, line string, cut int) (string, string) {
+			return render.HighlightLuaSplit(prefix, line, cut, luaPaintColors)
+		},
+	}
 }
 
 func (s *codeEditor) Value() string { return s.value }
@@ -230,22 +274,12 @@ func luaPaintColors(kind render.LuaKind, lit string) string {
 	return lipgloss.NewStyle().Foreground(color).Render(lit)
 }
 
-// highlightLuaLine paints a single Lua source line (the Scripts tab).
-func highlightLuaLine(line string) string {
-	return render.HighlightLua(line, luaPaintColors)
-}
-
-// highlightJSONLine paints a single request-body line. Fragment mode
-// (no validity gate) keeps colors while the body is still being edited.
-func highlightJSONLine(line string) string {
-	return render.HighlightJSONFragment(line, highlightJSONColors)
-}
-
 func (s *codeEditor) View() string {
 	if s.value == "" {
 		return s.placeholderView()
 	}
 	lines := strings.Split(s.value, "\n")
+	colored := s.highlight.lines(s.value)
 	total := len(lines)
 	gutterW := len(strconv.Itoa(total))
 	visibleW := s.width - gutterW - 2
@@ -264,9 +298,11 @@ func (s *codeEditor) View() string {
 	for i := s.top; i < end; i++ {
 		var rendered string
 		if i == cursorLine {
-			rendered = s.renderCursorLine(lines[i], cursorCol)
+			rendered = s.renderCursorLine(lines, i, cursorCol)
+		} else if i < len(colored) {
+			rendered = colored[i]
 		} else {
-			rendered = s.highlight(lines[i])
+			rendered = lines[i]
 		}
 		b.WriteString(themes.HintStyle.Render(fmt.Sprintf("%*d ", gutterW, i+1)))
 		b.WriteString(truncateRunesAnsi(rendered, visibleW))
@@ -277,26 +313,31 @@ func (s *codeEditor) View() string {
 	return b.String()
 }
 
-// renderCursorLine paints the line with the cursor block inserted at the
-// given rune column. The line is split at the cursor byte offset and each
-// half is highlighted separately; a split inside a token keeps the same
-// color on both sides, so the seam is invisible.
-func (s *codeEditor) renderCursorLine(line string, col int) string {
+// renderCursorLine paints the cursor's line with the cursor block
+// inserted at the given rune column. The preceding lines are fed back as
+// lexer context, so a line continuing a token started earlier (a string,
+// a Lua block comment) still colors correctly. Each half is cut from the
+// same token stream, so a seam inside a token keeps the same color on
+// both sides and is invisible.
+func (s *codeEditor) renderCursorLine(lines []string, idx, col int) string {
+	line := lines[idx]
 	rb := []rune(line)
 	if col > len(rb) {
 		col = len(rb)
 	}
 	byteOff := len(string(rb[:col]))
-	pre := s.highlight(line[:byteOff])
-	rest := line[byteOff:]
-	ch := " "
-	remainder := ""
-	if rest != "" {
-		first, size := utf8.DecodeRuneInString(rest)
-		ch = string(first)
-		remainder = rest[size:]
+	prefix := strings.Join(lines[:idx], "\n")
+	pre, _ := s.highlight.split(prefix, line, byteOff)
+	charSize := 0
+	if byteOff < len(line) {
+		_, charSize = utf8.DecodeRuneInString(line[byteOff:])
 	}
-	return pre + cursorBlock.Render(ch) + s.highlight(remainder)
+	_, post := s.highlight.split(prefix, line, byteOff+charSize)
+	ch := " "
+	if charSize > 0 {
+		ch = line[byteOff : byteOff+charSize]
+	}
+	return pre + cursorBlock.Render(ch) + post
 }
 
 func (s *codeEditor) placeholderView() string {

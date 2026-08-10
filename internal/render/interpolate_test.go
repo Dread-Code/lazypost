@@ -103,3 +103,37 @@ func TestRequest(t *testing.T) {
 		t.Error("original query was mutated")
 	}
 }
+
+func TestFormatJSON(t *testing.T) {
+	// valid JSON pretty-prints
+	if got := FormatJSON(`{"a":1,"b":[true,null]}`); got != "{\n  \"a\": 1,\n  \"b\": [\n    true,\n    null\n  ]\n}" {
+		t.Errorf("valid JSON not formatted: %q", got)
+	}
+	// already-formatted stays put (idempotent)
+	formatted := "{\n  \"a\": 1\n}"
+	if got := FormatJSON(formatted); got != formatted {
+		t.Errorf("idempotence broken: %q", got)
+	}
+	// placeholder in a value position: formats around the placeholder
+	got := FormatJSON(`{"title": "{{title}}", "userId": {{user_id}}}`)
+	want := "{\n  \"title\": \"{{title}}\",\n  \"userId\": {{user_id}}\n}"
+	if got != want {
+		t.Errorf("placeholder body:\n got %q\nwant %q", got, want)
+	}
+	// multiple placeholders survive in order
+	got = FormatJSON(`{"a": {{x}}, "b": {{y}}}`)
+	want = "{\n  \"a\": {{x}},\n  \"b\": {{y}}\n}"
+	if got != want {
+		t.Errorf("multi-placeholder body:\n got %q\nwant %q", got, want)
+	}
+	// genuinely invalid JSON passes through untouched
+	for _, body := range []string{`{"a": 1`, "plain text", `{"userId": 1,`} {
+		if got := FormatJSON(body); got != body {
+			t.Errorf("invalid body %q changed to %q", body, got)
+		}
+	}
+	// empty input is untouched
+	if got := FormatJSON(""); got != "" {
+		t.Errorf("empty input changed to %q", got)
+	}
+}

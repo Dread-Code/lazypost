@@ -1,7 +1,11 @@
 package render
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"regexp"
+	"strings"
 
 	"lazypost/internal/collection"
 )
@@ -32,6 +36,51 @@ func Unresolved(s string) []string {
 		names = append(names, m[1])
 	}
 	return names
+}
+
+// placeholderSentinel is a JSON number so unlikely to occur in real bodies
+// that masking is collision-free in practice (checked anyway before use).
+const placeholderSentinel = "1766847064778384329583297500742918515827483896875618958121606201292619776"
+
+// FormatJSON pretty-prints s with 2-space indent. Valid JSON formats
+// directly; bodies invalid only because of raw {{placeholders}} in value
+// positions (e.g. `"userId": {{user_id}}`) are formatted by masking each
+// placeholder with a unique sentinel, indenting, and restoring — so the
+// structure formats while the placeholders survive verbatim. Anything
+// else is returned untouched, idempotently.
+func FormatJSON(s string) string {
+	if json.Valid([]byte(s)) {
+		var buf bytes.Buffer
+		if err := json.Indent(&buf, []byte(s), "", "  "); err == nil {
+			return buf.String()
+		}
+		return s
+	}
+	if !strings.Contains(s, "{{") {
+		return s
+	}
+	base := placeholderSentinel
+	for strings.Contains(s, base) {
+		base += "1" // pathological collision: shift the sentinel
+	}
+	var phs []string
+	masked := pattern.ReplaceAllStringFunc(s, func(m string) string {
+		sent := fmt.Sprintf("%s%04d", base, len(phs))
+		phs = append(phs, m)
+		return sent
+	})
+	if !json.Valid([]byte(masked)) {
+		return s
+	}
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, []byte(masked), "", "  "); err != nil {
+		return s
+	}
+	out := buf.String()
+	for i, ph := range phs {
+		out = strings.Replace(out, fmt.Sprintf("%s%04d", base, i), ph, 1)
+	}
+	return out
 }
 
 // Request returns a copy of req with all placeholders resolved. The

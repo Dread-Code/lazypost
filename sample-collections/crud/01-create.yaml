@@ -1,26 +1,30 @@
 name: create post
 method: POST
-url: "{{host}}/posts"
+url: '{{host}}/posts'
 headers:
-  - name: Accept
-    value: application/json
-  - name: Content-Type
-    value: application/json
+    - name: Accept
+      value: application/json
+    - name: Content-Type
+      value: application/json
 body: |
-  {"title": "{{title}}", "body": "A post created from lazypost", "userId": {{user_id}}}
+    {
+      "title": "{{title}}",
+      "body": "A post created from lazypost",
+      "userId": "{{user_id}}"
+    }
 pre: |
-  -- dynamic header showcase: runs before send, mutates a copy of the
-  -- request (the YAML file and editor stay untouched)
-  req.headers["X-Client"] = "lazypost"
+    -- dynamic header showcase: runs before send, mutates a copy of the
+    -- request (the YAML file and editor stay untouched)
+    req.headers["X-Client"] = "lazypost"
 post: |
-  -- body-parsing showcase: JSONPlaceholder echoes the post and appends a
-  -- new "id": 101. The quoted pattern is safe from "userId" — it matches
-  -- only the top-level id. Note: the resource is only simulated, so the
-  -- id is kept in the store for inspection (open "read post" and watch
-  -- the URL bar) but the read/update/delete steps below target the real
-  -- post {{post_id}} — see Reference - jsonplaceholder.
-  local _, _, id = string.find(response.body, '"id"%s*:%s*(%d+)')
-  if id == nil then return "no id in create response" end
-  store.set("created_id", id)
-  if response.status_code == 201 then return true end
-  return "expected 201, got " .. tostring(response.status_code)
+    -- body-parsing showcase: JSONPlaceholder echoes the post and appends a
+    -- new "id": 101. The quoted pattern is safe from "userId" — it matches
+    -- only the top-level id. Note: the resource is only simulated, so the
+    -- id is kept in the store for inspection (open "read post" and watch
+    -- the URL bar) but the read/update/delete steps below target the real
+    -- post {{post_id}} — see Reference - jsonplaceholder.
+    local _, _, id = string.find(response.body, '"id"%s*:%s*(%d+)')
+    if id == nil then return "no id in create response" end
+    store.set("created_id", id)
+    if response.status_code == 201 then return true end
+    return "expected 201, got " .. tostring(response.status_code)

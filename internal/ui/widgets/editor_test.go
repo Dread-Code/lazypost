@@ -68,6 +68,28 @@ func TestSectionAccessors(t *testing.T) {
 	}
 }
 
+// Regression: the display name of a loaded request must survive a save —
+// the name field is preserved instead of being re-derived from the path
+// slug (loading 01-create.yaml and saving used to rewrite
+// `name: create post` to `01-create`).
+func TestSetRequestPreservesName(t *testing.T) {
+	e := NewEditor(60, 20)
+	e.SetRequest(&collection.Request{Name: "create post", URL: "https://api.test/posts"}, "/col/01-create.yaml")
+	if got := e.Request().Name; got != "create post" {
+		t.Errorf("name = %q, want the loaded display name", got)
+	}
+	// requests without a name still fall back to the slug
+	e.SetRequest(&collection.Request{URL: "https://api.test/x"}, "/col/other.yaml")
+	if got := e.Request().Name; got != "other" {
+		t.Errorf("fallback name = %q, want slug 'other'", got)
+	}
+	// New clears it
+	e.New()
+	if got := e.Request().Name; got != "" {
+		t.Errorf("New should clear the name, got %q", got)
+	}
+}
+
 func TestEditorScriptsTab(t *testing.T) {
 	e := NewEditor(60, 20)
 	// navigate to the Scripts tab (index 4) via ctrl+n
@@ -105,5 +127,75 @@ func TestEditorScriptsTab(t *testing.T) {
 	e.Update(tea.KeyMsg{Type: tea.KeyUp})
 	if e.field != 0 {
 		t.Errorf("up arrow should not change the field, got %d", e.field)
+	}
+}
+
+// Regression ([[ADR-0016 Body JSON auto-format on save and blur]]): a
+// valid JSON body is pretty-printed with 2-space indent the moment editing
+// stops (Blur), so pane switches and saves store it formatted.
+func TestBlurFormatsValidJSONBody(t *testing.T) {
+	e := NewEditor(60, 20)
+	req := &collection.Request{Name: "a", URL: "https://api.test/a", Body: `{"a":1,"b":[true,null,"x"]}`}
+	e.SetRequest(req, "/col/a.yaml")
+	want := "{\n  \"a\": 1,\n  \"b\": [\n    true,\n    null,\n    \"x\"\n  ]\n}"
+	if got := e.body.Value(); got != want {
+		t.Errorf("body after blur:\n got %q\nwant %q", got, want)
+	}
+	// idempotent: a second blur leaves the formatted body alone
+	e.Blur()
+	if got := e.body.Value(); got != want {
+		t.Errorf("second blur reformatted:\n got %q\nwant %q", got, want)
+	}
+}
+
+// Regression: bodies that are not valid JSON — including half-typed
+// bodies and plain text — must pass through untouched. Raw
+// {{placeholders}} in value positions (e.g. `"userId": {{user_id}}`) make
+// the body invalid JSON but still format around the placeholders
+// ([[ADR-0017]]).
+func TestBlurLeavesInvalidJSONUntouched(t *testing.T) {
+	cases := []string{
+		`{"a": 1`,                    // unterminated
+		`{"userId": 1,`,              // trailing comma
+		`plain text`,
+	}
+	for _, body := range cases {
+		e := NewEditor(60, 20)
+		req := &collection.Request{Name: "a", URL: "https://api.test/a", Body: body}
+		e.SetRequest(req, "/col/a.yaml")
+		if got := e.body.Value(); got != body {
+			t.Errorf("body %q changed to %q on blur", body, got)
+		}
+	}
+}
+
+// Regression ([[ADR-0017]]): a raw placeholder in a value position makes
+// the body invalid JSON, but it must still pretty-print like the response
+// pane — the placeholder survives verbatim in the formatted output.
+func TestBlurFormatsBodyWithValuePlaceholder(t *testing.T) {
+	e := NewEditor(60, 20)
+	body := `{"title": "{{title}}", "body": "A post created from lazypost", "userId": {{user_id}}}`
+	e.body.SetValue(body)
+	e.Blur()
+	want := "{\n  \"title\": \"{{title}}\",\n  \"body\": \"A post created from lazypost\",\n  \"userId\": {{user_id}}\n}"
+	if got := e.body.Value(); got != want {
+		t.Errorf("body after blur:\n got %q\nwant %q", got, want)
+	}
+	// idempotent: formatting again yields the same output
+	e.Blur()
+	if got := e.body.Value(); got != want {
+		t.Errorf("second blur changed the formatted body:\n got %q\nwant %q", got, want)
+	}
+}
+
+// Regression: a placeholder inside a string is valid JSON, so the body
+// still pretty-prints while keeping the raw placeholder ([[ADR-0016]]).
+func TestBlurFormatsBodyWithStringPlaceholder(t *testing.T) {
+	e := NewEditor(60, 20)
+	req := &collection.Request{Name: "a", URL: "https://api.test/a", Body: `{"a":"{{title}}"}`}
+	e.SetRequest(req, "/col/a.yaml")
+	want := "{\n  \"a\": \"{{title}}\"\n}"
+	if got := e.body.Value(); got != want {
+		t.Errorf("body after blur:\n got %q\nwant %q", got, want)
 	}
 }
