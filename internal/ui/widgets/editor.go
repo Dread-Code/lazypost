@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 
+	"github.com/Dread-Code/codeeditor"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,10 +30,10 @@ var sectionTabs = []string{"Query", "Headers", "Body", "Auth", "Scripts"}
 type Editor struct {
 	query   textarea.Model
 	headers textarea.Model
-	body    *codeEditor
+	body    *codeeditor.Editor
 	auth    AuthEditor
-	pre     *codeEditor
-	post    *codeEditor
+	pre     *codeeditor.Editor
+	post    *codeeditor.Editor
 	section Section
 	// field selects which script editor (0=pre, 1=post) has focus
 	field   int
@@ -61,10 +62,14 @@ func NewEditor(width, height int) *Editor {
 	e.headers.ShowLineNumbers = false
 	e.headers.CharLimit = -1
 
-	e.body = newCodeEditor(0, 0, `{"hello": "world"}`, jsonHighlighter())
+	e.body = codeeditor.New(0, 0, `{"hello": "world"}`, jsonHighlighter())
 
-	e.pre = newCodeEditor(0, 0, "-- runs before the request", luaHighlighter())
-	e.post = newCodeEditor(0, 0, "-- runs after the response", luaHighlighter())
+	e.pre = codeeditor.New(0, 0, "-- runs before the request", luaHighlighter())
+	e.post = codeeditor.New(0, 0, "-- runs after the response", luaHighlighter())
+
+	for _, ed := range []*codeeditor.Editor{e.body, e.pre, e.post} {
+		ed.SetStyleProvider(editorStyles)
+	}
 
 	e.auth = NewAuthEditor()
 	e.resize()
@@ -78,9 +83,6 @@ func (e *Editor) resize() {
 	}
 	e.query.SetWidth(inner)
 	e.headers.SetWidth(inner)
-	e.body.SetWidth(inner)
-	e.pre.SetWidth(inner)
-	e.post.SetWidth(inner)
 	e.auth.SetWidth(inner)
 
 	contentH := e.height - 2 // tab row + divider
@@ -94,9 +96,9 @@ func (e *Editor) resize() {
 	}
 	e.query.SetHeight(contentH)
 	e.headers.SetHeight(contentH)
-	e.body.SetHeight(contentH)
-	e.pre.SetHeight(scriptH)
-	e.post.SetHeight(scriptH)
+	e.body.Resize(inner, contentH)
+	e.pre.Resize(inner, scriptH)
+	e.post.Resize(inner, scriptH)
 	e.auth.SetHeight(contentH)
 }
 

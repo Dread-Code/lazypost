@@ -1,0 +1,240 @@
+package codeeditor
+
+import (
+	"strings"
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
+)
+
+// markerHighlighter wraps every line in angle brackets so tests can
+// assert that painted output flows through the editor untouched.
+type markerHighlighter struct{}
+
+func (markerHighlighter) Lines(src string) []string {
+	lines := strings.Split(src, "\n")
+	out := make([]string, len(lines))
+	for i, l := range lines {
+		out[i] = "<" + l + ">"
+	}
+	return out
+}
+
+func (markerHighlighter) Split(prefix, line string, cut int) (string, string) {
+	if cut < 0 {
+		cut = 0
+	}
+	if cut > len(line) {
+		cut = len(line)
+	}
+	return "<" + line[:cut], line[cut:] + ">"
+}
+
+func typed(e *Editor, keys ...tea.KeyMsg) {
+	for _, k := range keys {
+		e.Update(k)
+	}
+}
+
+func runeMsg(s string) tea.KeyMsg {
+	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
+}
+
+func TestEditorTyping(t *testing.T) {
+	e := New(60, 10, "-- runs before", markerHighlighter{})
+	typed(e, runeMsg("return true"))
+	if e.Value() != "return true" {
+		t.Errorf("typed value = %q", e.Value())
+	}
+	if e.Cursor() != len([]rune("return true")) {
+		t.Errorf("cursor = %d", e.Cursor())
+	}
+}
+
+// Regression: bubbletea reports a lone space as tea.KeySpace (not
+// KeyRunes), and the editor must insert it.
+func TestEditorSpaceKey(t *testing.T) {
+	e := New(60, 10, "", markerHighlighter{})
+	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune(" ")})
+	if e.Value() != " " {
+		t.Errorf("space key inserted %q", e.Value())
+	}
+	typed(e, runeMsg("x"))
+	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune(" ")})
+	if e.Value() != " x " {
+		t.Errorf("space mid-text inserted %q", e.Value())
+	}
+}
+
+func TestEditorBackspaceDeleteEnter(t *testing.T) {
+	e := New(60, 10, "", markerHighlighter{})
+	typed(e, runeMsg("abc"))
+	e.SetCursor(1)
+	typed(e, tea.KeyMsg{Type: tea.KeyBackspace})
+	if e.Value() != "bc" {
+		t.Errorf("after backspace = %q", e.Value())
+	}
+	if e.Cursor() != 0 {
+		t.Errorf("cursor after backspace = %d", e.Cursor())
+	}
+	typed(e, tea.KeyMsg{Type: tea.KeyDelete})
+	if e.Value() != "c" {
+		t.Errorf("after delete = %q", e.Value())
+	}
+	typed(e, tea.KeyMsg{Type: tea.KeyEnter})
+	if e.Value() != "\nc" {
+		t.Errorf("after enter = %q", e.Value())
+	}
+}
+
+func TestEditorCursorLines(t *testing.T) {
+	e := New(60, 10, "", markerHighlighter{})
+	typed(e, runeMsg("ab\ncd\ne"))
+	// cursor at end: line 2 ("e"), col 1
+	start, end := e.lineBounds([]rune(e.Value()), e.Cursor())
+	if e.Value()[start:end] != "e" {
+		t.Errorf("bounds line = %q", e.Value()[start:end])
+	}
+	// up: line 1 ("cd"), col clamped to 1
+	typed(e, tea.KeyMsg{Type: tea.KeyUp})
+	st, en := e.lineBounds([]rune(e.Value()), e.Cursor())
+	if e.Value()[st:en] != "cd" {
+		t.Errorf("after up, line = %q", e.Value()[st:en])
+	}
+	if e.Cursor()-st != 1 {
+		t.Errorf("after up, col = %d", e.Cursor()-st)
+	}
+	// down: back to "e"
+	typed(e, tea.KeyMsg{Type: tea.KeyDown})
+	st, en = e.lineBounds([]rune(e.Value()), e.Cursor())
+	if e.Value()[st:en] != "e" {
+		t.Errorf("after down, line = %q", e.Value()[st:en])
+	}
+	// home/end
+	e.SetCursor(len([]rune(e.Value())))
+	typed(e, tea.KeyMsg{Type: tea.KeyHome})
+	st, _ = e.lineBounds([]rune(e.Value()), e.Cursor())
+	if e.Cursor() != st {
+		t.Errorf("home cursor = %d, line start = %d", e.Cursor(), st)
+	}
+	typed(e, tea.KeyMsg{Type: tea.KeyEnd})
+	_, en = e.lineBounds([]rune(e.Value()), e.Cursor())
+	if e.Cursor() != en {
+		t.Errorf("end cursor = %d, line end = %d", e.Cursor(), en)
+	}
+}
+
+func TestEditorSetValueClamps(t *testing.T) {
+	e := New(60, 10, "", markerHighlighter{})
+	e.cursor = 500 // internal invariant: an out-of-range cursor is legal state
+	e.SetValue("short")
+	if e.Cursor() != len([]rune("short")) {
+		t.Errorf("cursor not clamped: %d", e.Cursor())
+	}
+	if e.Value() != "short" {
+		t.Errorf("value = %q", e.Value())
+	}
+}
+
+func TestEditorView(t *testing.T) {
+	prev := lipgloss.DefaultRenderer().ColorProfile()
+	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
+
+	e := New(60, 10, "", markerHighlighter{})
+	e.SetValue("local x = 1")
+	e.SetCursor(len([]rune(e.Value())))
+	e.Focus()
+	out := e.View()
+	// the highlighter's paint flows through; the cursor block splits the
+	// cursor line, so assert the marker'd halves
+	for _, want := range []string{"<local x = 1", ">", "1 "} {
+		if !strings.Contains(out, want) {
+			t.Errorf("view lost %q:\n%q", want, out)
+		}
+	}
+	// cursor block is a reverse-video cell
+	if !strings.Contains(out, "\x1b[7m") {
+		t.Errorf("cursor block missing:\n%q", out)
+	}
+}
+
+// A StyleProvider is evaluated per render, so a style change (theme
+// switch) lands on the next frame.
+func TestEditorStyleProviderReapplies(t *testing.T) {
+	prev := lipgloss.DefaultRenderer().ColorProfile()
+	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
+
+	e := New(60, 5, "", markerHighlighter{})
+	e.SetValue("x")
+	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
+	e.SetStyleProvider(func() Style {
+		return Style{Gutter: red}
+	})
+	if !strings.Contains(e.View(), "\x1b[38;2;255;0;0m") {
+		t.Error("style provider not applied to the gutter")
+	}
+	// clearing the provider falls back to defaults
+	e.SetStyleProvider(nil)
+	if strings.Contains(e.View(), "\x1b[38;2;255;0;0m") {
+		t.Error("default style still colored after clearing the provider")
+	}
+}
+
+func TestEditorPlaceholder(t *testing.T) {
+	e := New(60, 5, "-- runs before", markerHighlighter{})
+	if !strings.Contains(e.View(), "-- runs before") {
+		t.Error("placeholder not rendered")
+	}
+	e.SetValue("x")
+	if strings.Contains(e.View(), "-- runs before") {
+		t.Error("placeholder shown while non-empty")
+	}
+}
+
+func TestEditorScrollFollowsCursor(t *testing.T) {
+	e := New(40, 3, "", markerHighlighter{})
+	e.SetValue("a\nb\nc\nd\ne")
+	if e.Top() != 0 {
+		t.Errorf("initial top = %d", e.Top())
+	}
+	// move cursor to the last line; the window should slide
+	for i := 0; i < 4; i++ {
+		e.Update(tea.KeyMsg{Type: tea.KeyDown})
+	}
+	if e.Top() != 2 {
+		t.Errorf("top after scrolling = %d", e.Top())
+	}
+	out := e.View()
+	if !strings.Contains(out, "<e>") || strings.Contains(out, "<a>") {
+		t.Errorf("window should show the last lines, got:\n%s", out)
+	}
+}
+
+func TestEditorWideLineTruncated(t *testing.T) {
+	e := New(20, 5, "", markerHighlighter{})
+	e.SetValue(`return "` + strings.Repeat("x", 200) + `"`)
+	out := e.View()
+	if !strings.Contains(out, "…") {
+		t.Error("wide line should be truncated with an ellipsis")
+	}
+}
+
+// The identity highlighter is the default for plain editing and must
+// never alter the buffer.
+func TestEditorNilHighlighterIdentity(t *testing.T) {
+	e := New(60, 5, "", nil)
+	e.SetValue("plain\nsecond")
+	colored := e.hl.Lines(e.Value())
+	if len(colored) != 2 || colored[0] != "plain" || colored[1] != "second" {
+		t.Errorf("identity lines = %q", colored)
+	}
+	pre, post := e.hl.Split("plain\n", "second", 3)
+	if pre != "sec" || post != "ond" {
+		t.Errorf("identity split = %q / %q", pre, post)
+	}
+}
