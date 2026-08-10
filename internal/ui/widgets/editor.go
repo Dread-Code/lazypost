@@ -241,13 +241,24 @@ func padToHeight(content string, h int) string {
 }
 
 // footer is the mode indicator row at the bottom of the editor: the
-// active code field's mode (—INSERT—/—NORMAL—/—VISUAL—), empty for the
-// Auth section which has no code field.
+// active code field's mode, each with its own theme color (NORMAL in
+// primary, INSERT in success, VISUAL in warn), empty for the Auth
+// section which has no code field.
 func (e *Editor) footer() string {
-	if label := e.ModeLabel(); label != "" {
-		return themes.HintStyle.Render(label)
+	label := e.ModeLabel()
+	if label == "" {
+		return ""
 	}
-	return ""
+	var color lipgloss.AdaptiveColor
+	switch e.Mode() {
+	case codeeditor.ModeInsert:
+		color = themes.ColorSuccess
+	case codeeditor.ModeNormal:
+		color = themes.ColorPrimary
+	case codeeditor.ModeVisualChar, codeeditor.ModeVisualLine:
+		color = themes.ColorWarn
+	}
+	return lipgloss.NewStyle().Foreground(color).Render(label)
 }
 
 // scriptsView renders a pre/post toggle row (like the auth type row) with

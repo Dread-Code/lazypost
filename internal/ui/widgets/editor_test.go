@@ -7,8 +7,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/Dread-Code/codeeditor"
+	"github.com/charmbracelet/lipgloss"
 
 	"lazypost/internal/collection"
+	"lazypost/internal/ui/themes"
 )
 
 func TestEditorCarriesHooks(t *testing.T) {
@@ -145,6 +147,33 @@ func TestEditorModeLabel(t *testing.T) {
 	if got := e.ModeLabel(); got != "" {
 		t.Errorf("auth tab mode label = %q, want empty (no code field)", got)
 	}
+}
+
+// The footer renders each mode in its own theme color: NORMAL in
+// primary, INSERT in success, VISUAL in warn (styles built from the
+// package vars, so a theme switch applies on the next render).
+func TestEditorFooterColors(t *testing.T) {
+	forceTrueColor(t)
+	e := NewEditor(60, 20)
+	e.Focus()
+
+	check := func(mode, label string, color lipgloss.AdaptiveColor) {
+		t.Helper()
+		want := lipgloss.NewStyle().Foreground(color).Render(label)
+		if !strings.Contains(e.View(), want) {
+			t.Errorf("%s footer missing %q, got:\n%s", mode, want, e.View())
+		}
+	}
+
+	// Query lands NORMAL on entry
+	check("normal", "—NORMAL—", themes.ColorPrimary)
+	// i enters insert
+	e.query.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("i")})
+	check("insert", "—INSERT—", themes.ColorSuccess)
+	// esc then v enters visual
+	e.query.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	e.query.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("v")})
+	check("visual", "—VISUAL—", themes.ColorWarn)
 }
 
 func TestEditorScriptsTab(t *testing.T) {
