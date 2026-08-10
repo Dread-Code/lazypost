@@ -16,8 +16,8 @@ import (
 func jsonHighlighter() codeeditor.Highlighter {
 	return codeeditorHighlighter{
 		lines: func(src string) []string { return render.HighlightJSONLines(src, highlightJSONColors) },
-		split: func(prefix, line string, cut int) (string, string) {
-			return render.HighlightJSONSplit(prefix, line, cut, highlightJSONColors)
+		split: func(prefix, line string, cuts []int) []string {
+			return render.HighlightJSONSplitN(prefix, line, cuts, highlightJSONColors)
 		},
 	}
 }
@@ -26,8 +26,8 @@ func jsonHighlighter() codeeditor.Highlighter {
 func luaHighlighter() codeeditor.Highlighter {
 	return codeeditorHighlighter{
 		lines: func(src string) []string { return render.HighlightLuaLines(src, luaPaintColors) },
-		split: func(prefix, line string, cut int) (string, string) {
-			return render.HighlightLuaSplit(prefix, line, cut, luaPaintColors)
+		split: func(prefix, line string, cuts []int) []string {
+			return render.HighlightLuaSplitN(prefix, line, cuts, luaPaintColors)
 		},
 	}
 }
@@ -36,13 +36,13 @@ func luaHighlighter() codeeditor.Highlighter {
 // codeeditor.Highlighter contract.
 type codeeditorHighlighter struct {
 	lines func(string) []string
-	split func(string, string, int) (string, string)
+	split func(string, string, []int) []string
 }
 
 func (h codeeditorHighlighter) Lines(src string) []string { return h.lines(src) }
 
-func (h codeeditorHighlighter) Split(prefix, line string, cut int) (string, string) {
-	return h.split(prefix, line, cut)
+func (h codeeditorHighlighter) Split(prefix, line string, cuts ...int) []string {
+	return h.split(prefix, line, cuts)
 }
 
 // luaPaintColors maps Lua token kinds onto the active theme; identifiers

@@ -11,7 +11,8 @@ import (
 )
 
 // markerHighlighter wraps every line in angle brackets so tests can
-// assert that painted output flows through the editor untouched.
+// assert that painted output flows through the editor untouched. Cuts
+// produce pieces whose concatenation is the marked line.
 type markerHighlighter struct{}
 
 func (markerHighlighter) Lines(src string) []string {
@@ -23,14 +24,26 @@ func (markerHighlighter) Lines(src string) []string {
 	return out
 }
 
-func (markerHighlighter) Split(prefix, line string, cut int) (string, string) {
-	if cut < 0 {
-		cut = 0
+func (markerHighlighter) Split(prefix, line string, cuts ...int) []string {
+	if len(cuts) == 0 {
+		return []string{"<" + line + ">"}
 	}
-	if cut > len(line) {
-		cut = len(line)
+	pieces := make([]string, 0, len(cuts)+1)
+	prev := 0
+	for _, c := range cuts {
+		if c < 0 {
+			c = 0
+		}
+		if c > len(line) {
+			c = len(line)
+		}
+		pieces = append(pieces, line[prev:c])
+		prev = c
 	}
-	return "<" + line[:cut], line[cut:] + ">"
+	pieces = append(pieces, line[prev:])
+	pieces[0] = "<" + pieces[0]
+	pieces[len(pieces)-1] += ">"
+	return pieces
 }
 
 func typed(e *Editor, keys ...tea.KeyMsg) {
@@ -233,8 +246,13 @@ func TestEditorNilHighlighterIdentity(t *testing.T) {
 	if len(colored) != 2 || colored[0] != "plain" || colored[1] != "second" {
 		t.Errorf("identity lines = %q", colored)
 	}
-	pre, post := e.hl.Split("plain\n", "second", 3)
-	if pre != "sec" || post != "ond" {
-		t.Errorf("identity split = %q / %q", pre, post)
+	pieces := e.hl.Split("plain\n", "second", 3, 5)
+	if len(pieces) != 3 || pieces[0] != "sec" || pieces[1] != "on" || pieces[2] != "d" {
+		t.Errorf("identity split = %q", pieces)
+	}
+	// cuts are clamped and deduplicated
+	pieces = e.hl.Split("plain\n", "second", -1, 99, 3, 3)
+	if len(pieces) != 4 || pieces[0] != "" || pieces[1] != "sec" || pieces[2] != "ond" || pieces[3] != "" {
+		t.Errorf("identity split clamp/dedupe = %q", pieces)
 	}
 }

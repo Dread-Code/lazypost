@@ -44,7 +44,15 @@ func HighlightLuaLines(src string, paint func(LuaKind, string) string) []string 
 // colored line split at cut (a byte offset into line); a cut inside a
 // token keeps its color on both sides.
 func HighlightLuaSplit(prefix, line string, cut int, paint func(LuaKind, string) string) (string, string) {
-	return paintSplit(prefix, line, cut, getLuaLexer(), luaKind, paint)
+	pieces := HighlightLuaSplitN(prefix, line, []int{cut}, paint)
+	return pieces[0], pieces[1]
+}
+
+// HighlightLuaSplitN paints line in the context of prefix and returns
+// the colored line cut at the given byte offsets into line: n cuts
+// yield n+1 pieces.
+func HighlightLuaSplitN(prefix, line string, cuts []int, paint func(LuaKind, string) string) []string {
+	return paintPieces(prefix, line, cuts, getLuaLexer(), luaKind, paint)
 }
 
 func getLuaLexer() chroma.Lexer {

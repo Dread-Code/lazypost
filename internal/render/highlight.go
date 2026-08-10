@@ -2,6 +2,7 @@ package render
 
 import (
 	"encoding/json"
+	"sort"
 	"strings"
 	"sync"
 
@@ -50,7 +51,17 @@ func HighlightJSONLines(src string, paint func(Kind, string) string) []string {
 // inside a token keeps that token's color on both sides — used to re-
 // paint the cursor line around the cursor.
 func HighlightJSONSplit(prefix, line string, cut int, paint func(Kind, string) string) (string, string) {
-	return paintSplit(prefix, line, cut, getJSONLexer(), jsonKind, paint)
+	pieces := HighlightJSONSplitN(prefix, line, []int{cut}, paint)
+	return pieces[0], pieces[1]
+}
+
+// HighlightJSONSplitN paints line in the context of prefix and returns
+// the colored line cut at the given byte offsets into line (clamped,
+// sorted, deduplicated): n cuts yield n+1 pieces whose concatenation is
+// the full painted line. The cursor seam and visual-selection
+// boundaries are both expressed as cuts.
+func HighlightJSONSplitN(prefix, line string, cuts []int, paint func(Kind, string) string) []string {
+	return paintPieces(prefix, line, cuts, getJSONLexer(), jsonKind, paint)
 }
 
 func getJSONLexer() chroma.Lexer {
@@ -123,51 +134,69 @@ func paintLines[K ~int](src string, lexer chroma.Lexer, kindOf func(chroma.Token
 
 // paintSplit lexes prefix+line as one stream and returns the colored
 // line split at cut (a byte offset into line, clamped). Tokens entirely
-// inside the prefix are context only and dropped; tokens fully after the
-// cut land in the second piece; a token spanning the prefix boundary or
-// the cut keeps its color on both sides.
+// inside the prefix are context only and dropped; tokens fully after
+// the cut land in the second piece; a token spanning the prefix boundary
+// or the cut keeps its color on both sides.
 func paintSplit[K ~int](prefix, line string, cut int, lexer chroma.Lexer, kindOf func(chroma.TokenType) K, paint func(K, string) string) (string, string) {
-	if cut < 0 {
-		cut = 0
+	pieces := paintPieces(prefix, line, []int{cut}, lexer, kindOf, paint)
+	return pieces[0], pieces[1]
+}
+
+// paintPieces lexes prefix+line as one stream and returns the colored
+// line cut at the given byte offsets into line (clamped, sorted,
+// deduplicated): n cuts yield n+1 pieces whose concatenation is the
+// full painted line. Tokens entirely inside the prefix are context only
+// and dropped; a token spanning any cut keeps its color on both sides.
+func paintPieces[K ~int](prefix, line string, cuts []int, lexer chroma.Lexer, kindOf func(chroma.TokenType) K, paint func(K, string) string) []string {
+	lineLen := len(line)
+	sorted := make([]int, 0, len(cuts))
+	for _, c := range cuts {
+		if c < 0 {
+			c = 0
+		}
+		if c > lineLen {
+			c = lineLen
+		}
+		sorted = append(sorted, c)
 	}
-	if cut > len(line) {
-		cut = len(line)
-	}
-	toks := tokenise(prefix+line, lexer)
-	if toks == nil {
-		return line[:cut], line[cut:]
-	}
-	start, bound := len(prefix), len(prefix)+cut
-	var pre, post strings.Builder
-	consumed := 0
-	for _, t := range toks {
-		v := t.Value
-		tokStart, tokEnd := consumed, consumed+len(v)
-		consumed = tokEnd
-		kind := kindOf(t.Type)
-		switch {
-		case tokEnd <= start:
-			// entirely inside the prefix: lexer context only
-		case tokStart < start:
-			// spans the prefix|line boundary: keep only the line side
-			piece := v[start-tokStart:]
-			if tokEnd > bound {
-				pre.WriteString(paintOr(kind, piece[:bound-start], paint))
-				post.WriteString(paintOr(kind, piece[bound-start:], paint))
-			} else {
-				pre.WriteString(paintOr(kind, piece, paint))
-			}
-		case tokEnd <= bound:
-			pre.WriteString(paintOr(kind, v, paint))
-		case tokStart >= bound:
-			post.WriteString(paintOr(kind, v, paint))
-		default:
-			// spans the cut: keep the color on both sides
-			pre.WriteString(paintOr(kind, v[:bound-tokStart], paint))
-			post.WriteString(paintOr(kind, v[bound-tokStart:], paint))
+	sort.Ints(sorted)
+	uniq := sorted[:0]
+	for _, c := range sorted {
+		if len(uniq) == 0 || c > uniq[len(uniq)-1] {
+			uniq = append(uniq, c)
 		}
 	}
-	return pre.String(), post.String()
+	pieces := make([]string, len(uniq)+1)
+	if toks := tokenise(prefix+line, lexer); toks != nil {
+		bounds := make([]int, 0, len(uniq)+2)
+		bounds = append(bounds, len(prefix))
+		for _, c := range uniq {
+			bounds = append(bounds, len(prefix)+c)
+		}
+		bounds = append(bounds, len(prefix)+lineLen)
+		consumed := 0
+		for _, t := range toks {
+			v := t.Value
+			tokStart, tokEnd := consumed, consumed+len(v)
+			consumed = tokEnd
+			kind := kindOf(t.Type)
+			for p := 0; p < len(bounds)-1; p++ {
+				s := max(tokStart, bounds[p])
+				e := min(tokEnd, bounds[p+1])
+				if s < e {
+					pieces[p] += paintOr(kind, v[s-tokStart:e-tokStart], paint)
+				}
+			}
+		}
+		return pieces
+	}
+	prev := 0
+	for i, c := range uniq {
+		pieces[i] = line[prev:c]
+		prev = c
+	}
+	pieces[len(uniq)] = line[prev:]
+	return pieces
 }
 
 // paintTokens rebuilds src by painting every token that maps to a known

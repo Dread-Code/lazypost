@@ -90,6 +90,30 @@ func TestSetRequestPreservesName(t *testing.T) {
 	}
 }
 
+// The editor exposes the active field's vim mode for the pane title.
+func TestEditorModeLabel(t *testing.T) {
+	e := NewEditor(60, 20)
+	e.Focus()
+	if got := e.ModeLabel(); got != "" {
+		t.Errorf("initial mode label = %q, want empty (insert)", got)
+	}
+	// switch to the Body tab and leave insert mode via esc
+	for e.section != SecBody {
+		e.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	}
+	e.body.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if got := e.ModeLabel(); got != "—NORMAL—" {
+		t.Errorf("normal mode label = %q", got)
+	}
+	// the pre hook editor has its own mode; the section switch reads it
+	for e.section != SecScripts {
+		e.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	}
+	if got := e.ModeLabel(); got != "" {
+		t.Errorf("scripts tab should still be insert, got %q", got)
+	}
+}
+
 func TestEditorScriptsTab(t *testing.T) {
 	e := NewEditor(60, 20)
 	// navigate to the Scripts tab (index 4) via ctrl+n

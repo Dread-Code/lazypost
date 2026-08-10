@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"lazypost/internal/clipboard"
 	"lazypost/internal/collection"
 	"lazypost/internal/render"
 
@@ -69,6 +70,7 @@ func NewEditor(width, height int) *Editor {
 
 	for _, ed := range []*codeeditor.Editor{e.body, e.pre, e.post} {
 		ed.SetStyleProvider(editorStyles)
+		ed.SetYank(func(s string) { _ = clipboard.Write(s) })
 	}
 
 	e.auth = NewAuthEditor()
@@ -354,6 +356,33 @@ func (e *Editor) New() tea.Cmd {
 
 func (e *Editor) ActivePath() string        { return e.activePath }
 func (e *Editor) SetActivePath(path string) { e.activePath = path }
+
+// Mode returns the editing mode of the code-editor field in the active
+// section; textarea sections (Query/Headers/Auth) are always insert.
+func (e *Editor) Mode() codeeditor.Mode {
+	switch e.section {
+	case SecBody:
+		return e.body.Mode()
+	case SecScripts:
+		if e.field == 1 {
+			return e.post.Mode()
+		}
+		return e.pre.Mode()
+	}
+	return codeeditor.ModeInsert
+}
+
+// ModeLabel is the pane-title suffix for the active field's mode;
+// empty in insert mode (vim's default, no noise).
+func (e *Editor) ModeLabel() string {
+	switch e.Mode() {
+	case codeeditor.ModeNormal:
+		return "—NORMAL—"
+	case codeeditor.ModeVisualChar, codeeditor.ModeVisualLine:
+		return "—VISUAL—"
+	}
+	return ""
+}
 
 // Section returns the active editor tab, for session persistence.
 func (e *Editor) Section() int { return int(e.section) }
