@@ -662,7 +662,9 @@ func (e *Editor) scrollToCursor() {
 // View renders the visible window: a line-number gutter, then each
 // source line painted by the Highlighter, with the cursor block and the
 // visual selection applied as styled pieces, all truncated to the
-// editor width.
+// editor width. The window always renders exactly e.height rows —
+// buffer lines beyond the window scroll, rows beyond the buffer render
+// blank, so consumers never need to pad.
 func (e *Editor) View() string {
 	if e.value == "" {
 		return e.placeholderView()
@@ -687,16 +689,21 @@ func (e *Editor) View() string {
 	if e.mode == ModeVisualChar || e.mode == ModeVisualLine {
 		selStart, selEnd = e.selection([]rune(e.value))
 	}
-	end := minRune(e.top+e.height, total)
+	end := e.top + e.height
 	var b strings.Builder
 	for i := e.top; i < end; i++ {
 		var rendered string
-		if i < len(colored) {
+		switch {
+		case i < total && i < len(colored):
 			rendered = renderLine(e, lines, i, st, selStart, selEnd, cursorLine, cursorCol)
-		} else {
+			b.WriteString(st.Gutter.Render(fmt.Sprintf("%*d ", gutterW, i+1)))
+		case i < total:
 			rendered = lines[i]
+			b.WriteString(st.Gutter.Render(fmt.Sprintf("%*d ", gutterW, i+1)))
+		default:
+			// filler row beyond the buffer: blank gutter, no number
+			b.WriteString(strings.Repeat(" ", gutterW+1))
 		}
-		b.WriteString(st.Gutter.Render(fmt.Sprintf("%*d ", gutterW, i+1)))
 		b.WriteString(TruncateRunesAnsi(rendered, visibleW))
 		if i < end-1 {
 			b.WriteString("\n")
@@ -837,6 +844,9 @@ func (e *Editor) placeholderView() string {
 	p := st.Placeholder.Render(e.placeholder)
 	if e.focused {
 		p = st.CursorBlock.Render(" ") + p
+	}
+	if e.height > 1 {
+		p += strings.Repeat("\n", e.height-1)
 	}
 	return p
 }

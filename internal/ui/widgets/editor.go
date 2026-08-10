@@ -227,7 +227,28 @@ func (e *Editor) View() string {
 		content = e.auth.View()
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, tabRow, divider, content, e.footer())
+	return lipgloss.JoinVertical(lipgloss.Left, tabRow, divider, padToHeight(content, e.contentH()), e.footer())
+}
+
+// contentH is the height the section content must fill: the pane minus
+// the tab row, divider, and mode footer.
+func (e *Editor) contentH() int {
+	h := e.height - 3
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+// padToHeight appends empty rows so content fills exactly h rows — the
+// section widgets must own their height so the mode footer sits at the
+// pane bottom instead of hugging the last content line.
+func padToHeight(content string, h int) string {
+	rows := strings.Count(content, "\n") + 1
+	if rows >= h {
+		return content
+	}
+	return content + strings.Repeat("\n", h-rows)
 }
 
 // footer is the mode indicator row at the bottom of the editor: the

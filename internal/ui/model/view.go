@@ -49,9 +49,9 @@ func (m *Model) layout() {
 	g := m.geometry()
 	// -3 per pane: 2 border rows + 1 title row
 	m.urlbar.Resize(m.width)
-	m.sidebar.Resize(g.sidebarW-2, g.contentH-3)
-	m.editor.Resize(g.rightW-2, g.editorH-3)
-	m.response.Resize(g.rightW-2, g.respH-3)
+	m.sidebar.Resize(g.sidebarW-2, g.contentH-2)
+	m.editor.Resize(g.rightW-2, g.editorH-2)
+	m.response.Resize(g.rightW-2, g.respH-2)
 }
 
 // View assembles exactly terminal-height output; taller frames make the

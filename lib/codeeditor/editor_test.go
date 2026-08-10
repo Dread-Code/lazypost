@@ -237,6 +237,30 @@ func TestEditorWideLineTruncated(t *testing.T) {
 	}
 }
 
+// The window always renders exactly e.height rows: rows beyond the
+// buffer are blank, so consumers never need to pad (the mode footer in
+// lazypost relies on it).
+func TestEditorViewFillsHeight(t *testing.T) {
+	e := New(60, 5, "", markerHighlighter{})
+	e.SetValue("a\nb")
+	out := e.View()
+	if rows := strings.Count(out, "\n") + 1; rows != 5 {
+		t.Errorf("view has %d rows, want 5 (height):\n%q", rows, out)
+	}
+	// the placeholder path fills too
+	e.SetValue("")
+	out = e.View()
+	if rows := strings.Count(out, "\n") + 1; rows != 5 {
+		t.Errorf("placeholder view has %d rows, want 5:\n%q", rows, out)
+	}
+	// a buffer longer than the window still renders exactly height rows
+	e.SetValue(strings.Repeat("x\n", 20))
+	out = e.View()
+	if rows := strings.Count(out, "\n") + 1; rows != 5 {
+		t.Errorf("long buffer view has %d rows, want 5", rows)
+	}
+}
+
 // The identity highlighter is the default for plain editing and must
 // never alter the buffer.
 func TestEditorNilHighlighterIdentity(t *testing.T) {
