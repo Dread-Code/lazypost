@@ -24,6 +24,10 @@ func load(e *Editor, v string, cursor int) {
 func TestVimEscEntersAndLeavesNormal(t *testing.T) {
 	e := New(60, 10, "", markerHighlighter{})
 	e.Focus()
+	if e.Mode() != ModeNormal {
+		t.Fatalf("mode after focus = %v, want normal (entering the field is NORMAL)", e.Mode())
+	}
+	e.SetMode(ModeInsert)
 	typed(e, runeMsg("ab"))
 	if e.Mode() != ModeInsert {
 		t.Fatalf("mode = %v, want insert", e.Mode())

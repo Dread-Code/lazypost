@@ -112,7 +112,9 @@ func TestCodeEditorJSONBodyFragmentWhileEditing(t *testing.T) {
 	if !strings.Contains(out, "\x1b[") {
 		t.Errorf("fragment mode should color invalid-but-typed JSON, got:\n%s", out)
 	}
-	// typing still works on the highlighted editor
+	// typing still works on the highlighted editor (insert mode first:
+	// focus lands in NORMAL)
+	e.SetMode(codeeditor.ModeInsert)
 	e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("hi")})
 	if !strings.Contains(e.Value(), `"hi`) {
 		t.Errorf("typing into fragment body failed, value = %q", e.Value())

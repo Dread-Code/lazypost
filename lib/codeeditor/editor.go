@@ -43,10 +43,11 @@ func (s Style) resolved() Style {
 // needed (the stock textarea applies a single style to the whole
 // value).
 //
-// First-cut scope: typing, backspace/delete, enter, arrows, home/end,
-// cursor-follow vertical scroll, and vim modes (normal/visual/insert —
-// [[Design - vim modes]]). No selection in insert mode, no undo, no
-// horizontal scroll.
+// The editor is vim-modal: focusing it lands in NORMAL mode (motions,
+// operators), and insert mode is an explicit i/a/A/I/o/O away. First-
+// cut scope: typing, backspace/delete, enter, arrows, home/end,
+// cursor-follow vertical scroll. No selection in insert mode, no undo,
+// no horizontal scroll.
 type Editor struct {
 	value       string
 	cursor      int // rune offset into value
@@ -143,8 +144,14 @@ func (e *Editor) SetCursor(pos int) {
 // Top returns the first visible line.
 func (e *Editor) Top() int { return e.top }
 
-func (e *Editor) Focus() tea.Cmd { e.focused = true; return nil }
-func (e *Editor) Blur()          { e.focused = false }
+func (e *Editor) Focus() tea.Cmd {
+	e.focused = true
+	// entering the field always lands in NORMAL mode: navigation and
+	// operators first, editing is an explicit i/a/A/I/o/O away
+	e.SetMode(ModeNormal)
+	return nil
+}
+func (e *Editor) Blur() { e.focused = false }
 
 // Resize sets the editor's cell dimensions.
 func (e *Editor) Resize(width, height int) {

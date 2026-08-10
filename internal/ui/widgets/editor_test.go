@@ -6,6 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/Dread-Code/codeeditor"
+
 	"lazypost/internal/collection"
 )
 
@@ -94,23 +96,29 @@ func TestSetRequestPreservesName(t *testing.T) {
 func TestEditorModeLabel(t *testing.T) {
 	e := NewEditor(60, 20)
 	e.Focus()
+	// focusing the editor lands on the Query textarea: always insert
 	if got := e.ModeLabel(); got != "" {
 		t.Errorf("initial mode label = %q, want empty (insert)", got)
 	}
-	// switch to the Body tab and leave insert mode via esc
+	// switch to the Body tab: entering the code field resets to NORMAL
 	for e.section != SecBody {
 		e.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
 	}
+	if got := e.ModeLabel(); got != "—NORMAL—" {
+		t.Errorf("body mode label = %q, want —NORMAL— on entry", got)
+	}
+	// entering insert mode and leaving it via esc is explicit
+	e.body.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("i")})
 	e.body.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	if got := e.ModeLabel(); got != "—NORMAL—" {
-		t.Errorf("normal mode label = %q", got)
+		t.Errorf("body mode label after esc = %q, want —NORMAL—", got)
 	}
-	// the pre hook editor has its own mode; the section switch reads it
+	// the Scripts tab's pre hook also lands in NORMAL on entry
 	for e.section != SecScripts {
 		e.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
 	}
-	if got := e.ModeLabel(); got != "" {
-		t.Errorf("scripts tab should still be insert, got %q", got)
+	if got := e.ModeLabel(); got != "—NORMAL—" {
+		t.Errorf("scripts tab mode label = %q, want —NORMAL—", got)
 	}
 }
 
@@ -141,7 +149,9 @@ func TestEditorScriptsTab(t *testing.T) {
 		t.Errorf("expected field pre after second ctrl+t, got %d", e.field)
 	}
 
-	// typing goes to the focused field
+	// typing goes to the focused field (enter insert mode first: the
+	// code fields land in NORMAL on focus)
+	e.pre.SetMode(codeeditor.ModeInsert)
 	e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("return true")})
 	if got := e.Request().Pre; got != "return true" {
 		t.Errorf("expected pre set by typing, got %q", got)
