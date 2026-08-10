@@ -155,8 +155,8 @@ func TestBlurFormatsValidJSONBody(t *testing.T) {
 // ([[ADR-0017]]).
 func TestBlurLeavesInvalidJSONUntouched(t *testing.T) {
 	cases := []string{
-		`{"a": 1`,                    // unterminated
-		`{"userId": 1,`,              // trailing comma
+		`{"a": 1`,       // unterminated
+		`{"userId": 1,`, // trailing comma
 		`plain text`,
 	}
 	for _, body := range cases {
