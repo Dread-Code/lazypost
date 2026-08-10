@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -89,6 +90,31 @@ func TestHighlightJSONInvalidIsIdentity(t *testing.T) {
 	for _, in := range cases {
 		if got := HighlightJSON(in, paint); got != in {
 			t.Errorf("HighlightJSON(%q) = %q, want identity", in, got)
+		}
+	}
+}
+
+// HighlightJSONFragment has no validity gate: it colors fragments the
+// way editors need, while the identity-gated HighlightJSON stays for
+// whole-document rendering (response pane).
+func TestHighlightJSONFragmentColoursWhileInvalid(t *testing.T) {
+	// unterminated string: invalid as JSON, but the fragment lexer still
+	// colors what it can (the key and punctuation) instead of returning
+	// the input unchanged
+	got := HighlightJSONFragment(`{"title": "`, paint)
+	if got == `{"title": "` || !strings.Contains(got, "<") {
+		t.Errorf("fragment should color tokens of invalid JSON, got %q", got)
+	}
+	// a valid JSON line colors exactly like the whole-document renderer
+	valid := `{"title": "hi"}`
+	if HighlightJSONFragment(valid, paint) != HighlightJSON(valid, paint) {
+		t.Errorf("fragment(valid) should match HighlightJSON(valid)")
+	}
+	// empty and non-JSON still degrade without panicking
+	for _, in := range []string{"", "not json", `"unterminated`} {
+		out := HighlightJSONFragment(in, paint)
+		if out != in && !strings.Contains(out, "<") {
+			t.Errorf("fragment(%q) = %q", in, out)
 		}
 	}
 }

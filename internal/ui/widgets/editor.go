@@ -28,10 +28,10 @@ var sectionTabs = []string{"Query", "Headers", "Body", "Auth", "Scripts"}
 type Editor struct {
 	query   textarea.Model
 	headers textarea.Model
-	body    textarea.Model
+	body    *codeEditor
 	auth    AuthEditor
-	pre     *scriptEditor
-	post    *scriptEditor
+	pre     *codeEditor
+	post    *codeEditor
 	section Section
 	// field selects which script editor (0=pre, 1=post) has focus
 	field   int
@@ -59,14 +59,10 @@ func NewEditor(width, height int) *Editor {
 	e.headers.ShowLineNumbers = false
 	e.headers.CharLimit = -1
 
-	e.body = textarea.New()
-	e.body.Placeholder = `{"hello": "world"}`
-	e.body.Prompt = ""
-	e.body.ShowLineNumbers = true
-	e.body.CharLimit = -1
+	e.body = newCodeEditor(0, 0, `{"hello": "world"}`, highlightJSONLine)
 
-	e.pre = newScriptEditor(0, 0, "-- runs before the request")
-	e.post = newScriptEditor(0, 0, "-- runs after the response")
+	e.pre = newCodeEditor(0, 0, "-- runs before the request", highlightLuaLine)
+	e.post = newCodeEditor(0, 0, "-- runs after the response", highlightLuaLine)
 
 	e.auth = NewAuthEditor()
 	e.resize()

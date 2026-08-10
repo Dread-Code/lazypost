@@ -33,6 +33,20 @@ func HighlightJSON(src string, paint func(Kind, string) string) string {
 	if !json.Valid([]byte(src)) {
 		return src
 	}
+	return highlightJSONTokens(src, paint)
+}
+
+// HighlightJSONFragment tokenizes src as a JSON fragment without the
+// validity gate — for editors, where the buffer is usually not yet valid
+// JSON while typing. Fragments are still lexed best-effort (chroma
+// handles partial strings/structures), and the panic recovery inside
+// paintTokens keeps live editing safe: highlighting must never break the
+// editor.
+func HighlightJSONFragment(src string, paint func(Kind, string) string) string {
+	return highlightJSONTokens(src, paint)
+}
+
+func highlightJSONTokens(src string, paint func(Kind, string) string) string {
 	jsonLexerOnce.Do(func() { jsonLexer = chroma.Coalesce(lexers.Get("json")) })
 	return paintTokens(src, jsonLexer, paint, jsonKind)
 }

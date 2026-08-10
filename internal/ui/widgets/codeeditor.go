@@ -17,15 +17,22 @@ import (
 // cursorBlock marks the edit position; styled after the textarea cursor.
 var cursorBlock = lipgloss.NewStyle().Reverse(true)
 
-// scriptEditor is a minimal single-buffer editor with Lua syntax
-// highlighting, replacing bubbles textarea for the pre/post hooks
-// ([[Design - script editor highlighting]]). The stock textarea applies
-// one style to the whole value, so per-token colors need a custom widget.
+// highlightLine paints one line of source. Each language wires its own
+// (Lua: render.HighlightLua, JSON: render.HighlightJSONFragment) so a
+// single editor core serves every code-ish field.
+type highlightLine func(line string) string
+
+// codeEditor is a minimal single-buffer editor with per-line syntax
+// highlighting, replacing bubbles textarea for the script hooks and the
+// request body ([[Design - script editor highlighting]] · [[ADR-0015
+// Request body editor gets JSON highlighting]]). The stock textarea
+// applies one style to the whole value, so per-token colors need a
+// custom widget.
 //
 // First-cut scope: typing, backspace/delete, enter, arrows, home/end,
 // cursor-follow vertical scroll. No selection, no undo, no horizontal
 // scroll; long strings spanning lines lose color on continuation lines.
-type scriptEditor struct {
+type codeEditor struct {
 	value       string
 	cursor      int // rune offset into value
 	top         int // first visible line
@@ -33,15 +40,19 @@ type scriptEditor struct {
 	height      int
 	focused     bool
 	placeholder string
+	highlight   highlightLine
 }
 
-func newScriptEditor(width, height int, placeholder string) *scriptEditor {
-	return &scriptEditor{width: width, height: height, placeholder: placeholder}
+func newCodeEditor(width, height int, placeholder string, highlight highlightLine) *codeEditor {
+	if highlight == nil {
+		highlight = func(line string) string { return line }
+	}
+	return &codeEditor{width: width, height: height, placeholder: placeholder, highlight: highlight}
 }
 
-func (s *scriptEditor) Value() string { return s.value }
+func (s *codeEditor) Value() string { return s.value }
 
-func (s *scriptEditor) SetValue(v string) {
+func (s *codeEditor) SetValue(v string) {
 	s.value = v
 	if s.cursor > utf8.RuneCountInString(v) {
 		s.cursor = utf8.RuneCountInString(v)
@@ -49,18 +60,18 @@ func (s *scriptEditor) SetValue(v string) {
 	s.scrollToCursor()
 }
 
-func (s *scriptEditor) Focus() tea.Cmd { s.focused = true; return nil }
-func (s *scriptEditor) Blur()          { s.focused = false }
+func (s *codeEditor) Focus() tea.Cmd { s.focused = true; return nil }
+func (s *codeEditor) Blur()          { s.focused = false }
 
-func (s *scriptEditor) SetWidth(w int) { s.width = w }
-func (s *scriptEditor) SetHeight(h int) {
+func (s *codeEditor) SetWidth(w int) { s.width = w }
+func (s *codeEditor) SetHeight(h int) {
 	s.height = h
 	s.scrollToCursor()
 }
 
 // Update handles editing keys; everything else (section navigation etc.)
 // is intercepted by the parent Editor before it reaches the widget.
-func (s *scriptEditor) Update(msg tea.Msg) (*scriptEditor, tea.Cmd) {
+func (s *codeEditor) Update(msg tea.Msg) (*codeEditor, tea.Cmd) {
 	km, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return s, nil
@@ -105,7 +116,7 @@ func (s *scriptEditor) Update(msg tea.Msg) (*scriptEditor, tea.Cmd) {
 	return s, nil
 }
 
-func (s *scriptEditor) insertAt(text []rune, ins string) {
+func (s *codeEditor) insertAt(text []rune, ins string) {
 	in := []rune(ins)
 	s.value = string(concat(text[:s.cursor], in, text[s.cursor:]))
 	s.cursor += len(in)
@@ -124,7 +135,7 @@ func concat(parts ...[]rune) []rune {
 }
 
 // lineBounds returns the rune offsets of the line containing pos.
-func (s *scriptEditor) lineBounds(r []rune, pos int) (int, int) {
+func (s *codeEditor) lineBounds(r []rune, pos int) (int, int) {
 	if pos > len(r) {
 		pos = len(r)
 	}
@@ -141,7 +152,7 @@ func (s *scriptEditor) lineBounds(r []rune, pos int) (int, int) {
 
 // moveLine moves the cursor one line up/down, clamping the column to the
 // target line's length.
-func (s *scriptEditor) moveLine(r []rune, d int) {
+func (s *codeEditor) moveLine(r []rune, d int) {
 	start, end := s.lineBounds(r, s.cursor)
 	col := s.cursor - start
 	if d < 0 {
@@ -172,7 +183,7 @@ func minRune(a, b int) int {
 	return b
 }
 
-func (s *scriptEditor) lineOf(r []rune, pos int) int {
+func (s *codeEditor) lineOf(r []rune, pos int) int {
 	if pos > len(r) {
 		pos = len(r)
 	}
@@ -185,7 +196,7 @@ func (s *scriptEditor) lineOf(r []rune, pos int) int {
 	return n
 }
 
-func (s *scriptEditor) scrollToCursor() {
+func (s *codeEditor) scrollToCursor() {
 	if s.height < 1 {
 		return
 	}
@@ -219,7 +230,18 @@ func luaPaintColors(kind render.LuaKind, lit string) string {
 	return lipgloss.NewStyle().Foreground(color).Render(lit)
 }
 
-func (s *scriptEditor) View() string {
+// highlightLuaLine paints a single Lua source line (the Scripts tab).
+func highlightLuaLine(line string) string {
+	return render.HighlightLua(line, luaPaintColors)
+}
+
+// highlightJSONLine paints a single request-body line. Fragment mode
+// (no validity gate) keeps colors while the body is still being edited.
+func highlightJSONLine(line string) string {
+	return render.HighlightJSONFragment(line, highlightJSONColors)
+}
+
+func (s *codeEditor) View() string {
 	if s.value == "" {
 		return s.placeholderView()
 	}
@@ -244,7 +266,7 @@ func (s *scriptEditor) View() string {
 		if i == cursorLine {
 			rendered = s.renderCursorLine(lines[i], cursorCol)
 		} else {
-			rendered = render.HighlightLua(lines[i], luaPaintColors)
+			rendered = s.highlight(lines[i])
 		}
 		b.WriteString(themes.HintStyle.Render(fmt.Sprintf("%*d ", gutterW, i+1)))
 		b.WriteString(truncateRunesAnsi(rendered, visibleW))
@@ -259,13 +281,13 @@ func (s *scriptEditor) View() string {
 // given rune column. The line is split at the cursor byte offset and each
 // half is highlighted separately; a split inside a token keeps the same
 // color on both sides, so the seam is invisible.
-func (s *scriptEditor) renderCursorLine(line string, col int) string {
+func (s *codeEditor) renderCursorLine(line string, col int) string {
 	rb := []rune(line)
 	if col > len(rb) {
 		col = len(rb)
 	}
 	byteOff := len(string(rb[:col]))
-	pre := render.HighlightLua(line[:byteOff], luaPaintColors)
+	pre := s.highlight(line[:byteOff])
 	rest := line[byteOff:]
 	ch := " "
 	remainder := ""
@@ -274,10 +296,10 @@ func (s *scriptEditor) renderCursorLine(line string, col int) string {
 		ch = string(first)
 		remainder = rest[size:]
 	}
-	return pre + cursorBlock.Render(ch) + render.HighlightLua(remainder, luaPaintColors)
+	return pre + cursorBlock.Render(ch) + s.highlight(remainder)
 }
 
-func (s *scriptEditor) placeholderView() string {
+func (s *codeEditor) placeholderView() string {
 	p := themes.HintStyle.Render(s.placeholder)
 	if s.focused {
 		p = cursorBlock.Render(" ") + p
