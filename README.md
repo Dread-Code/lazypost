@@ -8,19 +8,8 @@ An API client that lives in your terminal — a [Posting](https://posting.sh)-in
 
 Requests are plain YAML files in a directory tree, so a collection is just a folder you can version-control, diff, and share.
 
-```
- GET  https://api.example.com/posts                              env: dev
-╭ Collection ────────────────╮ ╭─ Request · posts/create ────────────────╮
-│ ▸ posts/                   │ │  Query  Headers  Body  Auth  Scripts    │
-│     POST create            │ │ ──────────────────────────────────────  │
-│     GET  get all           │ │ Content-Type: application/json          │
-│   users/                   │ └─────────────────────────────────────────┘
-│     GET  get one           │ ╭─ Response · 201 Created · 65 B · 524ms─╮
-╰────────────────────────────╯ │  Body  Headers                          │
-                               │ ──────────────────────────────────────  │
-                               │  { "id": 101 }                          │
-                               ╰─────────────────────────────────────────╯
-```
+<img width="3024" height="1916" alt="image" src="https://github.com/user-attachments/assets/79e8169e-9316-428b-bb00-8d26fea6fa10" />
+
 
 ## Features
 
