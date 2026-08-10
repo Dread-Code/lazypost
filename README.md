@@ -8,7 +8,8 @@ An API client that lives in your terminal — a [Posting](https://posting.sh)-in
 
 Requests are plain YAML files in a directory tree, so a collection is just a folder you can version-control, diff, and share.
 
-<img width="3024" height="1916" alt="image" src="https://github.com/user-attachments/assets/79e8169e-9316-428b-bb00-8d26fea6fa10" />
+<img width="3024" height="1912" alt="image" src="https://github.com/user-attachments/assets/4a1e695d-ed02-4970-9d5c-162a5f65b6b3" />
+
 
 
 ## Features
