@@ -60,6 +60,37 @@ func TestCodeEditorJSONBodyKeysAndStringsDistinct(t *testing.T) {
 	}
 }
 
+// Regression: visual selection over real chroma-colored JSON must be
+// one uniform reverse-video block — no token color or reset may break
+// the selection after the first token ([[Gotcha - vim visual selection
+// breaks after the first token]]).
+func TestCodeEditorJSONVisualSelectionUniform(t *testing.T) {
+	forceTrueColor(t)
+
+	e := codeeditor.New(60, 10, "", jsonHighlighter())
+	e.SetValue("{\n  \"title\": \"hi\",\n  \"count\": 2\n}")
+	e.SetCursor(3) // start of line 2 (the key line)
+	e.Focus()
+	e.SetMode(codeeditor.ModeVisualChar)
+	// extend across the key token and into the string value
+	e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("lllllllllll")})
+	out := e.View()
+	start := strings.Index(out, "\x1b[7m")
+	if start < 0 {
+		t.Fatalf("no reversed selection in view:\n%s", out)
+	}
+	end := strings.Index(out[start:], "\x1b[0m")
+	sel := out[start : start+end]
+	inner := sel[4:] // strip the \x1b[7m (sel ends at the reset)
+	if strings.Contains(inner, "\x1b[") {
+		t.Errorf("token colors or resets leaked into the selection span %q", sel)
+	}
+	// the selected text is intact inside the block
+	if !strings.Contains(inner, `"title"`) {
+		t.Errorf("selection lost the key text: %q", sel)
+	}
+}
+
 // fgColorAt returns the last SGR 38;2;r;g;b sequence before lit in out.
 func fgColorAt(out, lit string) string {
 	i := strings.Index(out, lit)

@@ -807,7 +807,10 @@ func renderLine(e *Editor, lines []string, i int, st Style, selStart, selEnd, cu
 		rs := len([]rune(line[:pieceStart]))
 		re := len([]rune(line[:pieceEnd]))
 		if selectedIn(lines, i, rs, re, selStart, selEnd) {
-			b.WriteString(st.CursorBlock.Render(p))
+			// uniform selection: strip the token colors and their resets
+			// (a wrapped token's own reset would kill the reverse video
+			// and break the selection after the first token)
+			b.WriteString(st.CursorBlock.Render(StripAnsi(p)))
 			continue
 		}
 		b.WriteString(p)

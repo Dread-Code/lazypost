@@ -273,8 +273,80 @@ func TestVimVisual(t *testing.T) {
 	}
 }
 
-// Selection must render as reverse video over exactly the selected runes
-// (piece boundaries carry the selection into the painted output).
+// tokenHighlighter paints each word with its own color, mimicking a
+// syntax highlighter whose tokens each carry their own SGR + reset —
+// the case that used to break the selection after the first token.
+type tokenHighlighter struct{}
+
+var tokenColors = []string{"\x1b[31m", "\x1b[32m", "\x1b[34m"}
+
+func (tokenHighlighter) paint(line string) string {
+	var b strings.Builder
+	i := 0
+	for _, w := range strings.Fields(line) {
+		b.WriteString(tokenColors[i%len(tokenColors)])
+		b.WriteString(w)
+		b.WriteString("\x1b[0m ")
+		i++
+	}
+	return strings.TrimSuffix(b.String(), " ")
+}
+
+func (tokenHighlighter) Lines(src string) []string {
+	out := []string{}
+	for _, l := range strings.Split(src, "\n") {
+		out = append(out, tokenHighlighter{}.paint(l))
+	}
+	return out
+}
+
+func (tokenHighlighter) Split(prefix, line string, cuts ...int) []string {
+	// paint each piece independently so cut points are plain-line byte
+	// offsets (slicing the painted string directly would cut mid-ANSI)
+	pieces := []string{}
+	prev := 0
+	for _, c := range append(append([]int{}, cuts...), len(line)) {
+		pieces = append(pieces, tokenHighlighter{}.paint(line[prev:c]))
+		prev = c
+	}
+	return pieces
+}
+
+// Selection rendering must be uniform: token colors are stripped and
+// the whole selection renders in one reverse-video style, without a
+// break where the first token's reset lands.
+func TestVimVisualSelectionUniform(t *testing.T) {
+	prev := lipgloss.DefaultRenderer().ColorProfile()
+	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
+
+	e := New(60, 10, "", tokenHighlighter{})
+	e.SetValue("aa bb cc")
+	e.SetCursor(0)
+	e.Focus()
+	e.SetMode(ModeVisualChar)
+	e.Update(key("llll")) // select "aa b" (4 runes)
+	out := e.View()
+	// the selected span is one reversed block over plain text
+	if !strings.Contains(out, "\x1b[7maa b\x1b[0m") {
+		t.Errorf("selection not uniform over %q:\n%q", "aa b", out)
+	}
+	// no token color leaks inside the selection (the first token's
+	// reset used to break the reverse video there)
+	for _, tok := range []string{"\x1b[31maa", "\x1b[32mbb"} {
+		if strings.Contains(out, tok) {
+			t.Errorf("token color %q leaked into the selection:\n%q", tok, out)
+		}
+	}
+	// the unselected remainder keeps its colors (its piece paints "cc"
+	// as the first word of that piece, hence red)
+	if !strings.Contains(out, "\x1b[31mcc\x1b[0m") {
+		t.Errorf("unselected text lost its colors:\n%q", out)
+	}
+}
+
+// Selection must render as reverse video over exactly the selected
+// runes (piece boundaries carry the selection into the painted output).
 func TestVimVisualSelectionRendering(t *testing.T) {
 	prev := lipgloss.DefaultRenderer().ColorProfile()
 	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)

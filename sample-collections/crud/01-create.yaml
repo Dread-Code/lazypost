@@ -15,6 +15,7 @@ body: |
 pre: |
     -- dynamic header showcase: runs before send, mutates a copy of the
     -- request (the YAML file and editor stay untouched)
+
     req.headers["X-Client"] = "lazypost"
 post: |
     -- body-parsing showcase: JSONPlaceholder echoes the post and appends a
