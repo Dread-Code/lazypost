@@ -87,7 +87,7 @@ func (e *Editor) resize() {
 	e.headers.SetWidth(inner)
 	e.auth.SetWidth(inner)
 
-	contentH := e.height - 2 // tab row + divider
+	contentH := e.height - 3 // tab row + divider + mode footer
 	if contentH < 1 {
 		contentH = 1
 	}
@@ -227,7 +227,17 @@ func (e *Editor) View() string {
 		content = e.auth.View()
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, tabRow, divider, content)
+	return lipgloss.JoinVertical(lipgloss.Left, tabRow, divider, content, e.footer())
+}
+
+// footer is the mode indicator row at the bottom of the editor: the
+// active code field's mode (—INSERT—/—NORMAL—/—VISUAL—), empty for the
+// textarea sections which have no modes.
+func (e *Editor) footer() string {
+	if label := e.ModeLabel(); label != "" {
+		return themes.HintStyle.Render(label)
+	}
+	return ""
 }
 
 // scriptsView renders a pre/post toggle row (like the auth type row) with
@@ -372,10 +382,17 @@ func (e *Editor) Mode() codeeditor.Mode {
 	return codeeditor.ModeInsert
 }
 
-// ModeLabel is the pane-title suffix for the active field's mode;
-// empty in insert mode (vim's default, no noise).
+// ModeLabel is the footer text for the active field's mode; empty for
+// the textarea sections, which have no modes.
 func (e *Editor) ModeLabel() string {
+	switch e.section {
+	case SecBody, SecScripts:
+	default:
+		return ""
+	}
 	switch e.Mode() {
+	case codeeditor.ModeInsert:
+		return "—INSERT—"
 	case codeeditor.ModeNormal:
 		return "—NORMAL—"
 	case codeeditor.ModeVisualChar, codeeditor.ModeVisualLine:

@@ -78,11 +78,6 @@ func (m Model) View() string {
 	if p := m.editor.ActivePath(); p != "" {
 		reqTitle += " · " + rel(m.dir, p)
 	}
-	if m.focus == pEditor {
-		if label := m.editor.ModeLabel(); label != "" {
-			reqTitle += " · " + label
-		}
-	}
 	editor := renderPane(reqTitle, m.editor.View(), &themes.EditorAccent, m.focus == pEditor, g.rightW, g.editorH, false)
 
 	respTitle := "Response"

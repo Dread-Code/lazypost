@@ -107,8 +107,11 @@ func TestEditorModeLabel(t *testing.T) {
 	if got := e.ModeLabel(); got != "—NORMAL—" {
 		t.Errorf("body mode label = %q, want —NORMAL— on entry", got)
 	}
-	// entering insert mode and leaving it via esc is explicit
+	// entering insert mode shows the insert footer; esc returns to normal
 	e.body.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("i")})
+	if got := e.ModeLabel(); got != "—INSERT—" {
+		t.Errorf("body mode label in insert = %q, want —INSERT—", got)
+	}
 	e.body.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	if got := e.ModeLabel(); got != "—NORMAL—" {
 		t.Errorf("body mode label after esc = %q, want —NORMAL—", got)
@@ -119,6 +122,16 @@ func TestEditorModeLabel(t *testing.T) {
 	}
 	if got := e.ModeLabel(); got != "—NORMAL—" {
 		t.Errorf("scripts tab mode label = %q, want —NORMAL—", got)
+	}
+	// the footer row is rendered for code sections, empty elsewhere
+	if !strings.Contains(e.View(), "—NORMAL—") {
+		t.Errorf("footer should render the mode, got:\n%s", e.View())
+	}
+	for e.section != SecQuery {
+		e.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	}
+	if got := e.ModeLabel(); got != "" {
+		t.Errorf("query tab mode label = %q, want empty (textarea)", got)
 	}
 }
 
