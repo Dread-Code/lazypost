@@ -695,7 +695,16 @@ func (e *Editor) View() string {
 		var rendered string
 		switch {
 		case i < total && i < len(colored):
-			rendered = renderLine(e, lines, i, st, selStart, selEnd, cursorLine, cursorCol)
+			ls := lineRuneStart(lines, i)
+			le := ls + len([]rune(lines[i]))
+			// only the cursor line and selection lines need piece-level
+			// re-painting (cursor block / selection cuts); everything
+			// else comes from the whole-buffer pass
+			if i == cursorLine || (selStart >= 0 && ls < selEnd && le > selStart) {
+				rendered = renderLine(e, lines, i, st, selStart, selEnd, cursorLine, cursorCol)
+			} else {
+				rendered = colored[i]
+			}
 			b.WriteString(st.Gutter.Render(fmt.Sprintf("%*d ", gutterW, i+1)))
 		case i < total:
 			rendered = lines[i]
@@ -720,7 +729,13 @@ func (e *Editor) View() string {
 func renderLine(e *Editor, lines []string, i int, st Style, selStart, selEnd, cursorLine, cursorCol int) string {
 	line := lines[i]
 	rb := []rune(line)
-	prefix := strings.Join(lines[:i], "\n")
+	// the prefix must be the exact text before this line, INCLUDING the
+	// newline separator — without it, tokens that end at a line boundary
+	// (a `--` Lua comment, a single-line string) swallow the cursor line
+	prefix := ""
+	if i > 0 {
+		prefix = strings.Join(lines[:i], "\n") + "\n"
+	}
 
 	// cursor char cut positions (byte offsets into the line). A cursor
 	// at the end of the line has no char piece; the block renders after.

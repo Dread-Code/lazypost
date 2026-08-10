@@ -237,6 +237,43 @@ func TestEditorWideLineTruncated(t *testing.T) {
 	}
 }
 
+// prefixRecorder captures the prefix the editor hands to the
+// highlighter for the cursor line.
+type prefixRecorder struct {
+	got string
+	hl  Highlighter
+}
+
+func (p *prefixRecorder) Lines(src string) []string { return p.hl.Lines(src) }
+
+func (p *prefixRecorder) Split(prefix, line string, cuts ...int) []string {
+	p.got = prefix
+	return p.hl.Split(prefix, line, cuts...)
+}
+
+// The cursor-line prefix must be the exact preceding text including the
+// trailing newline — tokens that terminate at a line boundary (a Lua
+// `--` comment, a single-line string) would otherwise swallow the
+// cursor line and color it as a comment.
+func TestEditorCursorPrefixIncludesNewline(t *testing.T) {
+	rec := &prefixRecorder{hl: markerHighlighter{}}
+	e := New(60, 10, "", rec)
+	e.SetValue("-- a comment\nreq.headers[\"X\"] = \"y\"")
+	e.SetCursor(len([]rune("-- a comment\n"))) // cursor on line 2, col 0
+	e.Focus()
+	e.View()
+	if rec.got != "-- a comment\n" {
+		t.Errorf("cursor-line prefix = %q, want %q (trailing newline)", rec.got, "-- a comment\n")
+	}
+	// the first line gets no prefix at all
+	rec.got = ""
+	e.SetCursor(0)
+	e.View()
+	if rec.got != "" {
+		t.Errorf("first-line prefix = %q, want empty", rec.got)
+	}
+}
+
 // The window always renders exactly e.height rows: rows beyond the
 // buffer are blank, so consumers never need to pad (the mode footer in
 // lazypost relies on it).

@@ -8,7 +8,9 @@ import (
 
 	"github.com/Dread-Code/codeeditor"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/muesli/termenv"
+	"lazypost/internal/ui/themes"
 )
 
 func forceTrueColor(t *testing.T) {
@@ -88,6 +90,30 @@ func TestCodeEditorJSONVisualSelectionUniform(t *testing.T) {
 	// the selected text is intact inside the block
 	if !strings.Contains(inner, `"title"`) {
 		t.Errorf("selection lost the key text: %q", sel)
+	}
+}
+
+// Regression: with the cursor on the line after a Lua comment, the code
+// must keep its colors — the cursor-line prefix used to omit the
+// trailing newline, so chroma's `--.*$` comment token swallowed the
+// next line ([[Gotcha - cursor line after a comment renders as a
+// comment]]).
+func TestLuaCursorLineAfterCommentNotCommented(t *testing.T) {
+	forceTrueColor(t)
+
+	e := codeeditor.New(60, 10, "", luaHighlighter())
+	e.SetValue("-- a comment\nreq.headers[\"X\"] = \"y\"\nlocal z = 2")
+	e.SetCursor(len([]rune("-- a comment\n"))) // line 2, col 0
+	e.Focus()
+	out := e.View()
+	// "eq.headers" is an identifier: it renders uncolored. If the comment
+	// swallowed the cursor line, it would be wrapped in the muted style.
+	commentStyled := lipgloss.NewStyle().Foreground(themes.ColorMuted).Render(`eq.headers`)
+	if strings.Contains(out, commentStyled) {
+		t.Errorf("cursor line after a comment is comment-colored:\n%s", out)
+	}
+	if !strings.Contains(out, `eq.headers`) {
+		t.Errorf("cursor line lost its code:\n%s", out)
 	}
 }
 

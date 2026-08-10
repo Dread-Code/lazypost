@@ -19,7 +19,10 @@ type Highlighter interface {
 	// Split paints line in the context of prefix and returns the colored
 	// line cut at the given byte offsets into line (clamped, sorted,
 	// deduplicated): n cuts yield n+1 pieces whose concatenation is the
-	// full painted line. The prefix restores the token state, so a cut
+	// full painted line. prefix must be the exact preceding text
+	// INCLUDING the trailing newline — tokens that terminate at a line
+	// boundary (a `--` Lua comment, a single-line string) would swallow
+	// the line otherwise. The prefix restores the token state, so a cut
 	// inside a token keeps that token's color on both sides — the cursor
 	// seam and visual-selection boundaries are both expressed as cuts.
 	Split(prefix, line string, cuts ...int) []string

@@ -1,16 +1,21 @@
 name: update post
 method: PUT
-url: "{{host}}/posts/{{post_id}}"
+url: '{{host}}/posts/{{post_id}}'
 headers:
-  - name: Accept
-    value: application/json
-  - name: Content-Type
-    value: application/json
+    - name: Accept
+      value: application/json
+    - name: Content-Type
+      value: application/json
 body: |
-  {"id": {{post_id}}, "title": "{{title}} (updated)", "body": "A post updated by lazypost", "userId": {{user_id}}}
+    {
+      "id": "{{post_id}}",
+      "title": "{{title}} (updated)",
+      "body": "A post updated by lazypost",
+      "userId": "{{user_id}}"
+    }
 post: |
-  -- assert we actually updated a real resource
-  if response.status_code == 200 then
-    return true
-  end
-  return "expected 200, got " .. tostring(response.status_code)
+    -- assert we actually updated a real resource
+    if response.status_code == 200 then
+      return true
+    end
+    return "expected 200, got " .. tostring(response.status_code)
