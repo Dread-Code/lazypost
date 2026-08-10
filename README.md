@@ -15,6 +15,7 @@ Requests are plain YAML files in a directory tree, so a collection is just a fol
 
 - **Request top bar** — method + URL always visible, editable from any pane with `ctrl+l`; `enter` sends
 - **Request editor** — query params, headers, body, auth (none / basic / bearer / api key), and per-request Lua scripts
+- **Vim editing modes** — every editor field (query, headers, body, scripts) lands in NORMAL mode on focus: `hjkl wbe 0$^ ggG %` motions, `dd yy dw y$` operators with counts, visual selection (`v`/`V`) with yank to the system clipboard, `p`/`P` paste; mode shown in a themed footer row (`q` quits from normal/visual mode)
 - **Scripting & chaining** — sandboxed Lua `pre`/`post` hooks share a session `store` (`store.get` / `store.set`), so one response can feed the next request
 - **Collections** — requests as readable YAML in a directory tree; `enter` collapses folders, `a`/`d`/`r` add / delete / rename with confirmation
 - **Open any directory** — run lazypost anywhere and the current directory (or `-dir`) becomes a collection, marked with a `.lazypost` file
@@ -77,7 +78,7 @@ Check what you're running with `lazypost -version`.
 | `ctrl+s`       | save request                            |
 | `ctrl+l`       | jump to the URL bar                     |
 | `ctrl+g`       | export current request as curl          |
-| `q`            | quit (collection / response pane)       |
+| `q`            | quit (collection / response / editor normal & visual modes) |
 | `ctrl+c`       | quit                                    |
 
 ### Collection · sidebar
@@ -102,8 +103,18 @@ Check what you're running with `lazypost -version`.
 
 ### Editor
 
+Every code field (query, headers, body, scripts) is vim-modal: it lands in **NORMAL** when you focus it, and editing is an explicit `i` away. The current mode shows in a colored footer row at the bottom of the editor.
+
 | Key                | Action                          |
 | ------------------ | ------------------------------- |
+| `i` / `a` / `A` / `I` / `o` / `O` | enter insert mode (editing) |
+| `esc`              | back to NORMAL                  |
+| `hjkl` / `wbe` / `0$^` / `ggG` / `%` | motions           |
+| `x` / `dd` / `dw` / `d$` / `d0` | delete (with counts: `d2w`, `3dd`) |
+| `yy` / `yw` / `y$` | yank (copied to the system clipboard) |
+| `p` / `P`          | paste the last yank/delete      |
+| `v` / `V`          | visual selection (char/line); `y` yanks, `d` deletes |
+| `q`                | quit (normal/visual mode only; in insert it types) |
 | `ctrl+n`/`ctrl+p`  | move between sections           |
 | `alt+←`/`alt+→`    | switch tabs                     |
 | `ctrl+t`           | cycle auth type                 |
@@ -201,9 +212,12 @@ Custom themes live in `~/.config/lazypost/themes/<name>.yaml` (or `$XDG_CONFIG_H
 
 ```sh
 gofmt -l . && go vet ./... && go test ./...
+cd lib/codeeditor && go vet ./... && go test ./...   # the standalone editor module has its own go.mod
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same checks plus `go mod tidy` and `go build` on every push to `main` and pull request; a green `test` check is required on `main`.
+The editor widget lives in [`lib/codeeditor/`](lib/codeeditor) as its own Go module (the first standalone Bubble Tea syntax-highlighted editor with vim modes) — lazypost wires it via a `replace` directive with the chroma + theme highlighters in `internal/ui/widgets/highlighters.go`.
+
+CI (`.github/workflows/ci.yml`) runs the same checks plus `go mod tidy` and `go build` on every push to `main` and pull request (including the `lib/codeeditor` submodule); a green `test` check is required on `main`.
 
 ## Roadmap
 
@@ -211,9 +225,10 @@ CI (`.github/workflows/ci.yml`) runs the same checks plus `go mod tidy` and `go 
 
 - Request history, keybindings panel, response highlighting, script editor, themes, session persistence
 - Open the current directory as a collection, `.lazypost` marker
+- Vim editing modes in every editor field (motions, operators, visual selection, yank)
 - CI on push, releases + `install.sh`, `-version` stamp
 
 ### Later
 
-- **Importers (Postman/Insomnia)** · **cookies & trace tabs** · **vim modes** · **LSP for scripts**
+- **Importers (Postman/Insomnia)** · **cookies & trace tabs** · **LSP for scripts**
 - **Copy / cut / paste** in the sidebar
