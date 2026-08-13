@@ -23,3 +23,17 @@ jobs:
       # the codeeditor submodule has its own go.mod: the root steps above
       # do not walk into it (gofmt does — it ignores module boundaries)
       - run: cd lib/codeeditor && go mod tidy && test -z "$(git diff -- go.mod go.sum)" && go vet ./... && go test ./... -count=1
+
+  # Benchmark visibility job: prints ns/op + allocs on every push without
+  # failing — shared runners are noisy, so no thresholds until baselines
+  # exist (11 Benchmarks in the vault). Deliberately not a required check.
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test -run '^$' -bench=. -benchtime=200ms -benchmem ./internal/collection ./internal/app ./internal/ui/model ./internal/ui/widgets
+      - run: cd lib/codeeditor && go test -run '^$' -bench=. -benchtime=200ms -benchmem .
