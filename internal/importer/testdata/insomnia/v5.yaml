@@ -1,0 +1,27 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: Insomnia v5 Demo
+collection:
+  - name: Users
+    meta:
+      id: fld_users
+    children:
+      - name: List users
+        meta:
+          id: req_list
+        url: "{{ _.base_url }}/users"
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+            disabled: false
+        parameters:
+          - name: limit
+            value: "10"
+            disabled: false
+        scripts:
+          afterResponse: "insomnia.test('ok', () => {})"
+environments:
+  name: Base
+  data:
+    base_url: https://api.example.test

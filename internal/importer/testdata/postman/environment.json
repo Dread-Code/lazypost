@@ -1,0 +1,8 @@
+{
+  "id": "env-demo",
+  "name": "dev",
+  "values": [
+    { "key": "token", "value": "secret", "enabled": true },
+    { "key": "disabled", "value": "ignore", "enabled": false }
+  ]
+}

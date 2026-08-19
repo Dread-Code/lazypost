@@ -19,7 +19,8 @@ Requests are plain YAML files in a directory tree, so a collection is just a fol
 - **Vim editing modes** — every editor field (query, headers, body, scripts) lands in NORMAL mode on focus: `hjkl wbe 0$^ ggG %` motions, `dd yy dw y$` operators with counts, visual selection (`v`/`V`) with yank to the system clipboard, `p`/`P` paste; mode shown in a themed footer row (`q` quits from normal/visual mode)
 - **Scripting & chaining** — sandboxed Lua `pre`/`post` hooks share a session `store` (`store.get` / `store.set`), so one response can feed the next request
 - **Collections** — requests as readable YAML in a directory tree; `enter` collapses folders, `a`/`d`/`r` add / delete / rename with confirmation
-- **Open any directory** — run lazypost anywhere and the current directory (or `-dir`) becomes a collection, marked with a `.lazypost` file
+- **Open any directory** — run lazypost anywhere and the current directory (or `-dir`) becomes a collection, marked with `config/config.yaml`
+- **Collection importers** — import Postman v2.1 JSON and Insomnia v4 JSON / v5 YAML with `lazypost import`; workspaces become top-level folders, while requests, environments, headers, query params, bodies, and supported auth are converted to lazypost YAML
 - **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from `environments/*.yaml`
 - **Response viewer** — status / time / size summary, theme-colored JSON, headers tab
 - **Request history** — last 20 sends (request + response) in memory; `ctrl+h` browses, enter restores, `ctrl+r` resends
@@ -52,7 +53,7 @@ Check what you're running with `lazypost -version`.
 
 ## Quick start
 
-1. `lazypost` in any directory — when asked, give the collection a name (this writes a `.lazypost` marker)
+1. `lazypost` in any directory — the current directory is initialized with `config/config.yaml` when needed
 2. `n` creates a request; `ctrl+l` edits the URL, `ctrl+t` cycles the method
 3. `ctrl+s` saves, `ctrl+r` sends
 4. Drop environment files in `environments/` and switch with `ctrl+e`
@@ -131,14 +132,29 @@ Every code field (query, headers, body, scripts) is vim-modal: it lands in **NOR
 
 ## Collections
 
-A collection is a directory of YAML files; subdirectories become folders. A `.lazypost` marker marks a directory as a collection and supplies its display name:
+A collection is a directory of YAML files; subdirectories become folders. A root-level `config/config.yaml` marks a directory as a collection:
 
 ```yaml
-name: My API collection      # title bar name
-root: ~/APIs/main            # optional: point here at the real collection root
+version: 1
 ```
 
-Open any directory you choose (`-dir` or the current directory) and lazypost becomes that collection: without a marker it asks for a name and writes the marker on confirm (`esc` opens it anyway, writing nothing). `./sample-collections` / `./collections` are treated as collections without a marker.
+Open any directory you choose (`-dir` or the current directory) and lazypost initializes it automatically. Existing `.lazypost` markers remain readable for the current session and migrate to `config/config.yaml` on the first write; their legacy name/root fields are discarded. `./sample-collections` / `./collections` are treated as implicit collections without creating a marker.
+
+### Import existing collections
+
+Import a Postman or Insomnia export into a new lazypost collection:
+
+```sh
+lazypost import postman-collection.json \
+  -env postman-dev.json \
+  -dir ./collections/my-api
+
+lazypost import insomnia-export.yaml \
+  -dir ./collections/my-api \
+  --dry-run
+```
+
+Supported sources are Postman Collection v2.1 JSON, Insomnia v4 JSON exports, and Insomnia v5 YAML collections or export directories. Postman collection names and Insomnia workspaces become top-level folders; Insomnia directories combine all supported workspaces and skip unrelated resources such as mock servers with warnings. Format detection is automatic; use `--format postman` or `--format insomnia` to override it. Imports refuse an existing target unless `--force`, stage output before replacing the target, and report unsupported scripts, body modes, and auth schemes as warnings. Use `--strict` to fail on any warning.
 
 ### Request format
 
@@ -225,11 +241,12 @@ CI (`.github/workflows/ci.yml`) runs the same checks plus `go mod tidy` and `go 
 ### Done
 
 - Request history, keybindings panel, response highlighting, script editor, themes, session persistence
-- Open the current directory as a collection, `.lazypost` marker
+- Open the current directory as a collection, versioned `config/config.yaml` marker
+- Postman and Insomnia collection import
 - Vim editing modes in every editor field (motions, operators, visual selection, yank)
 - CI on push, releases + `install.sh`, `-version` stamp
 
 ### Later
 
-- **Importers (Postman/Insomnia)** · **cookies & trace tabs** · **LSP for scripts**
+- **Cookies & trace tabs** · **LSP for scripts**
 - **Copy / cut / paste** in the sidebar

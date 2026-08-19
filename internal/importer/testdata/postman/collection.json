@@ -1,0 +1,44 @@
+{
+  "info": {
+    "name": "Postman Demo",
+    "schema": "https://schema.getpostman.com/json/draft-07/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://api.example.test" }
+  ],
+  "item": [
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users?limit=10",
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "disabled", "value": "x", "disabled": true }
+              ]
+            },
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Skip", "value": "x", "disabled": true }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"hello\":\"world\"}"
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('ok')"] } }
+          ]
+        }
+      ]
+    }
+  ]
+}

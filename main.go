@@ -18,6 +18,14 @@ import (
 var version = "dev"
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "import" {
+		if err := runImport(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "lazypost import: %v\n", err)
+			os.Exit(2)
+		}
+		return
+	}
+
 	dir := flag.String("dir", "", "collection directory (default: ./sample-collections, ./collections, or the current directory)")
 	ver := flag.Bool("version", false, "print version and exit")
 	flag.Parse()

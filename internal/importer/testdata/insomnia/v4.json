@@ -1,0 +1,41 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "resources": [
+    { "_type": "workspace", "_id": "wrk_demo", "name": "Insomnia v4 Demo" },
+    { "_type": "request_group", "_id": "fld_users", "parentId": "wrk_demo", "name": "Users" },
+    {
+      "_type": "request",
+      "_id": "req_list",
+      "parentId": "fld_users",
+      "name": "List users",
+      "method": "GET",
+      "url": "{{ _.base_url }}/users",
+      "headers": [{ "name": "Accept", "value": "application/json" }],
+      "parameters": [{ "name": "limit", "value": "10" }]
+    },
+    {
+      "_type": "environment",
+      "_id": "env_base",
+      "parentId": "wrk_demo",
+      "name": "Base",
+      "data": { "base_url": "https://api.example.test", "token": "secret" }
+    },
+    { "_type": "workspace", "_id": "wrk_admin", "name": "Admin" },
+    {
+      "_type": "request",
+      "_id": "req_admin",
+      "parentId": "wrk_admin",
+      "name": "List admin users",
+      "method": "GET",
+      "url": "https://admin.example.test/users"
+    },
+    {
+      "_type": "environment",
+      "_id": "env_admin",
+      "parentId": "wrk_admin",
+      "name": "Base",
+      "data": { "base_url": "https://admin.example.test" }
+    }
+  ]
+}
