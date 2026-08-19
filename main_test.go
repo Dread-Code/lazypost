@@ -52,34 +52,63 @@ func TestCanonicalRootMakesAbsolute(t *testing.T) {
 	}
 }
 
-func TestMarkerOptionsWithMarker(t *testing.T) {
-	opts := markerOptions("", ".", &collection.Marker{Name: "My API"})
+func TestMarkerOptionsWithLegacyMarker(t *testing.T) {
+	opts := markerOptions(
+		&collection.Marker{Name: "My API", Legacy: true},
+		[]string{"/tmp/.lazypost"},
+	)
 	m := newModelWithOpts(opts)
-	if m.CollectionName() != "My API" || m.NeedsMarker() {
-		t.Errorf("with marker: got name=%q prompt=%v, want name=My API prompt=false", m.CollectionName(), m.NeedsMarker())
+	if m.CollectionName() != "My API" {
+		t.Errorf("with legacy marker: got name=%q, want My API", m.CollectionName())
 	}
 }
 
-func TestMarkerOptionsExplicitDirPrompts(t *testing.T) {
-	m := newModelWithOpts(markerOptions("/some/dir", ".", nil))
-	if !m.NeedsMarker() {
-		t.Error("explicit -dir without marker should prompt")
+func TestMarkerOptionsWithoutMarkerDoesNotPrompt(t *testing.T) {
+	m := newModelWithOpts(markerOptions(nil, nil))
+	if m.CollectionName() != "" {
+		t.Errorf("without marker: got legacy name %q", m.CollectionName())
 	}
 }
 
-func TestMarkerOptionsCwdFallbackPrompts(t *testing.T) {
-	m := newModelWithOpts(markerOptions("", ".", nil))
-	if !m.NeedsMarker() {
-		t.Error("cwd fallback without marker should prompt")
+func TestShouldInitializeCollection(t *testing.T) {
+	if !shouldInitializeCollection("/some/dir", ".") {
+		t.Error("explicit -dir should initialize")
 	}
-}
-
-func TestMarkerOptionsImplicitCollectionsNoPrompt(t *testing.T) {
+	if !shouldInitializeCollection("", ".") {
+		t.Error("cwd fallback should initialize")
+	}
 	for _, resolved := range []string{"sample-collections", "collections"} {
-		m := newModelWithOpts(markerOptions("", resolved, nil))
-		if m.NeedsMarker() {
-			t.Errorf("resolved %q should stay implicit (no prompt)", resolved)
+		if shouldInitializeCollection("", resolved) {
+			t.Errorf("resolved %q should stay implicit", resolved)
 		}
+	}
+}
+
+func TestInitializeCollectionCreatesConfigMarker(t *testing.T) {
+	root := t.TempDir()
+	marker, err := initializeCollection("/explicit", "ignored", root, nil)
+	if err != nil {
+		t.Fatalf("initializeCollection: %v", err)
+	}
+	if marker == nil || marker.Legacy || marker.Version != 1 {
+		t.Fatalf("marker = %+v, want new versioned marker", marker)
+	}
+	if _, err := os.Stat(filepath.Join(root, collection.ConfigDir, collection.ConfigFile)); err != nil {
+		t.Fatalf("config marker missing: %v", err)
+	}
+}
+
+func TestInitializeCollectionLeavesImplicitRootUnchanged(t *testing.T) {
+	root := t.TempDir()
+	marker, err := initializeCollection("", "sample-collections", root, nil)
+	if err != nil {
+		t.Fatalf("initializeCollection: %v", err)
+	}
+	if marker != nil {
+		t.Fatalf("marker = %+v, want nil for implicit root", marker)
+	}
+	if _, err := os.Stat(filepath.Join(root, collection.ConfigDir)); !os.IsNotExist(err) {
+		t.Fatalf("implicit root was initialized: %v", err)
 	}
 }
 

@@ -54,9 +54,12 @@ func (m *Model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 // doDelete removes the highlighted entry (file or folder) and refreshes
 // the tree. If it was the active request the editor is reset.
 func (m *Model) doDelete(e *collection.Entry) tea.Cmd {
+	if !m.prepareWrite() {
+		return nil
+	}
 	entries, err := app.DeleteEntry(m.dir, e)
 	if err != nil {
-		m.setNotice("delete failed: "+err.Error(), true)
+		m.writeNotice("delete failed: "+err.Error(), true)
 		return nil
 	}
 	if e.Path == m.editor.ActivePath() {
@@ -64,6 +67,6 @@ func (m *Model) doDelete(e *collection.Entry) tea.Cmd {
 		m.editor.New()
 	}
 	m.sidebar.SetEntries(entries)
-	m.setNotice("deleted "+rel(m.dir, e.Path), false)
+	m.writeNotice("deleted "+rel(m.dir, e.Path), false)
 	return m.saveState()
 }

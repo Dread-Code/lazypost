@@ -30,12 +30,17 @@ func main() {
 	resolved := resolveRoot(*dir)
 	root := canonicalRoot(resolved)
 
-	// Resolve the .lazypost marker: a marker with root set points at the
-	// real collection elsewhere ([[Design - collection marker file]]).
+	// Resolve the collection marker. Legacy .lazypost markers are kept alive
+	// for this session; their paths are migrated on the first collection
+	// write, after which name/root are intentionally discarded.
 	marker, err := collection.LoadMarker(root)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "lazypost: cannot read marker in %q: %v\n", root, err)
 		os.Exit(1)
+	}
+	var legacyPaths []string
+	if marker != nil && marker.Legacy {
+		legacyPaths = append(legacyPaths, marker.LegacyPath)
 	}
 	if marker != nil && marker.Root != "" {
 		root = canonicalRoot(marker.Root)
@@ -44,7 +49,18 @@ func main() {
 			os.Exit(1)
 		} else {
 			marker = redirected
+			if marker != nil && marker.Legacy {
+				legacyPaths = append(legacyPaths, marker.LegacyPath)
+			}
 		}
+	}
+
+	// Explicit directories and the cwd fallback become collections on first
+	// open. The repository's implicit sample/collections roots remain
+	// markerless so launching lazypost does not dirty the checkout.
+	if marker, err = initializeCollection(*dir, resolved, root, marker); err != nil {
+		fmt.Fprintf(os.Stderr, "lazypost: cannot initialize collection %q: %v\n", root, err)
+		os.Exit(1)
 	}
 
 	// Load the collection tree and environments once, up front; the
@@ -77,7 +93,7 @@ func main() {
 	}
 	themes.ThemeByName(st.Theme).Apply()
 
-	opts := markerOptions(*dir, resolved, marker)
+	opts := markerOptions(marker, legacyPaths)
 	opts = append(opts, model.WithVersion(version))
 
 	p := tea.NewProgram(model.New(root, entries, envs, envNames, st, opts...), tea.WithAltScreen())
@@ -114,16 +130,32 @@ func canonicalRoot(root string) string {
 	return root
 }
 
-// markerOptions decides how the model opens the collection. A present
-// marker supplies its name; a missing marker on a user-chosen directory
-// (-dir or the cwd fallback) prompts for a name on first run. The
-// auto-detected sample-collections/collections stay implicit.
-func markerOptions(dir, resolved string, marker *collection.Marker) []model.Option {
-	if marker != nil {
-		return []model.Option{model.WithCollectionName(marker.Name)}
+// shouldInitializeCollection limits automatic marker creation to roots the
+// user explicitly selected or the cwd fallback. Preferred repository roots
+// remain implicit collections.
+func shouldInitializeCollection(dir, resolved string) bool {
+	return dir != "" || resolved == "."
+}
+
+func initializeCollection(dir, resolved, root string, marker *collection.Marker) (*collection.Marker, error) {
+	if marker != nil || !shouldInitializeCollection(dir, resolved) {
+		return marker, nil
 	}
-	if dir != "" || resolved == "." {
-		return []model.Option{model.WithMarkerPrompt()}
+	if err := collection.WriteMarker(root); err != nil {
+		return nil, err
 	}
-	return nil
+	return collection.LoadMarker(root)
+}
+
+// markerOptions preserves legacy display names for the current session and
+// carries legacy marker paths to the first write for migration.
+func markerOptions(marker *collection.Marker, legacyPaths []string) []model.Option {
+	var opts []model.Option
+	if marker != nil && marker.Legacy && marker.Name != "" {
+		opts = append(opts, model.WithCollectionName(marker.Name))
+	}
+	if len(legacyPaths) > 0 {
+		opts = append(opts, model.WithLegacyMarkers(legacyPaths...))
+	}
+	return opts
 }

@@ -81,11 +81,8 @@ func DeleteEntry(dir string, e *collection.Entry) ([]collection.Entry, error) {
 	return collection.Load(dir)
 }
 
-// CreateCollection writes the .lazypost marker that marks root as a
-// collection, returning the reloaded tree.
-func CreateCollection(root, name string) ([]collection.Entry, error) {
-	if err := collection.WriteMarker(root, name); err != nil {
-		return nil, err
-	}
-	return collection.Load(root)
+// MigrateCollection writes the new config marker and removes legacy marker
+// paths. The new contract intentionally does not carry over name/root.
+func MigrateCollection(root string, legacyPaths []string) error {
+	return collection.MigrateLegacy(root, legacyPaths...)
 }

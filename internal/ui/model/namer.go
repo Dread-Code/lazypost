@@ -1,8 +1,6 @@
 package model
 
 import (
-	"path/filepath"
-
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -18,14 +16,7 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.namer.rename = false
 			m.namer.envEdit = ""
 			m.namer.envNew = false
-			m.namer.marker = false
 			m.namer.widget.SetEnvMode(false)
-			if m.needsMarker {
-				// cancel: open anyway with the dir basename as the name,
-				// no marker written
-				m.needsMarker = false
-				m.collectionName = filepath.Base(m.dir)
-			}
 			return m, nil
 
 		case key.Matches(km, keyEnter):
@@ -33,11 +24,6 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if name == "" {
 				m.setNotice("name is required", true)
 				return m, nil
-			}
-
-			if m.namer.marker {
-				m.namer.marker = false
-				return m.createCollection(name)
 			}
 
 			// environment variable edit (key=value); a leading "/" in add

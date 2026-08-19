@@ -257,15 +257,18 @@ func TestDefaultName(t *testing.T) {
 
 func TestMarkerRoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	if err := WriteMarker(dir, "My API collection"); err != nil {
+	if err := WriteMarker(dir); err != nil {
 		t.Fatalf("WriteMarker: %v", err)
 	}
 	m, err := LoadMarker(dir)
 	if err != nil {
 		t.Fatalf("LoadMarker: %v", err)
 	}
-	if m == nil || m.Name != "My API collection" || m.Root != "" {
-		t.Fatalf("LoadMarker = %+v, want name %q with empty root", m, "My API collection")
+	if m == nil || m.Legacy || m.Version != 1 || m.Name != "" || m.Root != "" {
+		t.Fatalf("LoadMarker = %+v, want new versioned marker without legacy fields", m)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ConfigDir, ConfigFile)); err != nil {
+		t.Fatalf("new config marker missing: %v", err)
 	}
 }
 
@@ -280,9 +283,26 @@ func TestMarkerAbsent(t *testing.T) {
 	}
 }
 
+func TestConfigDirectoryWithoutFileIsNotMarker(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, ConfigDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m, err := LoadMarker(dir)
+	if err != nil {
+		t.Fatalf("LoadMarker: %v", err)
+	}
+	if m != nil {
+		t.Fatalf("LoadMarker = %+v, want nil for incomplete config marker", m)
+	}
+}
+
 func TestMarkerMalformed(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, MarkerFile), []byte("{{not yaml"), 0o644); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, ConfigDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ConfigDir, ConfigFile), []byte("{{not yaml"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LoadMarker(dir); err == nil {
@@ -290,9 +310,38 @@ func TestMarkerMalformed(t *testing.T) {
 	}
 }
 
+func TestLegacyMarkerFallbackAndMigration(t *testing.T) {
+	dir := t.TempDir()
+	legacyPath := filepath.Join(dir, MarkerFile)
+	legacy := []byte("name: Old API\nroot: ../main\n")
+	if err := os.WriteFile(legacyPath, legacy, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, err := LoadMarker(dir)
+	if err != nil {
+		t.Fatalf("LoadMarker: %v", err)
+	}
+	if m == nil || !m.Legacy || m.Name != "Old API" || m.Root != "../main" || m.LegacyPath != legacyPath {
+		t.Fatalf("LoadMarker = %+v, want legacy marker details", m)
+	}
+	if err := MigrateLegacy(dir, m.LegacyPath); err != nil {
+		t.Fatalf("MigrateLegacy: %v", err)
+	}
+	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
+		t.Fatalf("legacy marker still exists: %v", err)
+	}
+	got, err := LoadMarker(dir)
+	if err != nil {
+		t.Fatalf("LoadMarker after migration: %v", err)
+	}
+	if got == nil || got.Legacy || got.Version != 1 || got.Name != "" || got.Root != "" {
+		t.Fatalf("migrated marker = %+v, want new marker without legacy fields", got)
+	}
+}
+
 func TestMarkerNotInTree(t *testing.T) {
 	dir := t.TempDir()
-	if err := WriteMarker(dir, "n"); err != nil {
+	if err := WriteMarker(dir); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := Load(dir)
@@ -300,8 +349,29 @@ func TestMarkerNotInTree(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 	for _, e := range entries {
-		if e.Name == MarkerFile {
-			t.Fatalf("Load included the marker %q as a tree entry", MarkerFile)
+		if e.Name == ConfigDir {
+			t.Fatalf("Load included the config directory as a tree entry")
 		}
+	}
+}
+
+func TestNestedConfigIsInTree(t *testing.T) {
+	dir := t.TempDir()
+	nested := filepath.Join(dir, "folder", ConfigDir)
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	var found bool
+	for _, e := range entries {
+		if e.Path == nested && e.Kind == Dir {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("Load omitted nested config directory")
 	}
 }

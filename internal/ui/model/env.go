@@ -211,17 +211,20 @@ func (m *Model) setEnvironmentVar(env, kv string) (tea.Model, tea.Cmd) {
 		m.setNotice("expected key=value", true)
 		return m, nil
 	}
+	if !m.prepareWrite() {
+		return m, nil
+	}
 	vars := m.envs[env]
 	if vars == nil {
 		vars = map[string]string{}
 	}
 	vars[strings.TrimSpace(key)] = strings.TrimSpace(val)
 	if err := collection.SaveEnvironment(m.dir, env, vars); err != nil {
-		m.setNotice("edit environment: "+err.Error(), true)
+		m.writeNotice("edit environment: "+err.Error(), true)
 		return m, nil
 	}
 	m.reloadEnvs()
-	m.setNotice("environment "+env+" updated", false)
+	m.writeNotice("environment "+env+" updated", false)
 	m.palette.envTab = slices.Index(m.envNames, env)
 	return m.openEnvManager()
 }
@@ -230,12 +233,15 @@ func (m *Model) setEnvironmentVar(env, kv string) (tea.Model, tea.Cmd) {
 // the add-variable namer), persists it, and reopens the env manager on
 // the new tab.
 func (m *Model) createEnvironment(name string) (tea.Model, tea.Cmd) {
+	if !m.prepareWrite() {
+		return m, nil
+	}
 	if err := collection.SaveEnvironment(m.dir, name, map[string]string{}); err != nil {
-		m.setNotice("create environment: "+err.Error(), true)
+		m.writeNotice("create environment: "+err.Error(), true)
 		return m, nil
 	}
 	m.reloadEnvs()
-	m.setNotice("environment "+name+" created", false)
+	m.writeNotice("environment "+name+" created", false)
 	m.palette.envTab = slices.Index(m.envNames, name)
 	return m.openEnvManager()
 }
@@ -247,13 +253,16 @@ func (m *Model) deleteVariable(env, key string) tea.Cmd {
 	if vars == nil {
 		return nil
 	}
+	if !m.prepareWrite() {
+		return nil
+	}
 	delete(vars, key)
 	if err := collection.SaveEnvironment(m.dir, env, vars); err != nil {
-		m.setNotice("edit environment: "+err.Error(), true)
+		m.writeNotice("edit environment: "+err.Error(), true)
 		return nil
 	}
 	m.reloadEnvs()
-	m.setNotice("deleted variable "+key, false)
+	m.writeNotice("deleted variable "+key, false)
 	m.palette.envTab = slices.Index(m.envNames, env)
 	_, _ = m.openEnvManager() // mutates m in place via pointer receiver
 	return nil

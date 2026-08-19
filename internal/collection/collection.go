@@ -66,42 +66,105 @@ type Entry struct {
 
 const environmentsDir = "environments"
 
-// MarkerFile marks a directory as a collection by intent
-// ([[Design - collection marker file]]).
-const MarkerFile = ".lazypost"
+const (
+	// ConfigDir and ConfigFile mark a directory as a collection by intent.
+	ConfigDir  = "config"
+	ConfigFile = "config.yaml"
 
-// Marker is the per-collection config file at a collection root. Name is
-// the display name for the title bar; Root optionally points at the real
-// collection root when the marker lives elsewhere.
+	// MarkerFile is the legacy marker retained for migration.
+	MarkerFile = ".lazypost"
+
+	configVersion = 1
+)
+
+// Marker is the collection marker stored in config/config.yaml. Name and
+// Root are populated only when loading a legacy .lazypost marker so the
+// current session remains compatible until its first write.
 type Marker struct {
-	Name string `yaml:"name"`
-	Root string `yaml:"root,omitempty"`
+	Version    int    `yaml:"version,omitempty"`
+	Name       string `yaml:"-"`
+	Root       string `yaml:"-"`
+	Legacy     bool   `yaml:"-"`
+	LegacyPath string `yaml:"-"`
 }
 
-// LoadMarker reads the marker for dir; it returns (nil, nil) when no
-// marker file exists.
+// LoadMarker reads config/config.yaml, falling back to the legacy .lazypost
+// marker. It returns (nil, nil) when neither marker exists.
 func LoadMarker(dir string) (*Marker, error) {
-	data, err := os.ReadFile(filepath.Join(dir, MarkerFile))
+	configPath := filepath.Join(dir, ConfigDir, ConfigFile)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
+		if !os.IsNotExist(err) {
+			return nil, err
 		}
-		return nil, err
+		legacyPath := filepath.Join(dir, MarkerFile)
+		data, err = os.ReadFile(legacyPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		var legacy struct {
+			Name string `yaml:"name"`
+			Root string `yaml:"root,omitempty"`
+		}
+		if err := yaml.Unmarshal(data, &legacy); err != nil {
+			return nil, fmt.Errorf("parsing %s: %w", legacyPath, err)
+		}
+		return &Marker{
+			Name:       legacy.Name,
+			Root:       legacy.Root,
+			Legacy:     true,
+			LegacyPath: legacyPath,
+		}, nil
 	}
 	var m Marker
 	if err := yaml.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("parsing %s: %w", filepath.Join(dir, MarkerFile), err)
+		return nil, fmt.Errorf("parsing %s: %w", configPath, err)
+	}
+	if m.Version != configVersion {
+		return nil, fmt.Errorf("unsupported config version %d in %s", m.Version, configPath)
 	}
 	return &m, nil
 }
 
-// WriteMarker creates the marker file for a collection at dir.
-func WriteMarker(dir, name string) error {
-	data, err := yaml.Marshal(Marker{Name: name})
+// WriteMarker creates the collection marker at dir and removes a legacy
+// marker there after the new marker is safely written.
+func WriteMarker(dir string) error {
+	data, err := yaml.Marshal(Marker{Version: configVersion})
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, MarkerFile), data, 0o644)
+	configDir := filepath.Join(dir, ConfigDir)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(configDir, ConfigFile), data, 0o644); err != nil {
+		return err
+	}
+	if err := os.Remove(filepath.Join(dir, MarkerFile)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+// MigrateLegacy writes a new marker at root and removes legacy marker paths
+// after the write succeeds. Legacy name/root values are intentionally not
+// copied into the new marker contract.
+func MigrateLegacy(root string, legacyPaths ...string) error {
+	if err := WriteMarker(root); err != nil {
+		return err
+	}
+	for _, path := range legacyPaths {
+		if filepath.Clean(path) == filepath.Clean(filepath.Join(root, MarkerFile)) {
+			continue
+		}
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 func isYAML(path string) bool {
@@ -153,8 +216,9 @@ func Load(root string) ([]Entry, error) {
 			return nil
 		}
 		if d.IsDir() {
-			// environments/ holds variable sets, not requests — skip it
-			if d.Name() == environmentsDir {
+			// Root config/ and environments/ hold collection metadata, not
+			// requests. Nested config/ folders remain ordinary user folders.
+			if d.Name() == environmentsDir || (d.Name() == ConfigDir && path == filepath.Join(root, ConfigDir)) {
 				return filepath.SkipDir
 			}
 			entries = append(entries, Entry{Kind: Dir, Name: d.Name(), Depth: depth, Path: path})

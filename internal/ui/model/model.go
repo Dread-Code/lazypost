@@ -64,8 +64,7 @@ type paletteState struct {
 }
 
 // namerState is the name-input modal, used for new requests/folders
-// (dir/rename/old), for key=value variable edits (envEdit/envNew), and
-// for naming a new collection (marker).
+// (dir/rename/old) and for key=value variable edits (envEdit/envNew).
 type namerState struct {
 	widget  *ui.Namer
 	dir     string // folder the new request will be created in
@@ -73,7 +72,6 @@ type namerState struct {
 	old     string // path of the request being renamed
 	envEdit string // environment whose variables are being edited
 	envNew  bool   // "a" (add) instead of "r" (edit): a leading "/" creates an environment
-	marker  bool   // naming a new collection: enter writes a .lazypost marker
 }
 
 // confirmState is the y/n modal for destructive actions: deleting a
@@ -108,14 +106,14 @@ type Model struct {
 	envNames []string
 	envIdx   int // 0 = none
 
-	// collectionName is the display name from a .lazypost marker; when
-	// empty the title bar shows the root path
-	// ([[Design - collection marker file]]).
+	// collectionName is retained only while reading a legacy .lazypost
+	// marker. New config markers derive the title from the root path.
 	collectionName string
 
-	// needsMarker prompts for a collection name on first run and writes
-	// a .lazypost marker on confirm.
-	needsMarker bool
+	// legacyMarkers are removed when the first collection write creates the
+	// new config marker. Legacy name/root values are not copied.
+	legacyMarkers  []string
+	legacyMigrated bool
 
 	// store holds values chained between requests by script hooks
 	// ([[Design - request chaining store]]); memory-only per session.
@@ -138,31 +136,23 @@ type Model struct {
 	noticeError bool
 }
 
-// CollectionName returns the .lazypost marker name, or "" when the
-// collection has none (the title bar then shows the root path).
+// CollectionName returns a legacy .lazypost name while that collection is
+// still in the pre-migration session; new config markers have no name.
 func (m Model) CollectionName() string { return m.collectionName }
-
-// NeedsMarker reports whether this model will ask for a collection name
-// on first run.
-func (m Model) NeedsMarker() bool { return m.needsMarker }
-
-// markerPromptMsg asks the user to name a markerless collection on first
-// run ([[Design - collection marker file]]).
-type markerPromptMsg struct{}
 
 // Option tweaks how a collection is opened. Options are additive so the
 // existing New call sites (main + tests) keep compiling unchanged.
 type Option func(*Model)
 
-// WithCollectionName sets the display name from a .lazypost marker.
+// WithCollectionName preserves a legacy .lazypost display name for the
+// current session only.
 func WithCollectionName(name string) Option {
 	return func(m *Model) { m.collectionName = name }
 }
 
-// WithMarkerPrompt asks for a collection name on first run when the root
-// has no .lazypost marker.
-func WithMarkerPrompt() Option {
-	return func(m *Model) { m.needsMarker = true }
+// WithLegacyMarkers records legacy marker paths for first-write migration.
+func WithLegacyMarkers(paths ...string) Option {
+	return func(m *Model) { m.legacyMarkers = append(m.legacyMarkers, paths...) }
 }
 
 // WithVersion sets the build version stamped at compile time; it renders
@@ -207,9 +197,6 @@ func (m *Model) updateEnvBadge() {
 }
 
 func (m Model) Init() tea.Cmd {
-	if m.needsMarker {
-		return func() tea.Msg { return markerPromptMsg{} }
-	}
 	return nil
 }
 
@@ -245,8 +232,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.response, cmd = m.response.Update(msg)
 		return m, cmd
 
-	case markerPromptMsg:
-		return m.openCollectionMarker()
 	}
 
 	// A modal overlay is open: every message (keys, filter matches,

@@ -312,9 +312,9 @@ func (m Model) statusBar() string {
 	return left + strings.Repeat(" ", gap) + right
 }
 
-// collectionTitle is what the title bar shows for the collection: the
-// .lazypost marker name when one exists, else the root path
-// ([[Design - collection marker file]]).
+// collectionTitle is what the title bar shows for the collection. New
+// config markers derive it from the root path; legacy marker names remain
+// visible until that collection is migrated.
 func (m *Model) collectionTitle() string {
 	if m.collectionName != "" {
 		return m.collectionName
