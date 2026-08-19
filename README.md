@@ -20,7 +20,7 @@ Requests are plain YAML files in a directory tree, so a collection is just a fol
 - **Scripting & chaining** — sandboxed Lua `pre`/`post` hooks share a session `store` (`store.get` / `store.set`), so one response can feed the next request
 - **Collections** — requests as readable YAML in a directory tree; `enter` collapses folders, `a`/`d`/`r` add / delete / rename with confirmation
 - **Open any directory** — run lazypost anywhere and the current directory (or `-dir`) becomes a collection, marked with `config/config.yaml`
-- **Collection importers** — import Postman v2.1 JSON and Insomnia v4 JSON / v5 YAML with `lazypost import`; workspaces become top-level folders, while requests, environments, headers, query params, bodies, and supported auth are converted to lazypost YAML
+- **Collection importers** — migrate from Postman v2.1 JSON and Insomnia v4 JSON / v5 YAML (single files or export directories) with `lazypost import`; workspaces become top-level folders, requests, environments, headers, query params, bodies, and supported auth are converted to lazypost YAML, with `--dry-run` previews, `--strict` warning enforcement, and staged, collision-safe output
 - **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from `environments/*.yaml`
 - **Response viewer** — status / time / size summary, theme-colored JSON, headers tab
 - **Request history** — last 20 sends (request + response) in memory; `ctrl+h` browses, enter restores, `ctrl+r` resends
@@ -142,19 +142,44 @@ Open any directory you choose (`-dir` or the current directory) and lazypost ini
 
 ### Import existing collections
 
-Import a Postman or Insomnia export into a new lazypost collection:
+`lazypost import` converts Postman and Insomnia exports into a lazypost collection **without any TUI interaction**. Run `lazypost import --help` for the full usage:
 
 ```sh
 lazypost import postman-collection.json \
-  -env postman-dev.json \
+  -env postman-dev.json -env postman-prod.json \
   -dir ./collections/my-api
 
 lazypost import insomnia-export.yaml \
   -dir ./collections/my-api \
   --dry-run
+
+lazypost import insomnia-export-folder/ \
+  -dir ./collections/my-api
+
+lazypost import postman-collection.json \
+  -dir ./collections/my-api \
+  --dry-run --strict
 ```
 
-Supported sources are Postman Collection v2.1 JSON, Insomnia v4 JSON exports, and Insomnia v5 YAML collections or export directories. Postman collection names and Insomnia workspaces become top-level folders; Insomnia directories combine all supported workspaces and skip unrelated resources such as mock servers with warnings. Format detection is automatic; use `--format postman` or `--format insomnia` to override it. Imports refuse an existing target unless `--force`, stage output before replacing the target, and report unsupported scripts, body modes, and auth schemes as warnings. Use `--strict` to fail on any warning.
+#### Flags
+
+| Flag | Description |
+| --- | --- |
+| `-dir <target>` | **Required.** Target collection directory. The import refuses to touch an existing directory unless `--force`. |
+| `-env <file>` | Import an environment file (Postman environment export JSON, or an Insomnia environment YAML). Repeatable — pass once per environment. |
+| `--format postman\|insomnia` | Override automatic format detection. |
+| `--dry-run` | Parse, validate, and print what **would** be imported (counts + warnings) without writing anything. |
+| `--force` | Replace an existing target: the old directory is moved aside and removed only after the new tree is in place. |
+| `--strict` | Fail the import instead of succeeding when any warning is produced. |
+
+#### Behavior
+
+- **Supported sources:** Postman Collection v2.1 JSON, Insomnia v4 JSON exports (`__export_format: 4`), and Insomnia v5 YAML — either a single collection file or a full export directory.
+- **Format detection** is automatic from the file contents; `--format` is only needed for ambiguous inputs.
+- **Workspaces:** a Postman collection name or an Insomnia workspace becomes a top-level folder in the imported tree. Insomnia export directories combine **all** workspaces found inside and skip unrelated resources (mock servers, OpenAPI documents) with warnings.
+- **Environments:** collection/base variables become a `base` environment, plus one per named environment (`-env` files included). With multiple workspaces, environments are namespaced as `<workspace>--<environment>` so nothing collides. Insomnia's `{{ _.var }}` placeholders are normalized to `{{var}}`.
+- **Writer safety:** the import validates everything first, stages the full tree in a temporary sibling directory, and only then renames it into place. Request filename collisions inside a folder get deterministic `-2`, `-3` suffixes with warnings. A `config/config.yaml` marker is created automatically.
+- **Warnings:** unsupported features — JavaScript pre/test scripts (not translatable to Lua), multipart/binary/GraphQL bodies, and unsupported auth schemes — are reported per request and omitted, never guessed. `--strict` promotes any warning to a failure.
 
 ### Request format
 
@@ -242,7 +267,7 @@ CI (`.github/workflows/ci.yml`) runs the same checks plus `go mod tidy` and `go 
 
 - Request history, keybindings panel, response highlighting, script editor, themes, session persistence
 - Open the current directory as a collection, versioned `config/config.yaml` marker
-- Postman and Insomnia collection import
+- Postman and Insomnia collection import with workspace preservation (workspaces → top-level folders, environment namespacing)
 - Vim editing modes in every editor field (motions, operators, visual selection, yank)
 - CI on push, releases + `install.sh`, `-version` stamp
 
