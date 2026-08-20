@@ -249,3 +249,10 @@ test('docs collections page', () => {
   assert.match(d, /type: bear/);
   assert.match(d, /keyIn: query/);
 });
+
+test('docs environments page', () => {
+  const d = page('docs/environments/index.html');
+  assert.match(d, /api\.dev\.example\.com/);
+  assert.match(d, /unknown placeholders are left as-is/i);
+  assert.match(d, /ctrl\+e/);
+});
