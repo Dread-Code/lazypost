@@ -304,3 +304,12 @@ test('footer renders only on the docs home', () => {
   assert.match(page('docs/index.html'), /MIT License/);
   assert.doesNotMatch(page('docs/keybindings/index.html'), /<footer/);
 });
+
+test('docs code blocks render terminal panels', () => {
+  const c = page('docs/collections/index.html');
+  assert.match(c, />yaml<\/span>/);
+  const i = page('docs/installation/index.html');
+  assert.match(i, /text-accent">\$ <\/span>/);
+  const s = page('docs/scripting/index.html');
+  assert.match(s, /text-gold">(?:&quot;|")X-Session(?:&quot;|")<\/span>/);
+});

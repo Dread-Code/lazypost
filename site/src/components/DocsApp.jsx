@@ -6,6 +6,60 @@ import { docs } from '../data/docs.js';
 
 const raw = import.meta.glob('../docs/*.md', { query: '?raw', import: 'default', eager: true });
 
+function Tint({ line }) {
+  const out = [];
+  let rest = line;
+  if (rest.startsWith('$ ')) {
+    out.push(
+      <span className="text-accent" key="p">
+        {'$ '}
+      </span>
+    );
+    rest = rest.slice(2);
+  }
+  if (/^(#|--)\s/.test(rest)) {
+    out.push(
+      <span className="text-faint" key="c">
+        {rest}
+      </span>
+    );
+    return <>{out}</>;
+  }
+  const parts = rest.split(/("[^"]*")/).filter(Boolean);
+  parts.forEach((p, i) => {
+    out.push(
+      p.startsWith('"') ? (
+        <span className="text-gold" key={i}>
+          {p}
+        </span>
+      ) : (
+        <span key={i}>{p}</span>
+      )
+    );
+  });
+  return <>{out}</>;
+}
+
+function CodeBlock({ className, children }) {
+  const lang = String(className ?? '').replace(/^language-/, '') || 'text';
+  const text = String(children ?? '').replace(/\n$/, '');
+  const lines = text.split('\n');
+  return (
+    <div className="not-prose overflow-hidden rounded-xl border border-line2 bg-panel">
+      <div className="border-b border-line bg-navbar px-4 py-2 font-mono text-xs font-bold text-faint">
+        <span>{lang}</span>
+      </div>
+      <pre className="overflow-x-auto p-4 font-mono text-xs leading-6 text-text">
+        {lines.map((ln, i) => (
+          <span className="block" key={i}>
+            <Tint line={ln} />
+          </span>
+        ))}
+      </pre>
+    </div>
+  );
+}
+
 export default function DocsApp({ slug }) {
   const [current, setCurrent] = useState(slug);
   const hrefFor = (s) => `${import.meta.env.BASE_URL}docs/${s}/`;
@@ -66,7 +120,26 @@ export default function DocsApp({ slug }) {
         </nav>
       </aside>
       <article className="prose prose-invert min-w-0 max-w-none flex-1 pb-16" data-docs-content>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            pre({ children }) {
+              return <>{children}</>;
+            },
+            code({ className, children }) {
+              if (className) {
+                return <CodeBlock className={className} children={children} />;
+              }
+              return (
+                <code className="rounded-md border border-line bg-raised px-1 py-0.5 text-gold">
+                  {children}
+                </code>
+              );
+            },
+          }}
+        >
+          {markdown}
+        </ReactMarkdown>
       </article>
     </div>
   );
