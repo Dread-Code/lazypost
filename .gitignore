@@ -5,3 +5,4 @@
 coverage.*
 .DS_Store
 .opencode/node_modules
+.superpowers/
