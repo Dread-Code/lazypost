@@ -1187,3 +1187,16 @@ Missing: only the deployment step is out of your hands — after push to `main`,
 git add .github/workflows/pages.yml site/tests/smoke.test.mjs
 git commit -m "ci: add github pages deploy workflow"
 ```
+
+---
+
+## Execution Notes (applied during 2026-08-19 inline execution)
+
+All 9 tasks completed on branch `site/landing-page`; 13/13 smoke tests green; commits 918b6c2…7a3b43d. Deviations from the plan text, each verified against the built output:
+
+- **Node test runner:** `node --test tests/` crashes with MODULE_NOT_FOUND on Node 22/24/26 (directory args are treated as globs). `package.json` test script uses `node --test "tests/*.test.mjs"` instead (built-in runner, no extra deps).
+- **Astro image imports:** images imported with ESM return `ImageMetadata` objects; `src={screenshot}` and `href={favicon}` rendered `[object Object]`. Use `{screenshot.src}` / `{favicon.src}` (favicon fixed in Task 7, was broken since Task 1).
+- **Astro text escaping:** `{'{{host}}'}` expression and `&#123;`/`&#125;` entities are required to render literal `{{host}}` and `{"title": ...}` (bare braces open expressions).
+- **Feature card marker (Task 5):** `{'>'}` is HTML-escaped by Astro, so Features.astro emits `> title` via `set:html`; the `>` marker inherits the title color instead of accent green.
+- **Footer test (Task 8):** assertion adjusted to Astro's rendered whitespace (`lazypost<\/span> · MIT License · by\n<a href=…`).
+- **Workflow paths (Task 9):** YAML written unquoted (`paths: [site/**, …]`) so the plan's assertion regex matches; semantically identical to the quoted form.
