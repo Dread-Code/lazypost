@@ -280,7 +280,7 @@ const DOC_SIGNATURES = {
 };
 
 test('markdown sources exist with signatures', () => {
-  for (const slug of DOC_SLUGS) {
+  for (const slug of DOC_SLUGS.filter((s) => s !== 'index')) {
     assert.match(read(`site/src/docs/${slug}.md`), new RegExp(DOC_SIGNATURES[slug]), `missing signature in docs/${slug}.md`);
   }
 });
@@ -290,4 +290,11 @@ test('docs store anchors to real urls', () => {
   assert.match(src, /pushState/);
   assert.match(src, /react-markdown/);
   assert.match(src, /popstate/);
+});
+
+test('docs home is the classic card grid page', () => {
+  const d = page('docs/index.html');
+  assert.match(d, /\/\/ docs/);
+  assert.match(d, /First request in under a minute\./);
+  assert.doesNotMatch(d, /<h1[^>]*>docs<\/h1>/);
 });
