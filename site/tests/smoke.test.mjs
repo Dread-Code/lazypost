@@ -317,6 +317,6 @@ test('docs code blocks render terminal panels', () => {
 test('docs tables render terminal style', () => {
   const d = page('docs/keybindings/index.html');
   assert.match(d, /docs-terminal-table/);
-  assert.match(d, /docs-terminal-table th/);
+  assert.match(css(), /docs-terminal-table th/);
   assert.match(css(), /docs-terminal-table/);
 });

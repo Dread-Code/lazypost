@@ -129,7 +129,7 @@ export default function DocsApp({ slug }) {
             table({ children }) {
               return (
                 <div className="not-prose overflow-x-auto rounded-xl border border-line2 bg-panel">
-                  <table className="docs-terminal-table th">{children}</table>
+                  <table className="docs-terminal-table">{children}</table>
                 </div>
               );
             },
