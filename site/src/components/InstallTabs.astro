@@ -1,0 +1,62 @@
+---
+import { installUrl } from '../data/site.js';
+const tabs = [
+  { id: 'curl', label: 'curl | sh', lines: [`$ ${installUrl} | sh`] },
+  {
+    id: 'pin',
+    label: 'pin a version',
+    lines: [`$ ${installUrl} | sh -s -- v0.1.0`, '# PREFIX=/usr/local overrides the install directory'],
+  },
+  { id: 'build', label: 'go build', lines: ['$ go build -o lazypost .', '# requires Go 1.25+'] },
+];
+---
+<section id="install" class="mx-auto max-w-6xl scroll-mt-8 px-6 py-20">
+  <h2 class="font-mono text-base font-bold text-accent">$ install lazypost</h2>
+  <div class="mt-8 overflow-hidden rounded-xl border border-line2 bg-panel">
+    <div id="install-tabs" role="tablist" class="flex gap-1 border-b border-line bg-navbar px-3 pt-2">
+      {tabs.map((t, i) => (
+        <button
+          type="button"
+          role="tab"
+          id={`tab-${t.id}`}
+          data-tab={t.id}
+          aria-controls={`panel-${t.id}`}
+          aria-selected={i === 0}
+          class={'rounded-t-md border-b-2 px-4 py-2 font-mono text-xs transition-colors ' + (i === 0 ? 'border-line bg-raised text-text' : 'border-transparent text-faint hover:text-text')}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+    {tabs.map((t, i) => (
+      <div id={`panel-${t.id}`} role="tabpanel" aria-labelledby={`tab-${t.id}`} class={i === 0 ? '' : 'hidden'}>
+        {t.lines.map((l) => (
+          <div class="border-b border-line px-5 py-4 font-mono text-sm last:border-0">
+            {l.startsWith('#')
+              ? <span class="text-faint">{l}</span>
+              : <span><span class="text-accent">&dollar;</span> <span class="text-text">{l.slice(2)}</span></span>}
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>
+  <p class="mt-4 font-mono text-sm text-faint"># then run <span class="text-accent">lazypost</span> in any directory</p>
+</section>
+<script>
+  const tablist = document.getElementById('install-tabs');
+  if (tablist) {
+    const buttons = [...tablist.querySelectorAll('[role="tab"]')];
+    const onCls = ['border-line', 'bg-raised', 'text-text'];
+    const offCls = ['border-transparent', 'text-faint'];
+    const set = (btn) => {
+      buttons.forEach((b) => {
+        const active = b === btn;
+        b.setAttribute('aria-selected', String(active));
+        onCls.forEach((c) => b.classList.toggle(c, active));
+        offCls.forEach((c) => b.classList.toggle(c, !active));
+        document.getElementById(`panel-${b.dataset.tab}`).classList.toggle('hidden', !active);
+      });
+    };
+    buttons.forEach((btn) => btn.addEventListener('click', () => set(btn)));
+  }
+</script>

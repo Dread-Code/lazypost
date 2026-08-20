@@ -78,3 +78,17 @@ test('features grid renders six cards', () => {
   }
   assert.match(h, /\{\{variable\}\} interpolation/);
 });
+
+test('install section renders tabs and commands', () => {
+  const h = html();
+  assert.match(h, /\$ install lazypost/);
+  assert.match(h, /id="install"/);
+  assert.match(h, /curl \| sh/);
+  assert.match(h, /pin a version/);
+  assert.match(h, /go build/);
+  assert.match(h, /install\.sh \| sh/);
+  assert.match(h, /sh -s -- v0\.1\.0/);
+  assert.match(h, /PREFIX=\/usr\/local/);
+  assert.match(h, /then run/);
+  assert.match(h, /aria-selected="true"/);
+});
