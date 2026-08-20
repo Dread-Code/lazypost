@@ -294,3 +294,9 @@ test('docs themes example page', () => {
 test('landing mounts theme script', () => {
   assert.match(html(), /lazypost-theme/);
 });
+
+test('docs pages link the compiled stylesheet', () => {
+  for (const p of ['docs/index.html', 'docs/faq/index.html', 'docs/keybindings/index.html']) {
+    assert.match(page(p), /<link rel="stylesheet" href="[^"]*\.css"/, `missing stylesheet link on ${p}`);
+  }
+});

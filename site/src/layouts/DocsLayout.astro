@@ -3,6 +3,7 @@ import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Swatches from '../components/Swatches.astro';
 import ThemeScript from '../components/ThemeScript.astro';
+import '../styles/global.css';
 import { docs } from '../data/docs.js';
 
 const base = import.meta.env.BASE_URL;
@@ -16,17 +17,6 @@ const { title, current } = Astro.props;
     <meta name="description" content={`lazypost docs — ${title}`} />
     <title>{`lazypost — ${title}`}</title>
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
-    <style>
-      @reference "../styles/global.css";
-      :global(body) { @apply bg-bg text-text font-sans antialiased; }
-      .docs-table { width: 100%; border-collapse: collapse; }
-      .docs-table th, .docs-table td {
-        @apply border-b border-line px-3 py-2 text-left align-top;
-      }
-      .docs-table th { @apply bg-navbar text-muted font-mono text-xs font-bold; }
-      .docs-table td { @apply font-mono text-xs text-text; }
-      .docs-table tr:hover td { @apply bg-raised; }
-    </style>
   </head>
   <body>
     <Nav />
