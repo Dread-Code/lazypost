@@ -38,3 +38,17 @@ test('css emits design tokens', () => {
 test('css sets smooth scrolling', () => {
   assert.match(css(), /scroll-behavior:smooth/);
 });
+
+test('hero copy, ctas and badges render', () => {
+  const h = html();
+  assert.match(h, /An API client that lives in your terminal\./);
+  assert.match(h, /\$ get started/);
+  assert.match(h, /view on github/);
+  assert.match(h, /macOS · Linux/);
+  assert.match(h, /MIT License/);
+  assert.match(h, /Go 1\.25\+/);
+  assert.match(h, /v0\.1\.0/);
+  assert.match(h, /img\.shields\.io/);
+  assert.match(h, /github\.com\/Dread-Code\/lazypost/);
+  assert.match(h, /href="#install"/);
+});

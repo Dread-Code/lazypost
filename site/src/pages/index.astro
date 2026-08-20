@@ -1,6 +1,8 @@
 ---
 import favicon from '../assets/favicon.svg';
 import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+import Hero from '../components/Hero.astro';
 ---
 <!doctype html>
 <html lang="en">
@@ -12,5 +14,9 @@ import '../styles/global.css';
     <link rel="icon" type="image/svg+xml" href={favicon} />
   </head>
   <body>
+    <Nav />
+    <main>
+      <Hero />
+    </main>
   </body>
 </html>

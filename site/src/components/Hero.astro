@@ -1,0 +1,20 @@
+---
+import { github, starsBadge } from '../data/site.js';
+---
+<section class="mx-auto max-w-6xl px-6 pb-8 pt-20 text-center">
+  <h1 class="font-mono text-6xl font-extrabold tracking-tight text-text md:text-7xl">lazypost</h1>
+  <p class="mx-auto mt-5 max-w-xl text-lg text-muted">An API client that lives in your terminal.</p>
+  <div class="mt-9 flex flex-wrap items-center justify-center gap-4 font-mono text-sm">
+    <a href="#install" class="rounded-lg bg-accent px-5 py-2.5 font-bold text-bg transition-opacity hover:opacity-85">$ get started</a>
+    <a href={github} target="_blank" rel="noopener" class="rounded-lg border border-line2 px-5 py-2.5 text-text transition-colors hover:border-faint">view on github</a>
+  </div>
+  <ul class="mt-12 flex flex-wrap items-center justify-center gap-3 font-mono text-xs text-muted">
+    <li class="rounded-full border border-line px-4 py-1.5">
+      <img src={starsBadge} alt="GitHub stars" class="h-4" />
+    </li>
+    <li class="rounded-full border border-line px-4 py-1.5">macOS · Linux</li>
+    <li class="rounded-full border border-line px-4 py-1.5">MIT License</li>
+    <li class="rounded-full border border-line px-4 py-1.5">Go 1.25+</li>
+    <li class="rounded-full border border-line px-4 py-1.5">v0.1.0</li>
+  </ul>
+</section>
