@@ -1,0 +1,31 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import Footer from '../../components/Footer.astro';
+import { installUrl, version } from '../../data/site.js';
+---
+<DocsLayout title="Installation" current="docs/installation">
+  <h1 class="font-mono text-3xl font-extrabold text-text">$ install lazypost</h1>
+  <p class="mt-4 max-w-2xl leading-relaxed text-muted">
+    One command (checksum-verified; installs to <span class="font-mono text-xs text-text">~/.local/bin</span>, override with <span class="font-mono text-xs text-text">PREFIX</span>):
+  </p>
+  <div class="mt-6 overflow-hidden rounded-xl border border-line2 bg-panel">
+    <div class="border-b border-line bg-navbar px-4 py-2.5 font-mono text-xs text-faint">lazypost — install.sh</div>
+    <div class="border-b border-line p-4 font-mono text-xs">
+      <div><span class="text-accent">$</span> <span class="text-muted">curl -fsSL {installUrl} | sh</span></div>
+      <div class="mt-2"><span class="text-faint"># resolves the latest release, verifies checksums, installs to ~/.local/bin</span></div>
+    </div>
+    <div class="border-b border-line p-4 font-mono text-xs">
+      <div><span class="text-accent">$</span> <span class="text-text">curl -fsSL {installUrl} | sh -s -- {version}</span></div>
+      <div class="mt-2"><span class="text-faint"># pin a version; install location override: PREFIX=/usr/local sh install.sh</span></div>
+    </div>
+    <div class="p-4 font-mono text-xs">
+      <div><span class="text-accent">$</span> <span class="text-text">go build -o lazypost .</span></div>
+      <div class="mt-2"><span class="text-faint"># or build from source — Go 1.25+</span></div>
+    </div>
+  </div>
+  <p class="mt-6 max-w-2xl leading-relaxed text-muted">
+    Pre-built binaries for macOS and Linux (arm64 + amd64) are attached to every GitHub release.
+    Re-running the install command updates to the latest release. Check what you are running with
+    <span class="font-mono text-xs text-text">lazypost -version</span>.
+  </p>
+</DocsLayout>
