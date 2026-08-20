@@ -300,3 +300,8 @@ test('docs pages link the compiled stylesheet', () => {
     assert.match(page(p), /<link rel="stylesheet" href="[^"]*\.css"/, `missing stylesheet link on ${p}`);
   }
 });
+
+test('nav logo links to the home page', () => {
+  assert.match(html(), /href="\/lazypost\/"/);
+  assert.match(page('docs/index.html'), /href="\/lazypost\/"/);
+});
