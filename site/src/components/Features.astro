@@ -1,0 +1,23 @@
+---
+const features = [
+  ['vim editing', 'motions, operators, visual selection, clipboard yank'],
+  ['yaml collections', 'a folder you can git diff and share'],
+  ['lua scripting', 'sandboxed pre/post hooks with a session store'],
+  ['environments', '{{variable}} interpolation in any field'],
+  ['importers', 'migrate from Postman and Insomnia'],
+  ['themes', 'dracula, catppuccin, nord, tokyonight + custom YAML'],
+];
+---
+<section class="mx-auto max-w-6xl px-6 py-20">
+  <h2 class="font-mono text-base font-bold text-accent">// features</h2>
+  <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    {features.map(([title, desc]) => (
+      <div class="rounded-lg border border-line bg-raised p-5 transition-colors hover:border-line2">
+        <div class="font-mono text-sm">
+          <span class="font-bold text-text" set:html={`> ${title}`}></span>
+        </div>
+        <p class="mt-2 font-mono text-xs leading-relaxed text-faint">{desc}</p>
+      </div>
+    ))}
+  </div>
+</section>

@@ -62,3 +62,19 @@ test('terminal window renders the TUI', () => {
   assert.match(h, /NORMAL/);
   assert.match(h, /ctrl\+r send/);
 });
+
+test('what-is section renders', () => {
+  const h = html();
+  assert.match(h, /\/\/ what is lazypost/);
+  assert.match(h, /see the docs/);
+  assert.match(h, /Posting-inspired/);
+  assert.match(h, /Bubble Tea/);
+});
+
+test('features grid renders six cards', () => {
+  const h = html();
+  for (const title of ['vim editing', 'yaml collections', 'lua scripting', 'environments', 'importers', 'themes']) {
+    assert.match(h, new RegExp(`> ${title}`), `missing feature: ${title}`);
+  }
+  assert.match(h, /\{\{variable\}\} interpolation/);
+});
