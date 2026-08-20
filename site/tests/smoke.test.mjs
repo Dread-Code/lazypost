@@ -121,3 +121,10 @@ test('pages workflow exists and deploys site/dist', () => {
   assert.match(wf, /npm run build/);
   assert.match(wf, /paths:\s*\[\s*site\/\*\*/s);
 });
+
+test('css uses dracula palette', () => {
+  const c = css();
+  assert.match(c, /--color-accent:\s*#bd93f9/);
+  assert.match(c, /--color-bg:\s*#282a36/);
+  assert.match(c, /--color-text:\s*#f8f8f2/);
+});
