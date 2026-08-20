@@ -242,3 +242,10 @@ test('docs keybindings page', () => {
   assert.match(d, /NORMAL/);
   assert.match(d, /cycle auth type/);
 });
+
+test('docs collections page', () => {
+  const d = page('docs/collections/index.html');
+  assert.match(d, /version: 1/);
+  assert.match(d, /type: bear/);
+  assert.match(d, /keyIn: query/);
+});
