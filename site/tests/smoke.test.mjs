@@ -313,3 +313,10 @@ test('docs code blocks render terminal panels', () => {
   const s = page('docs/scripting/index.html');
   assert.match(s, /text-gold">(?:&quot;|")X-Session(?:&quot;|")<\/span>/);
 });
+
+test('docs tables render terminal style', () => {
+  const d = page('docs/keybindings/index.html');
+  assert.match(d, /docs-terminal-table/);
+  assert.match(d, /docs-terminal-table th/);
+  assert.match(css(), /docs-terminal-table/);
+});

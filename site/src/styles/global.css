@@ -69,3 +69,30 @@ body {
 .prose blockquote {
   border-left-color: var(--color-accent);
 }
+.docs-terminal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+.docs-terminal-table th,
+.docs-terminal-table td {
+  border-bottom: 1px solid var(--color-line);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  color: var(--color-text);
+}
+.docs-terminal-table th {
+  background: var(--color-navbar);
+  color: var(--color-muted);
+  font-weight: 700;
+}
+.docs-terminal-table tr:hover td {
+  background: var(--color-raised);
+}
+.docs-terminal-table code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}

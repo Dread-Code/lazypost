@@ -126,6 +126,13 @@ export default function DocsApp({ slug }) {
             pre({ children }) {
               return <>{children}</>;
             },
+            table({ children }) {
+              return (
+                <div className="not-prose overflow-x-auto rounded-xl border border-line2 bg-panel">
+                  <table className="docs-terminal-table th">{children}</table>
+                </div>
+              );
+            },
             code({ className, children }) {
               if (className) {
                 return <CodeBlock className={className} children={children} />;
