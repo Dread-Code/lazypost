@@ -9,8 +9,8 @@ import TerminalWindow from './TerminalWindow.astro';
     <a href="#install" class="rounded-lg bg-accent px-5 py-2.5 font-bold text-bg transition-opacity hover:opacity-85">$ get started</a>
     <a href={github} target="_blank" rel="noopener" class="rounded-lg border border-line2 px-5 py-2.5 text-text transition-colors hover:border-faint">view on github</a>
   </div>
-  <div class="relative mx-auto max-w-6xl px-6">
-    <div aria-hidden="true" class="pointer-events-none absolute -inset-x-16 -inset-y-10 rounded-full bg-accent/20 blur-3xl"></div>
+  <div class="relative isolate mx-auto max-w-6xl px-6">
+    <div aria-hidden="true" class="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 rounded-full bg-accent/20 blur-3xl"></div>
     <TerminalWindow />
   </div>
   <ul class="mt-12 flex flex-wrap items-center justify-center gap-3 font-mono text-xs text-muted">
