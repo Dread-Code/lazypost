@@ -1,5 +1,6 @@
 ---
 import DocsLayout from '../../components/DocsLayout.astro';
+import DocsSidebar from '../../components/DocsSidebar.astro';
 const base = import.meta.env.BASE_URL;
 const envBlurb = '{{variable}} interpolation and the environment manager.';
 const guides = [
@@ -13,22 +14,28 @@ const guides = [
   ['Themes', 'Eight presets and custom YAML themes.', '/docs/themes/'],
   ['FAQ', 'Troubleshooting and behavior notes.', '/docs/faq/'],
 ];
+const cardHref = (p) => `${base}${p.replace(/^\//, '')}`;
 ---
 <DocsLayout title="Docs" slug="index">
-  <h1 class="font-mono text-3xl font-extrabold text-text">{'// docs'}</h1>
-  <p class="mt-4 max-w-2xl text-lg leading-relaxed text-muted">
-    lazypost is <span class="font-mono text-accent">an API client that lives in your terminal</span> —
-    Posting-inspired, built with Go and Bubble Tea. Requests are plain YAML files in a directory
-    tree, so a collection is a folder you can version-control, diff, and share.
-  </p>
-  <div class="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-    {guides.map(([title, desc, path]) => (
-      <a href={`${base}${path.replace(/^\//, '')}`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
-        <div class="font-mono text-sm">
-          <span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">{title}</span>
-        </div>
-        <p class="mt-2 font-mono text-xs leading-relaxed text-faint">{desc}</p>
-      </a>
-    ))}
+  <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
+    <DocsSidebar current="none" />
+    <div class="min-w-0 flex-1">
+      <h1 class="font-mono text-3xl font-extrabold text-text">{'// docs'}</h1>
+      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-muted">
+        lazypost is <span class="font-mono text-accent">an API client that lives in your terminal</span> —
+        Posting-inspired, built with Go and Bubble Tea. Requests are plain YAML files in a directory
+        tree, so a collection is a folder you can version-control, diff, and share.
+      </p>
+      <div class="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {guides.map(([title, desc, path]) => (
+          <a href={cardHref(path)} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+            <div class="font-mono text-sm">
+              <span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">{title}</span>
+            </div>
+            <p class="mt-2 font-mono text-xs leading-relaxed text-faint">{desc}</p>
+          </a>
+        ))}
+      </div>
+    </div>
   </div>
 </DocsLayout>

@@ -296,5 +296,6 @@ test('docs home is the classic card grid page', () => {
   const d = page('docs/index.html');
   assert.match(d, /\/\/ docs/);
   assert.match(d, /First request in under a minute\./);
+  assert.match(d, /hidden w-52 shrink-0 lg:block/);
   assert.doesNotMatch(d, /<h1[^>]*>docs<\/h1>/);
 });
