@@ -1,12 +1,16 @@
 ---
 import { github } from '../data/site.js';
+const braces = '{{variable}}';
 ---
 <section class="mx-auto max-w-6xl px-6 py-20">
   <h2 class="font-mono text-base font-bold text-accent">// what is lazypost</h2>
   <p class="mt-5 max-w-2xl text-lg leading-relaxed text-text">
     Posting-inspired TUI built with <span class="font-mono text-accent">Go</span> and
     <span class="font-mono text-accent">Bubble Tea</span>. Requests are plain YAML files in a
-    directory tree — version-control, diff, and share your API collection.
+    directory tree — version-control, diff, and share your API collection. Vim-powered editing,
+    sandboxed <span class="font-mono text-accent">Lua</span> pre/post hooks, environments with
+    <span class="font-mono text-accent">{braces}</span> interpolation, and one-command
+    importers for Postman and Insomnia.
   </p>
   <a href={github} target="_blank" rel="noopener" class="mt-5 inline-block font-mono text-sm text-muted transition-colors hover:text-accent">see the docs →</a>
 </section>

@@ -68,6 +68,7 @@ test('what-is section renders', () => {
   assert.match(h, /see the docs/);
   assert.match(h, /Posting-inspired/);
   assert.match(h, /Bubble Tea/);
+  assert.match(h, /sandboxed <span class="font-mono text-accent">Lua<\/span>/);
 });
 
 test('features grid renders six cards', () => {
