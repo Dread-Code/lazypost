@@ -168,7 +168,8 @@ test('lua panel uses theme color classes', () => {
 
 test('lua globals colored consistently in pre and post', () => {
   const h = html();
-  assert.match(h, /text-muted">req<\/span>\.<span class="text-text">headers<\/span>/);
-  assert.match(h, /text-muted">store<\/span>\.<span class="text-text">get<\/span>/);
-  assert.match(h, /text-muted">req<\/span>\.<span class="text-text">query<\/span>/);
+  assert.match(h, /text-accent">req<\/span>\.<span class="text-text">headers<\/span>/);
+  assert.match(h, /text-accent">store<\/span>\.<span class="text-text">get<\/span>/);
+  assert.match(h, /text-accent">req<\/span>\.<span class="text-text">query<\/span>/);
+  assert.doesNotMatch(h, /text-muted">req<\/span>/);
 });
