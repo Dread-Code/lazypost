@@ -1,17 +1,16 @@
-<script is:inline>
+<script>import { themes } from '../data/themes.js';
   (() => {
     const KEY = 'lazypost-theme';
     const TOKENS = ['bg', 'panel', 'raised', 'line', 'line2', 'navbar', 'text', 'muted', 'faint', 'accent', 'gold', 'cyan'];
     const buttons = [...document.querySelectorAll('[data-theme]')];
-    if (!buttons.length) return;
     const apply = (name) => {
-      const btn = buttons.find((b) => b.dataset.theme === name) || buttons[0];
+      const theme = themes.find((t) => t.name === name) ?? themes[0];
       const root = document.documentElement.style;
       for (const key of TOKENS) {
-        root.setProperty(`--color-${key}`, btn.dataset[key]);
+        root.setProperty(`--color-${key}`, theme[key]);
       }
       buttons.forEach((b) => {
-        const on = b === btn;
+        const on = b.dataset.theme === theme.name;
         b.setAttribute('aria-pressed', String(on));
         b.classList.toggle('border-accent', on);
         b.classList.toggle('text-text', on);

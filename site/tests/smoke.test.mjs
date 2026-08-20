@@ -152,19 +152,11 @@ test('theme swatch buttons carry theme data', () => {
   assert.match(h, /data-accent=/);
   assert.match(h, /data-bg=/);
   assert.match(h, /data-cyan=/);
-  assert.match(h, /lazypost-theme/);
 });
 
 test('selection colors follow theme variables', () => {
   assert.match(css(), /var\(--color-accent\)/);
   assert.match(css(), /var\(--color-bg\)/);
-});
-
-test('theme switcher script parses in a browser-like context', () => {
-  const src = read('site/src/components/ThemeScript.astro');
-  const m = src.match(/<script is:inline>([\s\S]*?)<\/script>/);
-  assert.ok(m, 'inline script not found in ThemeScript.astro');
-  assert.doesNotThrow(() => new vm.Script(m[1]));
 });
 
 test('lua panel uses theme color classes', () => {
@@ -194,11 +186,12 @@ test('page() helper reads built docs files', () => {
   assert.equal(page('nope/index.html'), '');
 });
 
-test('theme script component parses', () => {
+test('theme script parses in a browser-like context', () => {
   const src = read('site/src/components/ThemeScript.astro');
-  const m = src.match(/<script is:inline>([\s\S]*?)<\/script>/);
-  assert.ok(m, 'inline script not found in ThemeScript.astro');
-  assert.doesNotThrow(() => new vm.Script(m[1]));
+  const m = src.match(/<script>([\s\S]*?)<\/script>/);
+  assert.ok(m, 'script not found in ThemeScript.astro');
+  const body = m[1].replace(/^import[^\n]*\n/, '');
+  assert.doesNotThrow(() => new vm.Script(body));
 });
 
 test('landing links to docs', () => {
@@ -209,9 +202,8 @@ test('docs index page builds', () => {
   assert.ok(existsSync(join(DIST, 'docs/index.html')), 'dist/docs/index.html must exist');
 });
 
-test('docs pages carry theme script and docs nav', () => {
+test('docs pages carry the docs nav link', () => {
   const d = page('docs/index.html');
-  assert.match(d, /lazypost-theme/);
   assert.match(d, /\/lazypost\/docs\//);
 });
 
@@ -291,8 +283,12 @@ test('docs themes example page', () => {
   assert.match(d, /light/);
 });
 
-test('landing mounts theme script', () => {
-  assert.match(html(), /lazypost-theme/);
+test('theme script bundle ships lazypost-theme', () => {
+  const dir = join(DIST, '_astro');
+  const js = existsSync(dir) ? readdirSync(dir).filter((n) => n.endsWith('.js')) : [];
+  assert.ok(js.length > 0, 'no bundled js in dist/_astro');
+  const all = js.map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
+  assert.match(all, /lazypost-theme/);
 });
 
 test('docs pages link the compiled stylesheet', () => {

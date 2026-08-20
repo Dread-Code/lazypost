@@ -1,7 +1,6 @@
 ---
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
-import Swatches from '../components/Swatches.astro';
 import ThemeScript from '../components/ThemeScript.astro';
 import '../styles/global.css';
 import { docs } from '../data/docs.js';
@@ -38,8 +37,6 @@ const { title, current } = Astro.props;
               {d.title}
             </a>
           ))}
-          <p class="mb-2 mt-6 font-mono text-xs font-bold text-faint">// theme</p>
-          <div class="flex flex-wrap gap-1.5"><Swatches /></div>
         </nav>
       </aside>
       <main class="min-w-0 flex-1 pb-16">

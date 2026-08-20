@@ -6,5 +6,8 @@ export default defineConfig({
   base: '/lazypost/',
   vite: {
     plugins: [tailwindcss()],
+    build: {
+      assetsInlineLimit: 0,
+    },
   },
 });
