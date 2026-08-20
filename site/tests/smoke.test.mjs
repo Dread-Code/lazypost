@@ -256,3 +256,10 @@ test('docs environments page', () => {
   assert.match(d, /unknown placeholders are left as-is/i);
   assert.match(d, /ctrl\+e/);
 });
+
+test('docs scripting page', () => {
+  const d = page('docs/scripting/index.html');
+  assert.match(d, /req\.headers\[/);
+  assert.match(d, /os\.time/);
+  assert.match(d, /expected 200/);
+});
