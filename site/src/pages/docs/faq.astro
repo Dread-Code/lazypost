@@ -1,0 +1,49 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+---
+<DocsLayout title="FAQ" current="docs/faq">
+  <h1 class="font-mono text-3xl font-extrabold text-text">// faq</h1>
+  <p class="mt-4 max-w-2xl leading-relaxed text-muted">
+    Troubleshooting and behavior notes, drawn from real usage.
+  </p>
+  <div class="mt-8 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">My first send fails with "unsupported protocol scheme"</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">Most likely an unresolved URL placeholder: &#123;&#123;host&#125;&#125; with no active environment leaves escape-encoded braces in the URL. Set an environment (ctrl+e) — unresolved URL placeholders fail loudly and point at the environment switcher.</p>
+  </div>
+  <div class="mt-4 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">Keyboard shortcuts with ctrl+arrows don't work</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">macOS intercepts ctrl+←/→ for Mission Control/App Exposé. lazypost uses alt+←/→ to switch editor tabs.</p>
+  </div>
+  <div class="mt-4 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">Vim visual selection looks broken after the first token</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">a known rendering quirk in early versions; the selection renderer strips ANSI codes first in current builds — update to the latest release.</p>
+  </div>
+  <div class="mt-4 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">Yank vs paste</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">yank copies to the system clipboard; paste reads the last internal yank/delete (not the system clipboard).</p>
+  </div>
+  <div class="mt-4 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">My body JSON doesn't format</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">bodies auto-format (2-space) on blur and on save; invalid JSON or placeholder-only bodies are never touched (placeholder-aware formatting keeps &#123;&#123;var&#125;&#125; intact).</p>
+  </div>
+  <div class="mt-4 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">The response Headers tab is confusing</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">the top row shows the exact executed URL (with substitutions) — check it if the response doesn't look like the request you expected.</p>
+  </div>
+  <div class="mt-4 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">--dry-run said it would import but nothing appeared</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">by design: --dry-run only reports and never creates the target directory.</p>
+  </div>
+  <div class="mt-4 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">ctrl+e cycles my variables while I'm typing</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">global bindings take precedence over editor defaults by design; type &#123;&#123; placeholders manually or bind around them — the editor powers live on the focused pane's bindings otherwise.</p>
+  </div>
+  <div class="mt-4 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">A saved request shows a different name</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">the sidebar name comes from the filename; the YAML name: field is display-only in the sidebar label context. Keep filenames descriptive.</p>
+  </div>
+  <div class="mt-4 rounded-lg border border-line bg-raised p-5">
+    <div class="font-mono text-sm font-bold text-text">Docs, themes, or sample collections missing?</div>
+    <p class="mt-2 text-sm leading-relaxed text-muted">./sample-collections and ./collections are implicit collections but never auto-created; run lazypost in a directory and it initializes config/config.yaml for you.</p>
+  </div>
+</DocsLayout>

@@ -277,3 +277,10 @@ test('docs themes page', () => {
   assert.match(d, /$XDG_CONFIG_HOME|XDG_CONFIG_HOME/);
   assert.match(d, /example\.yaml/);
 });
+
+test('docs faq page', () => {
+  const d = page('docs/faq/index.html');
+  assert.match(d, /unsupported protocol scheme/);
+  assert.match(d, /alt\+←|alt.*arrow/);
+  assert.match(d, /--dry-run/);
+});
