@@ -165,3 +165,10 @@ test('lua panel uses theme color classes', () => {
   assert.match(h, /text-gold">"X-Session"/);
   assert.match(h, /text-faint">-- pre</);
 });
+
+test('lua globals colored consistently in pre and post', () => {
+  const h = html();
+  assert.match(h, /text-muted">req<\/span>\.<span class="text-text">headers<\/span>/);
+  assert.match(h, /text-muted">store<\/span>\.<span class="text-text">get<\/span>/);
+  assert.match(h, /text-muted">req<\/span>\.<span class="text-text">query<\/span>/);
+});
