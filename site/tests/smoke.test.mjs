@@ -305,3 +305,24 @@ test('nav logo links to the home page', () => {
 test('css ships typography prose styles', () => {
   assert.match(css(), /\.prose/);
 });
+
+const DOC_SLUGS = ['index', 'quickstart', 'installation', 'keybindings', 'collections', 'environments', 'scripting', 'importers', 'themes', 'faq'];
+
+const DOC_SIGNATURES = {
+  index: 'Quick start',
+  quickstart: 'ctrl\\+l edits the URL',
+  installation: 'sh -s -- v0.4.0',
+  keybindings: 'cycle auth type',
+  collections: 'version: 1',
+  environments: 'api.dev.example.com',
+  scripting: 'expected 200',
+  importers: 'workspace--environment',
+  themes: 'XDG_CONFIG_HOME',
+  faq: 'unsupported protocol scheme',
+};
+
+test('markdown sources exist with signatures', () => {
+  for (const slug of DOC_SLUGS) {
+    assert.match(read(`site/src/docs/${slug}.md`), new RegExp(DOC_SIGNATURES[slug]), `missing signature in docs/${slug}.md`);
+  }
+});
