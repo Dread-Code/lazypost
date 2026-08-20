@@ -68,6 +68,7 @@ test('what-is section renders', () => {
   assert.match(h, /see the docs/);
   assert.match(h, /Posting-inspired/);
   assert.match(h, /Bubble Tea/);
+  assert.match(h, /sandboxed <span class="font-mono text-accent">Lua<\/span>/);
 });
 
 test('features grid renders six cards', () => {
@@ -174,4 +175,11 @@ test('lua globals colored consistently in pre and post', () => {
   assert.match(h, /text-cyan">store<\/span>\.<span class="text-text">get<\/span>/);
   assert.match(h, /text-cyan">req<\/span>\.<span class="text-text">query<\/span>/);
   assert.doesNotMatch(h, /text-accent">req<\/span>/);
+});
+
+test('importers panel renders', () => {
+  const h = html();
+  assert.match(h, /postman-collection\.json/);
+  assert.match(h, /insomnia-export\.yaml/);
+  assert.match(h, /--dry-run/);
 });

@@ -18,6 +18,16 @@ const vimKeys = [
   <p class="mt-3 font-mono text-sm text-faint">a look around</p>
   <div class="mt-8 grid gap-4 md:grid-cols-2">
     <article class="overflow-hidden rounded-xl border border-line2 bg-panel transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <header class="border-b border-line bg-navbar px-4 py-2.5 font-mono text-xs text-faint">importers</header>
+      <div class="p-4 font-mono text-xs leading-6">
+        <div><span class="text-accent">$</span> <span class="text-text">lazypost import postman-collection.json</span></div>
+        <div class="mt-1 text-faint">postman v2.1 · workspaces become folders</div>
+        <div class="mt-4"><span class="text-accent">$</span> <span class="text-text">lazypost import insomnia-export.yaml</span></div>
+        <div class="mt-1 text-faint">insomnia v4 / v5 · environments preserved</div>
+        <div class="mt-4 text-faint">--dry-run previews · --strict enforcement</div>
+      </div>
+    </article>
+    <article class="overflow-hidden rounded-xl border border-line2 bg-panel transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
       <header class="border-b border-line bg-navbar px-4 py-2.5 font-mono text-xs text-faint">vim editing</header>
       <div class="grid grid-cols-3 gap-2 p-4 font-mono text-xs">
         {vimKeys.map(([keys, action]) => (
