@@ -15,9 +15,9 @@ const { title, slug, footer = false } = Astro.props;
     <title>{`lazypost — ${title}`}</title>
     <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
   </head>
-  <body>
+  <body class="flex min-h-screen flex-col">
     <Nav />
-    <main class="mx-auto max-w-6xl px-6 py-10">
+    <main class="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
       <slot slug={slug} />
     </main>
     {footer && <Footer />}

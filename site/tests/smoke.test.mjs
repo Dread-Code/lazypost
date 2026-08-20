@@ -320,3 +320,8 @@ test('docs tables render terminal style', () => {
   assert.match(css(), /docs-terminal-table th/);
   assert.match(css(), /docs-terminal-table/);
 });
+
+test('docs pages pin footer to viewport bottom', () => {
+  assert.match(page('docs/index.html'), /<body class="flex min-h-screen flex-col">/);
+  assert.match(page('docs/faq/index.html'), /<body class="flex min-h-screen flex-col">/);
+});
