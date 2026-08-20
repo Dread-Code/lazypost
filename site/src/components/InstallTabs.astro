@@ -1,11 +1,11 @@
 ---
-import { installUrl } from '../data/site.js';
+import { installUrl, version } from '../data/site.js';
 const tabs = [
   { id: 'curl', label: 'curl | sh', lines: [`$ ${installUrl} | sh`] },
   {
     id: 'pin',
     label: 'pin a version',
-    lines: [`$ ${installUrl} | sh -s -- v0.1.0`, '# PREFIX=/usr/local overrides the install directory'],
+    lines: [`$ ${installUrl} | sh -s -- ${version}`, '# PREFIX=/usr/local overrides the install directory'],
   },
   { id: 'build', label: 'go build', lines: ['$ go build -o lazypost .', '# requires Go 1.25+'] },
 ];

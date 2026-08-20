@@ -12,9 +12,9 @@ const features = [
   <h2 class="font-mono text-base font-bold text-accent">// features</h2>
   <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
     {features.map(([title, desc]) => (
-      <div class="rounded-lg border border-line bg-raised p-5 transition-colors hover:border-line2">
+      <div class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg hover:shadow-accent/10">
         <div class="font-mono text-sm">
-          <span class="font-bold text-text" set:html={`> ${title}`}></span>
+          <span class="font-bold text-text transition-colors duration-200 hover:text-accent" set:html={`> ${title}`}></span>
         </div>
         <p class="mt-2 font-mono text-xs leading-relaxed text-faint">{desc}</p>
       </div>

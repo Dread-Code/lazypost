@@ -47,7 +47,7 @@ test('hero copy, ctas and badges render', () => {
   assert.match(h, /macOS · Linux/);
   assert.match(h, /MIT License/);
   assert.match(h, /Go 1\.25\+/);
-  assert.match(h, /v0\.1\.0/);
+  assert.match(h, /v0\.4\.0/);
   assert.match(h, /img\.shields\.io/);
   assert.match(h, /github\.com\/Dread-Code\/lazypost/);
   assert.match(h, /href="#install"/);
@@ -83,7 +83,7 @@ test('install section renders tabs and commands', () => {
   assert.match(h, /pin a version/);
   assert.match(h, /go build/);
   assert.match(h, /install\.sh \| sh/);
-  assert.match(h, /sh -s -- v0\.1\.0/);
+  assert.match(h, /sh -s -- v0\.4\.0/);
   assert.match(h, /PREFIX=\/usr\/local/);
   assert.match(h, /then run/);
   assert.match(h, /aria-selected="true"/);
