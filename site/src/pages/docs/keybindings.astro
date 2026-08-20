@@ -1,0 +1,93 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+---
+<DocsLayout title="Keybindings" current="docs/keybindings">
+  <h1 class="font-mono text-3xl font-extrabold text-text">$ keybindings</h1>
+  <p class="mt-4 max-w-2xl leading-relaxed text-muted">
+    Every binding, grouped by pane. Keys render literally — ctrl+l means Ctrl+L.
+  </p>
+
+  <h2 class="mt-10 font-mono text-lg font-bold text-text">global</h2>
+  <div class="mt-4 overflow-x-auto">
+    <table class="docs-table">
+      <thead><tr><th>key</th><th>action</th></tr></thead>
+      <tbody>
+        <tr><td class="whitespace-nowrap text-accent">tab</td><td>switch panes</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+/</td><td>command palette</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">?</td><td>keybindings panel</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+h</td><td>request history</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+r</td><td>send request</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+e</td><td>cycle environment</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+s</td><td>save request</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+l</td><td>jump to the URL bar</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+g</td><td>export the current request as curl</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">q</td><td>quit (collection / response / editor normal &amp; visual modes)</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+c</td><td>quit</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="mt-10 font-mono text-lg font-bold text-text">collection · sidebar</h2>
+  <div class="mt-4 overflow-x-auto">
+    <table class="docs-table">
+      <thead><tr><th>key</th><th>action</th></tr></thead>
+      <tbody>
+        <tr><td class="whitespace-nowrap text-accent">↑/↓, ctrl+n/ctrl+p</td><td>navigate (loads the request)</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">enter</td><td>focus the URL bar / toggle folder (collection root toggles all)</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">n</td><td>new request</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">a</td><td>add request in folder; lead with / for a folder</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">d</td><td>delete (confirm with y)</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">r</td><td>rename</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="mt-10 font-mono text-lg font-bold text-text">url bar</h2>
+  <div class="mt-4 overflow-x-auto">
+    <table class="docs-table">
+      <thead><tr><th>key</th><th>action</th></tr></thead>
+      <tbody>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+t</td><td>cycle method</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">enter</td><td>send</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">esc</td><td>back to previous pane</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">paste curl …</td><td>import a curl command</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="mt-10 font-mono text-lg font-bold text-text">editor</h2>
+  <p class="mt-3 max-w-2xl leading-relaxed text-muted">
+    NORMAL-mode field; mode shown in a colored footer row.
+  </p>
+  <div class="mt-4 overflow-x-auto">
+    <table class="docs-table">
+      <thead><tr><th>key</th><th>action</th></tr></thead>
+      <tbody>
+        <tr><td class="whitespace-nowrap text-accent">i / a / A / I / o / O</td><td>enter insert mode (editing)</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">esc</td><td>back to NORMAL</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">hjkl / wbe / 0$^ / ggG / %</td><td>motions</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">x / dd / dw / d$ / d0</td><td>delete (with counts: d2w, 3dd)</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">yy / yw / y$</td><td>yank (copied to the system clipboard)</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">p / P</td><td>paste the last yank/delete</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">v / V</td><td>visual selection (char/line); y yanks, d deletes</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">q</td><td>quit (normal/visual mode only; in insert it types)</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+n/ctrl+p</td><td>move between sections</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">alt+←/alt+→</td><td>switch tabs</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+t</td><td>cycle auth type</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">ctrl+s</td><td>save</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="mt-10 font-mono text-lg font-bold text-text">response</h2>
+  <div class="mt-4 overflow-x-auto">
+    <table class="docs-table">
+      <thead><tr><th>key</th><th>action</th></tr></thead>
+      <tbody>
+        <tr><td class="whitespace-nowrap text-accent">←/→, b/h</td><td>switch tabs</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">↑/↓</td><td>scroll</td></tr>
+        <tr><td class="whitespace-nowrap text-accent">q</td><td>quit</td></tr>
+      </tbody>
+    </table>
+  </div>
+</DocsLayout>

@@ -234,3 +234,11 @@ test('docs quickstart page', () => {
   assert.match(d, /ctrl\+l edits the URL/);
   assert.match(d, /-dir my-collection/);
 });
+
+test('docs keybindings page', () => {
+  const d = page('docs/keybindings/index.html');
+  assert.match(d, /switch panes/);
+  assert.match(d, /export the current request as curl/);
+  assert.match(d, /NORMAL/);
+  assert.match(d, /cycle auth type/);
+});
