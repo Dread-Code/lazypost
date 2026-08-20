@@ -1,0 +1,36 @@
+<script is:inline>
+  (() => {
+    const KEY = 'lazypost-theme';
+    const TOKENS = ['bg', 'panel', 'raised', 'line', 'line2', 'navbar', 'text', 'muted', 'faint', 'accent', 'gold', 'cyan'];
+    const buttons = [...document.querySelectorAll('[data-theme]')];
+    if (!buttons.length) return;
+    const apply = (name) => {
+      const btn = buttons.find((b) => b.dataset.theme === name) || buttons[0];
+      const root = document.documentElement.style;
+      for (const key of TOKENS) {
+        root.setProperty(`--color-${key}`, btn.dataset[key]);
+      }
+      buttons.forEach((b) => {
+        const on = b === btn;
+        b.setAttribute('aria-pressed', String(on));
+        b.classList.toggle('border-accent', on);
+        b.classList.toggle('text-text', on);
+        b.classList.toggle('border-line', !on);
+        b.classList.toggle('text-muted', !on);
+      });
+    };
+    let saved = 'dracula';
+    try {
+      saved = localStorage.getItem(KEY) || 'dracula';
+    } catch (e) {}
+    apply(saved);
+    buttons.forEach((b) => {
+      b.addEventListener('click', () => {
+        try {
+          localStorage.setItem(KEY, b.dataset.theme);
+        } catch (e) {}
+        apply(b.dataset.theme);
+      });
+    });
+  })();
+</script>

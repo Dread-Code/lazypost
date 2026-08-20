@@ -161,9 +161,9 @@ test('selection colors follow theme variables', () => {
 });
 
 test('theme switcher script parses in a browser-like context', () => {
-  const src = read('site/src/components/Showcase.astro');
+  const src = read('site/src/components/ThemeScript.astro');
   const m = src.match(/<script is:inline>([\s\S]*?)<\/script>/);
-  assert.ok(m, 'inline script not found in Showcase.astro');
+  assert.ok(m, 'inline script not found in ThemeScript.astro');
   assert.doesNotThrow(() => new vm.Script(m[1]));
 });
 
@@ -192,4 +192,15 @@ test('importers panel renders', () => {
 test('page() helper reads built docs files', () => {
   assert.equal(page('index.html'), html());
   assert.equal(page('nope/index.html'), '');
+});
+
+test('theme script component parses', () => {
+  const src = read('site/src/components/ThemeScript.astro');
+  const m = src.match(/<script is:inline>([\s\S]*?)<\/script>/);
+  assert.ok(m, 'inline script not found in ThemeScript.astro');
+  assert.doesNotThrow(() => new vm.Script(m[1]));
+});
+
+test('landing links to docs', () => {
+  assert.match(html(), /\/lazypost\/docs\//);
 });
