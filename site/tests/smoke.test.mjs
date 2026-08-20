@@ -112,7 +112,8 @@ test('showcase screenshot asset emitted', () => {
 test('community strip and footer render', () => {
   const h = html();
   assert.match(h, /Open source, MIT licensed\./);
-  assert.match(h, /★ star on github/);
+  assert.match(h, /star on github/);
+  assert.match(h, /M12 17\.27/);
   assert.match(h, /lazypost<\/span> · MIT License · by\n<a href="https:\/\/github\.com\/Dread-Code"/);
   assert.match(h, /target="_blank" rel="noopener"/);
 });
