@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import vm from 'node:vm';
 
 export const ROOT = join(import.meta.dirname, '..', '..');
 export const DIST = join(import.meta.dirname, '..', 'dist');
@@ -130,15 +129,9 @@ test('css uses dracula palette', () => {
   assert.match(c, /--color-text:\s*#f8f8f2/);
 });
 
-test('hero has matrix rain canvas', () => {
+test('hero terminal has glow backdrop', () => {
   const h = html();
-  assert.match(h, /<canvas[^>]*data-matrix/);
-  assert.match(h, /data-matrix[^>]*aria-hidden="true"/);
-});
-
-test('matrix rain inline script parses in a browser-like context', () => {
-  const src = read('site/src/components/MatrixRain.astro');
-  const m = src.match(/<script is:inline>([\s\S]*?)<\/script>/);
-  assert.ok(m, 'inline script not found in MatrixRain.astro');
-  assert.doesNotThrow(() => new vm.Script(m[1]));
+  assert.match(h, /blur-3xl/);
+  assert.match(h, /bg-accent\/20/);
+  assert.match(h, /aria-hidden="true"/);
 });

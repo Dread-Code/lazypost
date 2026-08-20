@@ -1,7 +1,6 @@
 ---
 import { github, starsBadge, version } from '../data/site.js';
 import TerminalWindow from './TerminalWindow.astro';
-import MatrixRain from './MatrixRain.astro';
 ---
 <section class="mx-auto max-w-6xl px-6 pb-8 pt-20 text-center">
   <h1 class="font-mono text-6xl font-extrabold tracking-tight text-text md:text-7xl">lazypost</h1>
@@ -11,7 +10,7 @@ import MatrixRain from './MatrixRain.astro';
     <a href={github} target="_blank" rel="noopener" class="rounded-lg border border-line2 px-5 py-2.5 text-text transition-colors hover:border-faint">view on github</a>
   </div>
   <div class="relative mx-auto max-w-6xl px-6">
-    <MatrixRain />
+    <div aria-hidden="true" class="pointer-events-none absolute -inset-x-16 -inset-y-10 rounded-full bg-accent/20 blur-3xl"></div>
     <TerminalWindow />
   </div>
   <ul class="mt-12 flex flex-wrap items-center justify-center gap-3 font-mono text-xs text-muted">
