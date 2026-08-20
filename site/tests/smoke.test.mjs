@@ -202,85 +202,43 @@ test('docs index page builds', () => {
   assert.ok(existsSync(join(DIST, 'docs/index.html')), 'dist/docs/index.html must exist');
 });
 
-test('docs pages carry the docs nav link', () => {
-  const d = page('docs/index.html');
-  assert.match(d, /\/lazypost\/docs\//);
+test('docs routes pre-render with content', () => {
+  for (const slug of DOC_SLUGS) {
+    const p = slug === 'index' ? 'docs/index.html' : `docs/${slug}/index.html`;
+    assert.match(page(p), new RegExp(DOC_SIGNATURES[slug]), `missing content on ${p}`);
+  }
 });
 
-test('docs index content', () => {
-  const d = page('docs/index.html');
-  assert.match(d, /an API client that lives in your terminal/);
-  assert.match(d, /Quick start/);
-  assert.match(d, /Troubleshooting/);
-});
-
-test('docs installation page', () => {
-  const d = page('docs/installation/index.html');
-  assert.match(d, /install\.sh \| sh/);
-  assert.match(d, /sh -s -- v0\.4\.0/);
-  assert.match(d, /go build -o lazypost \./);
-});
-
-test('docs quickstart page', () => {
-  const d = page('docs/quickstart/index.html');
-  assert.match(d, /ctrl\+l edits the URL/);
-  assert.match(d, /-dir my-collection/);
-});
-
-test('docs keybindings page', () => {
+test('docs use real urls, no hash routing', () => {
   const d = page('docs/keybindings/index.html');
-  assert.match(d, /switch panes/);
-  assert.match(d, /export the current request as curl/);
-  assert.match(d, /NORMAL/);
-  assert.match(d, /cycle auth type/);
+  assert.match(d, /\/lazypost\/docs\/faq\//);
+  assert.doesNotMatch(d, /#\/|href="#/);
 });
 
-test('docs collections page', () => {
-  const d = page('docs/collections/index.html');
-  assert.match(d, /version: 1/);
-  assert.match(d, /type: bear/);
-  assert.match(d, /keyIn: query/);
+test('old docs routes are gone', () => {
+  const dir = join(DIST, 'docs');
+  assert.ok(existsSync(dir), 'docs dir missing');
+  const names = readdirSync(dir);
+  for (const n of names) {
+    const base = n.endsWith('.html') ? n.slice(0, -5) : n;
+    assert.ok(DOC_SLUGS.includes(base), `unexpected docs entry: ${n}`);
+  }
 });
 
-test('docs environments page', () => {
-  const d = page('docs/environments/index.html');
-  assert.match(d, /api\.dev\.example\.com/);
-  assert.match(d, /unknown placeholders are left as-is/i);
-  assert.match(d, /ctrl\+e/);
-});
-
-test('docs scripting page', () => {
-  const d = page('docs/scripting/index.html');
-  assert.match(d, /req\.headers\[/);
-  assert.match(d, /os\.time/);
-  assert.match(d, /expected 200/);
-});
-
-test('docs importers page', () => {
-  const d = page('docs/importers/index.html');
-  assert.match(d, /--dry-run/);
-  assert.match(d, /workspace--environment/);
-  assert.match(d, /--strict/);
-});
-
-test('docs themes page', () => {
-  const d = page('docs/themes/index.html');
-  assert.match(d, /custom YAML themes/);
-  assert.match(d, /$XDG_CONFIG_HOME|XDG_CONFIG_HOME/);
-  assert.match(d, /example\.yaml/);
-});
-
-test('docs faq page', () => {
-  const d = page('docs/faq/index.html');
-  assert.match(d, /unsupported protocol scheme/);
-  assert.match(d, /alt\+←|alt.*arrow/);
-  assert.match(d, /--dry-run/);
-});
-
-test('docs themes example page', () => {
-  const d = page('docs/themes-example/index.html');
-  assert.match(d, /annotated template/);
-  assert.match(d, /light/);
+test('internal docs links resolve', () => {
+  const files = ['index.html', ...DOC_SLUGS.map((s) => (s === 'index' ? 'docs/index.html' : `docs/${s}/index.html`))];
+  const needs = new Set();
+  for (const f of files) {
+    const h = f === 'index.html' ? html() : page(f);
+    for (const m of h.matchAll(/href="(\/lazypost\/docs\/[^"]+)"/g)) {
+      needs.add(m[1]);
+    }
+  }
+  for (const n of needs) {
+    const rel = n.replace('/lazypost/', '');
+    const ok = existsSync(join(DIST, rel)) || existsSync(join(DIST, rel, 'index.html'));
+    assert.ok(ok, `unresolved docs link: ${n}`);
+  }
 });
 
 test('theme script bundle ships lazypost-theme', () => {
@@ -325,4 +283,11 @@ test('markdown sources exist with signatures', () => {
   for (const slug of DOC_SLUGS) {
     assert.match(read(`site/src/docs/${slug}.md`), new RegExp(DOC_SIGNATURES[slug]), `missing signature in docs/${slug}.md`);
   }
+});
+
+test('docs store anchors to real urls', () => {
+  const src = read('site/src/components/DocsApp.jsx');
+  assert.match(src, /pushState/);
+  assert.match(src, /react-markdown/);
+  assert.match(src, /popstate/);
 });

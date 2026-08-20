@@ -1,9 +1,10 @@
+import React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { docs } from '../data/docs.js';
 
-const raw = import.meta.glob('../docs/*.md', { query: '?raw', import: 'default' });
+const raw = import.meta.glob('../docs/*.md', { query: '?raw', import: 'default', eager: true });
 
 export default function DocsApp({ slug }) {
   const [current, setCurrent] = useState(slug);
@@ -25,8 +26,7 @@ export default function DocsApp({ slug }) {
     window.scrollTo({ top: 0 });
   }, []);
 
-  const loadRaw = raw[`../docs/${current}.md`];
-  const markdown = typeof loadRaw === 'function' ? loadRaw() : '';
+  const markdown = raw[`../docs/${current}.md`] ?? '';
 
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-start">

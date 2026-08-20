@@ -1,0 +1,15 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsApp from '../../components/DocsApp.jsx';
+import { docs } from '../../data/docs.js';
+
+export function getStaticPaths() {
+  return docs.map((d) => ({ params: { slug: d.slug } }));
+}
+
+const { slug } = Astro.params;
+const meta = docs.find((d) => d.slug === slug);
+---
+<DocsLayout title={meta?.title ?? 'Docs'} slug={slug}>
+  <DocsApp slug={slug} client:load />
+</DocsLayout>

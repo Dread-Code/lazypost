@@ -32,10 +32,40 @@ body {
   color: var(--color-bg);
 }
 
-@layer components {
-  .docs-table { width: 100%; border-collapse: collapse; }
-  .docs-table th, .docs-table td { border-bottom: 1px solid var(--color-line); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; font-family: var(--font-mono); font-size: 0.75rem; }
-  .docs-table th { background: var(--color-navbar); color: var(--color-muted); font-weight: 700; }
-  .docs-table td { color: var(--color-text); }
-  .docs-table tr:hover td { background: var(--color-raised); }
+.prose {
+  --tw-prose-body: var(--color-text);
+  --tw-prose-headings: var(--color-text);
+  --tw-prose-links: var(--color-accent);
+  --tw-prose-code: var(--color-gold);
+  --tw-prose-pre-bg: var(--color-panel);
+  --tw-prose-pre-code: var(--color-text);
+  --tw-prose-quotes: var(--color-text);
+  --tw-prose-th-borders: var(--color-line2);
+  --tw-prose-td-borders: var(--color-line);
+  --tw-prose-counters: var(--color-muted);
+  --tw-prose-bullets: var(--color-accent);
+  --tw-prose-hr: var(--color-line);
+}
+.prose code {
+  background: var(--color-raised);
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.3rem;
+  font-weight: 400;
+}
+.prose pre {
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+}
+.prose pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.prose thead th {
+  background: var(--color-navbar);
+  color: var(--color-muted);
+}
+.prose blockquote {
+  border-left-color: var(--color-accent);
 }

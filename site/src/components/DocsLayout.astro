@@ -1,0 +1,26 @@
+---
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import ThemeScript from '../components/ThemeScript.astro';
+import '../styles/global.css';
+
+const { title, slug } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={`lazypost docs — ${title}`} />
+    <title>{`lazypost — ${title}`}</title>
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+  </head>
+  <body>
+    <Nav />
+    <main class="mx-auto max-w-6xl px-6 py-10">
+      <slot slug={slug} />
+    </main>
+    <Footer />
+    <ThemeScript />
+  </body>
+</html>
