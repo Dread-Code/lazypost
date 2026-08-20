@@ -26,6 +26,6 @@ body {
 }
 
 ::selection {
-  background: #bd93f9;
-  color: #282a36;
+  background: var(--color-accent);
+  color: var(--color-bg);
 }

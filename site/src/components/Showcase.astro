@@ -58,6 +58,15 @@ store.set(<span class="text-gold">"last_id"</span>, id)</pre>
             <button
               type="button"
               data-theme={t.name}
+              data-bg={t.bg}
+              data-panel={t.panel}
+              data-raised={t.raised}
+              data-line={t.line}
+              data-line2={t.line2}
+              data-navbar={t.navbar}
+              data-text={t.text}
+              data-muted={t.muted}
+              data-faint={t.faint}
               data-accent={t.accent}
               data-gold={t.gold}
               aria-pressed="false"
@@ -75,13 +84,15 @@ store.set(<span class="text-gold">"last_id"</span>, id)</pre>
 <script is:inline>
   (() => {
     const KEY = 'lazypost-theme';
+    const TOKENS = ['bg', 'panel', 'raised', 'line', 'line2', 'navbar', 'text', 'muted', 'faint', 'accent', 'gold'];
     const buttons = [...document.querySelectorAll('[data-theme]')];
     if (!buttons.length) return;
     const apply = (name) => {
       const btn = buttons.find((b) => b.dataset.theme === name) || buttons[0];
       const root = document.documentElement.style;
-      root.setProperty('--color-accent', btn.dataset.accent);
-      root.setProperty('--color-gold', btn.dataset.gold);
+      for (const key of TOKENS) {
+        root.setProperty(`--color-${key}`, btn.dataset[key]);
+      }
       buttons.forEach((b) => {
         const on = b === btn;
         b.setAttribute('aria-pressed', String(on));

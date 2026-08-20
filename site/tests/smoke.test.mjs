@@ -143,7 +143,13 @@ test('theme swatch buttons carry theme data', () => {
   const h = html();
   assert.match(h, /data-theme="dracula"/);
   assert.match(h, /data-accent=/);
+  assert.match(h, /data-bg=/);
   assert.match(h, /lazypost-theme/);
+});
+
+test('selection colors follow theme variables', () => {
+  assert.match(css(), /var\(--color-accent\)/);
+  assert.match(css(), /var\(--color-bg\)/);
 });
 
 test('theme switcher script parses in a browser-like context', () => {
