@@ -30,3 +30,11 @@ test('build output exists', () => {
 test('page has lazypost title', () => {
   assert.match(html(), /<title>lazypost<\/title>/);
 });
+
+test('css emits design tokens', () => {
+  assert.match(css(), /--color-accent:/, 'compiled css must contain --color-accent');
+});
+
+test('css sets smooth scrolling', () => {
+  assert.match(css(), /scroll-behavior:smooth/);
+});
