@@ -52,3 +52,13 @@ test('hero copy, ctas and badges render', () => {
   assert.match(h, /github\.com\/Dread-Code\/lazypost/);
   assert.match(h, /href="#install"/);
 });
+
+test('terminal window renders the TUI', () => {
+  const h = html();
+  assert.match(h, /lazypost — ~\/collections/);
+  assert.match(h, /\{\{host\}\}\/posts/);
+  assert.match(h, /Content-Type: application\/json/);
+  assert.match(h, /200 OK · 142ms · 1\.2kb/);
+  assert.match(h, /NORMAL/);
+  assert.match(h, /ctrl\+r send/);
+});
