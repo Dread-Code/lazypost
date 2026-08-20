@@ -175,3 +175,10 @@ test('lua globals colored consistently in pre and post', () => {
   assert.match(h, /text-cyan">req<\/span>\.<span class="text-text">query<\/span>/);
   assert.doesNotMatch(h, /text-accent">req<\/span>/);
 });
+
+test('importers panel renders', () => {
+  const h = html();
+  assert.match(h, /postman-collection\.json/);
+  assert.match(h, /insomnia-export\.yaml/);
+  assert.match(h, /--dry-run/);
+});
