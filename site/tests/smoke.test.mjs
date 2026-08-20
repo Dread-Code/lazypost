@@ -301,3 +301,7 @@ test('nav logo links to the home page', () => {
   assert.match(html(), /href="\/lazypost\/"/);
   assert.match(page('docs/index.html'), /href="\/lazypost\/"/);
 });
+
+test('css ships typography prose styles', () => {
+  assert.match(css(), /\.prose/);
+});
