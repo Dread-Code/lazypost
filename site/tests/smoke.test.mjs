@@ -101,7 +101,7 @@ test('showcase section renders panels', () => {
   }
   assert.match(h, /X-Session/);
   assert.match(h, /ctrl\+g/);
-  assert.match(h, /store\.set/);
+  assert.match(h, /store<\/span>\.<span class="text-text">set<\/span>/);
 });
 
 test('showcase screenshot asset emitted', () => {
@@ -157,4 +157,11 @@ test('theme switcher script parses in a browser-like context', () => {
   const m = src.match(/<script is:inline>([\s\S]*?)<\/script>/);
   assert.ok(m, 'inline script not found in Showcase.astro');
   assert.doesNotThrow(() => new vm.Script(m[1]));
+});
+
+test('lua panel uses theme color classes', () => {
+  const h = html();
+  assert.match(h, /text-accent">local</);
+  assert.match(h, /text-gold">"X-Session"/);
+  assert.match(h, /text-faint">-- pre</);
 });

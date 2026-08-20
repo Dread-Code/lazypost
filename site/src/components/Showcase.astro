@@ -30,12 +30,12 @@ const vimKeys = [
     </article>
     <article class="overflow-hidden rounded-xl border border-line2 bg-panel transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
       <header class="border-b border-line bg-navbar px-4 py-2.5 font-mono text-xs text-faint">lua chaining</header>
-      <pre class="overflow-x-auto p-4 font-mono text-xs leading-6 text-faint">-- pre
+      <pre class="overflow-x-auto p-4 font-mono text-xs leading-6 text-text"><span class="text-faint">-- pre</span>
 req.headers[<span class="text-gold">"X-Session"</span>] = store.get(<span class="text-gold">"token"</span>)
 req.query[<span class="text-gold">"page"</span>] = <span class="text-gold">"2"</span>
--- post
-local id = string.match(response.body, <span class="text-gold">'"id": (%d+)'</span>)
-store.set(<span class="text-gold">"last_id"</span>, id)</pre>
+<span class="text-faint">-- post</span>
+<span class="text-accent">local</span> id = <span class="text-muted">string</span>.<span class="text-text">match</span>(response.body, <span class="text-gold">'"id": (%d+)'</span>)
+<span class="text-muted">store</span>.<span class="text-text">set</span>(<span class="text-gold">"last_id"</span>, id)</pre>
     </article>
     <article class="overflow-hidden rounded-xl border border-line2 bg-panel transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
       <header class="border-b border-line bg-navbar px-4 py-2.5 font-mono text-xs text-faint">curl import</header>
