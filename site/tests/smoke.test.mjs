@@ -47,7 +47,8 @@ test('hero copy, ctas and badges render', () => {
   assert.match(h, /macOS/);
   assert.match(h, /Linux/);
   assert.match(h, /MIT License/);
-  assert.match(h, /Go 1\.25\+/);
+  assert.match(h, /1\.25\+/);
+  assert.doesNotMatch(h, /Go 1\.25\+/);
   assert.match(h, /v0\.4\.0/);
   assert.match(h, /img\.shields\.io/);
   assert.match(h, /github\.com\/Dread-Code\/lazypost/);
