@@ -1,6 +1,50 @@
 ---
 import DocsLayout from '../../layouts/DocsLayout.astro';
+const envBlurb = '{{variable}} interpolation and the environment manager.';
 ---
 <DocsLayout title="Docs" current="none">
-  <h1 class="font-mono text-3xl font-extrabold text-text">docs</h1>
+  <h1 class="font-mono text-3xl font-extrabold text-text">// docs</h1>
+  <p class="mt-4 max-w-2xl text-lg leading-relaxed text-muted">
+    lazypost is <span class="font-mono text-accent">an API client that lives in your terminal</span> —
+    Posting-inspired, built with Go and Bubble Tea. Requests are plain YAML files in a directory
+    tree, so a collection is a folder you can version-control, diff, and share.
+  </p>
+  <div class="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <a href={`${import.meta.env.BASE_URL}docs/quickstart/`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <div class="font-mono text-sm"><span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">Quick start</span></div>
+      <p class="mt-2 font-mono text-xs leading-relaxed text-faint">First request in under a minute.</p>
+    </a>
+    <a href={`${import.meta.env.BASE_URL}docs/installation/`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <div class="font-mono text-sm"><span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">Installation</span></div>
+      <p class="mt-2 font-mono text-xs leading-relaxed text-faint">One command, a pinned version, or go build.</p>
+    </a>
+    <a href={`${import.meta.env.BASE_URL}docs/keybindings/`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <div class="font-mono text-sm"><span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">Keybindings</span></div>
+      <p class="mt-2 font-mono text-xs leading-relaxed text-faint">Every binding, grouped: global, sidebar, URL bar, editor, response.</p>
+    </a>
+    <a href={`${import.meta.env.BASE_URL}docs/collections/`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <div class="font-mono text-sm"><span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">Collections</span></div>
+      <p class="mt-2 font-mono text-xs leading-relaxed text-faint">Request YAML format, auth variants, folder structure.</p>
+    </a>
+    <a href={`${import.meta.env.BASE_URL}docs/environments/`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <div class="font-mono text-sm"><span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">Environments</span></div>
+      <p class="mt-2 font-mono text-xs leading-relaxed text-faint">{envBlurb}</p>
+    </a>
+    <a href={`${import.meta.env.BASE_URL}docs/scripting/`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <div class="font-mono text-sm"><span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">Scripting</span></div>
+      <p class="mt-2 font-mono text-xs leading-relaxed text-faint">Sandboxed Lua pre/post hooks with a session store.</p>
+    </a>
+    <a href={`${import.meta.env.BASE_URL}docs/importers/`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <div class="font-mono text-sm"><span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">Importers</span></div>
+      <p class="mt-2 font-mono text-xs leading-relaxed text-faint">Postman and Insomnia into a lazypost collection, one command.</p>
+    </a>
+    <a href={`${import.meta.env.BASE_URL}docs/themes/`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <div class="font-mono text-sm"><span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">Themes</span></div>
+      <p class="mt-2 font-mono text-xs leading-relaxed text-faint">Eight presets and custom YAML themes.</p>
+    </a>
+    <a href={`${import.meta.env.BASE_URL}docs/faq/`} class="rounded-lg border border-line bg-raised p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
+      <div class="font-mono text-sm"><span class="text-accent" set:html={`>`}></span> <span class="font-bold text-text">FAQ</span></div>
+      <p class="mt-2 font-mono text-xs leading-relaxed text-faint">Troubleshooting and behavior notes.</p>
+    </a>
+  </div>
 </DocsLayout>
