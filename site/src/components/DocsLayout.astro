@@ -4,7 +4,7 @@ import Footer from '../components/Footer.astro';
 import ThemeScript from '../components/ThemeScript.astro';
 import '../styles/global.css';
 
-const { title, slug } = Astro.props;
+const { title, slug, footer = false } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
@@ -20,7 +20,7 @@ const { title, slug } = Astro.props;
     <main class="mx-auto max-w-6xl px-6 py-10">
       <slot slug={slug} />
     </main>
-    <Footer />
+    {footer && <Footer />}
     <ThemeScript />
   </body>
 </html>

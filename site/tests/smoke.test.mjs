@@ -299,3 +299,8 @@ test('docs home is the classic card grid page', () => {
   assert.match(d, /hidden w-52 shrink-0 lg:block/);
   assert.doesNotMatch(d, /<h1[^>]*>docs<\/h1>/);
 });
+
+test('footer renders only on the docs home', () => {
+  assert.match(page('docs/index.html'), /MIT License/);
+  assert.doesNotMatch(page('docs/keybindings/index.html'), /<footer/);
+});
