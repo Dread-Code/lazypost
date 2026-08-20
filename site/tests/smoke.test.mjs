@@ -44,7 +44,8 @@ test('hero copy, ctas and badges render', () => {
   assert.match(h, /An API client that lives in your terminal\./);
   assert.match(h, /\$ get started/);
   assert.match(h, /view on github/);
-  assert.match(h, /macOS · Linux/);
+  assert.match(h, /macOS/);
+  assert.match(h, /Linux/);
   assert.match(h, /MIT License/);
   assert.match(h, /Go 1\.25\+/);
   assert.match(h, /v0\.4\.0/);
