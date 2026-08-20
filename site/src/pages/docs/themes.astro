@@ -1,0 +1,35 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+const base = import.meta.env.BASE_URL;
+const presets = ['dracula', 'catppuccin', 'solarized', 'gruvbox', 'nord', 'tokyonight', 'one-dark', 'monokai'];
+---
+<DocsLayout title="Themes" current="docs/themes">
+  <h1 class="font-mono text-3xl font-extrabold text-text">themes</h1>
+  <p class="mt-4 max-w-2xl leading-relaxed text-muted">
+    Eight presets ship built in:
+  </p>
+  <div class="mt-4 flex flex-wrap gap-2">
+    {presets.map((p) => (
+      <span class="rounded-full border border-line bg-raised px-3 py-1.5 font-mono text-xs text-muted">{p}</span>
+    ))}
+  </div>
+  <p class="mt-6 max-w-2xl leading-relaxed text-muted">
+    Switch at runtime from the palette: <span class="font-mono text-xs text-accent">ctrl+/</span> then
+    <span class="font-mono text-xs text-text">Switch theme</span>. The chosen theme is remembered between runs.
+  </p>
+  <h2 class="mt-10 font-mono text-lg font-bold text-text">custom YAML themes</h2>
+  <p class="mt-4 max-w-2xl leading-relaxed text-muted">
+    Custom themes live in <span class="font-mono text-xs text-text">~/.config/lazypost/themes/&lt;name&gt;.yaml</span>
+    (or <span class="font-mono text-xs text-text">$XDG_CONFIG_HOME/lazypost/themes/</span>). Each file mirrors the theme
+    colors as <span class="font-mono text-xs text-text">light</span>/<span class="font-mono text-xs text-text">dark</span> hex pairs;
+    every key is optional and falls back to the default theme.
+  </p>
+  <p class="mt-6 font-mono text-sm text-faint">see the annotated template: <a href={`${base}docs/themes-example/`} class="text-accent hover:underline">example.yaml</a> — or in the repo: docs/themes/example.yaml</p>
+  <div class="mt-6 overflow-hidden rounded-xl border border-line2 bg-panel">
+    <div class="border-b border-line bg-navbar px-4 py-2.5 font-mono text-xs text-faint">example.yaml (abridged)</div>
+    <pre class="overflow-x-auto p-4 font-mono text-xs leading-6 text-text"># docs/themes/example.yaml
+accent: &#123;&#123;light: "#7aa2f7", dark: "#7aa2f7"&#125;&#125;
+background: &#123;light: "#c0caf5", dark: "#24283b"&#125;
+text: &#123;light: "#0f111a", dark: "#c0caf5"&#125;</pre>
+  </div>
+</DocsLayout>

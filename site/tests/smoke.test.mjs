@@ -270,3 +270,10 @@ test('docs importers page', () => {
   assert.match(d, /workspace--environment/);
   assert.match(d, /--strict/);
 });
+
+test('docs themes page', () => {
+  const d = page('docs/themes/index.html');
+  assert.match(d, /custom YAML themes/);
+  assert.match(d, /$XDG_CONFIG_HOME|XDG_CONFIG_HOME/);
+  assert.match(d, /example\.yaml/);
+});
