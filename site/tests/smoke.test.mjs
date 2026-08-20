@@ -92,3 +92,20 @@ test('install section renders tabs and commands', () => {
   assert.match(h, /then run/);
   assert.match(h, /aria-selected="true"/);
 });
+
+test('showcase section renders panels', () => {
+  const h = html();
+  assert.match(h, /\$ lazypost/);
+  assert.match(h, /a look around/);
+  for (const label of ['vim editing', 'lua chaining', 'curl import', 'themes']) {
+    assert.match(h, new RegExp(label), `missing showcase panel: ${label}`);
+  }
+  assert.match(h, /X-Session/);
+  assert.match(h, /ctrl\+g/);
+  assert.match(h, /store\.set/);
+});
+
+test('showcase screenshot asset emitted', () => {
+  const dir = join(DIST, '_astro');
+  assert.ok(existsSync(dir) && readdirSync(dir).some((n) => n.endsWith('.png')), 'dist/_astro must contain a hashed png');
+});
