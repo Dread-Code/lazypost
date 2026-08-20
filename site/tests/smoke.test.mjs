@@ -117,3 +117,11 @@ test('community strip and footer render', () => {
   assert.match(h, /lazypost<\/span> · MIT License · by\n<a href="https:\/\/github\.com\/Dread-Code"/);
   assert.match(h, /target="_blank" rel="noopener"/);
 });
+
+test('pages workflow exists and deploys site/dist', () => {
+  const wf = read('.github/workflows/pages.yml');
+  assert.match(wf, /actions\/deploy-pages@v4/);
+  assert.match(wf, /path: site\/dist/);
+  assert.match(wf, /npm run build/);
+  assert.match(wf, /paths:\s*\[\s*site\/\*\*/s);
+});
