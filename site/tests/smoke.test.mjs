@@ -109,3 +109,11 @@ test('showcase screenshot asset emitted', () => {
   const dir = join(DIST, '_astro');
   assert.ok(existsSync(dir) && readdirSync(dir).some((n) => n.endsWith('.png')), 'dist/_astro must contain a hashed png');
 });
+
+test('community strip and footer render', () => {
+  const h = html();
+  assert.match(h, /Open source, MIT licensed\./);
+  assert.match(h, /★ star on github/);
+  assert.match(h, /lazypost<\/span> · MIT License · by\n<a href="https:\/\/github\.com\/Dread-Code"/);
+  assert.match(h, /target="_blank" rel="noopener"/);
+});
