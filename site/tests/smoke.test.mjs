@@ -290,3 +290,7 @@ test('docs themes example page', () => {
   assert.match(d, /annotated template/);
   assert.match(d, /light/);
 });
+
+test('landing mounts theme script', () => {
+  assert.match(html(), /lazypost-theme/);
+});
