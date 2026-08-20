@@ -31,11 +31,11 @@ const vimKeys = [
     <article class="overflow-hidden rounded-xl border border-line2 bg-panel transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
       <header class="border-b border-line bg-navbar px-4 py-2.5 font-mono text-xs text-faint">lua chaining</header>
       <pre class="overflow-x-auto p-4 font-mono text-xs leading-6 text-text"><span class="text-faint">-- pre</span>
-<span class="text-accent">req</span>.<span class="text-text">headers</span>[<span class="text-gold">"X-Session"</span>] = <span class="text-accent">store</span>.<span class="text-text">get</span>(<span class="text-gold">"token"</span>)
-<span class="text-accent">req</span>.<span class="text-text">query</span>[<span class="text-gold">"page"</span>] = <span class="text-gold">"2"</span>
+<span class="text-cyan">req</span>.<span class="text-text">headers</span>[<span class="text-gold">"X-Session"</span>] = <span class="text-cyan">store</span>.<span class="text-text">get</span>(<span class="text-gold">"token"</span>)
+<span class="text-cyan">req</span>.<span class="text-text">query</span>[<span class="text-gold">"page"</span>] = <span class="text-gold">"2"</span>
 <span class="text-faint">-- post</span>
-<span class="text-accent">local</span> id = <span class="text-accent">string</span>.<span class="text-text">match</span>(response.body, <span class="text-gold">'"id": (%d+)'</span>)
-<span class="text-accent">store</span>.<span class="text-text">set</span>(<span class="text-gold">"last_id"</span>, id)</pre>
+<span class="text-accent">local</span> id = <span class="text-cyan">string</span>.<span class="text-text">match</span>(response.body, <span class="text-gold">'"id": (%d+)'</span>)
+<span class="text-cyan">store</span>.<span class="text-text">set</span>(<span class="text-gold">"last_id"</span>, id)</pre>
     </article>
     <article class="overflow-hidden rounded-xl border border-line2 bg-panel transition-all duration-200 hover:-translate-y-0.5 hover:border-accent">
       <header class="border-b border-line bg-navbar px-4 py-2.5 font-mono text-xs text-faint">curl import</header>
@@ -64,6 +64,7 @@ const vimKeys = [
               data-faint={t.faint}
               data-accent={t.accent}
               data-gold={t.gold}
+              data-cyan={t.cyan}
               aria-pressed="false"
               class="flex cursor-pointer items-center gap-2 rounded-full border border-line bg-raised px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-accent"
             >
@@ -79,7 +80,7 @@ const vimKeys = [
 <script is:inline>
   (() => {
     const KEY = 'lazypost-theme';
-    const TOKENS = ['bg', 'panel', 'raised', 'line', 'line2', 'navbar', 'text', 'muted', 'faint', 'accent', 'gold'];
+    const TOKENS = ['bg', 'panel', 'raised', 'line', 'line2', 'navbar', 'text', 'muted', 'faint', 'accent', 'gold', 'cyan'];
     const buttons = [...document.querySelectorAll('[data-theme]')];
     if (!buttons.length) return;
     const apply = (name) => {

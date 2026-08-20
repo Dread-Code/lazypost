@@ -144,6 +144,7 @@ test('theme swatch buttons carry theme data', () => {
   assert.match(h, /data-theme="dracula"/);
   assert.match(h, /data-accent=/);
   assert.match(h, /data-bg=/);
+  assert.match(h, /data-cyan=/);
   assert.match(h, /lazypost-theme/);
 });
 
@@ -168,8 +169,8 @@ test('lua panel uses theme color classes', () => {
 
 test('lua globals colored consistently in pre and post', () => {
   const h = html();
-  assert.match(h, /text-accent">req<\/span>\.<span class="text-text">headers<\/span>/);
-  assert.match(h, /text-accent">store<\/span>\.<span class="text-text">get<\/span>/);
-  assert.match(h, /text-accent">req<\/span>\.<span class="text-text">query<\/span>/);
-  assert.doesNotMatch(h, /text-muted">req<\/span>/);
+  assert.match(h, /text-cyan">req<\/span>\.<span class="text-text">headers<\/span>/);
+  assert.match(h, /text-cyan">store<\/span>\.<span class="text-text">get<\/span>/);
+  assert.match(h, /text-cyan">req<\/span>\.<span class="text-text">query<\/span>/);
+  assert.doesNotMatch(h, /text-accent">req<\/span>/);
 });
