@@ -128,3 +128,9 @@ test('css uses dracula palette', () => {
   assert.match(c, /--color-bg:\s*#282a36/);
   assert.match(c, /--color-text:\s*#f8f8f2/);
 });
+
+test('hero has matrix rain canvas', () => {
+  const h = html();
+  assert.match(h, /<canvas[^>]*data-matrix/);
+  assert.match(h, /data-matrix[^>]*aria-hidden="true"/);
+});
