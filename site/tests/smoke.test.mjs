@@ -325,3 +325,7 @@ test('docs pages pin footer to viewport bottom', () => {
   assert.match(page('docs/index.html'), /<body class="flex min-h-screen flex-col">/);
   assert.match(page('docs/faq/index.html'), /<body class="flex min-h-screen flex-col">/);
 });
+
+test('nav groups logo and docs link, star pill alone', () => {
+  assert.match(html(), /flex items-center gap-8">[\s\S]*?lazypost/);
+});
