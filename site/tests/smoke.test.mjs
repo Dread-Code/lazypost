@@ -12,6 +12,11 @@ export const html = () => {
   return existsSync(p) ? readFileSync(p, 'utf8') : '';
 };
 
+export const page = (p) => {
+  const full = join(DIST, p);
+  return existsSync(full) ? readFileSync(full, 'utf8') : '';
+};
+
 export const css = () => {
   const dir = join(DIST, '_astro');
   if (!existsSync(dir)) return '';
@@ -182,4 +187,9 @@ test('importers panel renders', () => {
   assert.match(h, /postman-collection\.json/);
   assert.match(h, /insomnia-export\.yaml/);
   assert.match(h, /--dry-run/);
+});
+
+test('page() helper reads built docs files', () => {
+  assert.equal(page('index.html'), html());
+  assert.equal(page('nope/index.html'), '');
 });
