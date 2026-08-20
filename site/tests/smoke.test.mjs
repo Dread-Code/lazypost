@@ -263,3 +263,10 @@ test('docs scripting page', () => {
   assert.match(d, /os\.time/);
   assert.match(d, /expected 200/);
 });
+
+test('docs importers page', () => {
+  const d = page('docs/importers/index.html');
+  assert.match(d, /--dry-run/);
+  assert.match(d, /workspace--environment/);
+  assert.match(d, /--strict/);
+});
