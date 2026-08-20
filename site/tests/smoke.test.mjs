@@ -329,3 +329,9 @@ test('docs pages pin footer to viewport bottom', () => {
 test('nav groups logo and docs link, star pill alone', () => {
   assert.match(html(), /flex items-center gap-8">[\s\S]*?lazypost/);
 });
+
+test('docs header and footer stretch full width', () => {
+  const d = page('docs/index.html');
+  assert.match(d, /<header id="top" class="mx-auto flex w-full max-w-6xl/);
+  assert.match(d, /<footer class="mx-auto w-full max-w-6xl/);
+});
