@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import vm from 'node:vm';
 
 export const ROOT = join(import.meta.dirname, '..', '..');
 export const DIST = join(import.meta.dirname, '..', 'dist');
@@ -136,4 +137,18 @@ test('hero terminal has glow backdrop', () => {
   assert.match(h, /blur-3xl/);
   assert.match(h, /bg-accent\/20/);
   assert.match(h, /aria-hidden="true"/);
+});
+
+test('theme swatch buttons carry theme data', () => {
+  const h = html();
+  assert.match(h, /data-theme="dracula"/);
+  assert.match(h, /data-accent=/);
+  assert.match(h, /lazypost-theme/);
+});
+
+test('theme switcher script parses in a browser-like context', () => {
+  const src = read('site/src/components/Showcase.astro');
+  const m = src.match(/<script is:inline>([\s\S]*?)<\/script>/);
+  assert.ok(m, 'inline script not found in Showcase.astro');
+  assert.doesNotThrow(() => new vm.Script(m[1]));
 });
