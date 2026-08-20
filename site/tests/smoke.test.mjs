@@ -284,3 +284,9 @@ test('docs faq page', () => {
   assert.match(d, /alt\+←|alt.*arrow/);
   assert.match(d, /--dry-run/);
 });
+
+test('docs themes example page', () => {
+  const d = page('docs/themes-example/index.html');
+  assert.match(d, /annotated template/);
+  assert.match(d, /light/);
+});

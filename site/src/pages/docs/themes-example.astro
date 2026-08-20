@@ -1,0 +1,47 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+---
+<DocsLayout title="example.yaml" current="none">
+  <h1 class="font-mono text-3xl font-extrabold text-text">example.yaml</h1>
+  <p class="mt-4 max-w-2xl leading-relaxed text-muted">
+    The annotated template — every key commented, every value an adaptive light/dark pair. Same file shipped in the repo at <span class="font-mono text-xs text-text">docs/themes/example.yaml</span>.
+  </p>
+  <div class="mt-6 overflow-hidden rounded-xl border border-line2 bg-panel">
+    <div class="border-b border-line bg-navbar px-4 py-2.5 font-mono text-xs text-faint">docs/themes/example.yaml</div>
+    <pre class="overflow-x-auto p-4 font-mono text-xs leading-6 text-text"># Example user theme for lazypost.
+
+# Drop a file like this into ~/.config/lazypost/themes/ (or
+# $XDG_CONFIG_HOME/lazypost/themes/) and it appears in the theme picker
+# (ctrl+/ → Switch theme) after the built-in presets. The theme's name is
+# the file name (without .yaml).
+
+# Every key is optional: missing colors fall back to the default theme.
+# Each color is an adaptive pair — light value for light terminals, dark
+# value for dark terminals — as #RGB or #RRGGBB. A file with an invalid
+# color is skipped with a log message; a theme can never break the app.
+
+primary: &#123;light: "#5A56E0", dark: "#BD93F9"&#125;   # accent: active pane, tabs, cursor
+dim: &#123;light: "#8A8A8A", dark: "#6272A4"&#125;
+success: &#123;light: "#008000", dark: "#50FA7B"&#125;   # 2xx status, notices
+warn: &#123;light: "#B58900", dark: "#F1FA8C"&#125;      # 4xx status, placeholders
+error: &#123;light: "#CC0000", dark: "#FF5555"&#125;     # 5xx status, failures
+info: &#123;light: "#0066CC", dark: "#8BE9FD"&#125;      # keys in hints, editor accent
+accent: &#123;light: "#F92672", dark: "#FF79C6"&#125;    # env badge pill
+key: &#123;light: "#B4530A", dark: "#FFB86C"&#125;        # shortcut keys in hints and the keybindings panel
+muted: &#123;light: "#999999", dark: "#6272A4"&#125;     # hint text
+border: &#123;light: "#DDDDDD", dark: "#44475A"&#125;    # pane borders when unfocused
+input: &#123;light: "#44475A", dark: "#F8F8F2"&#125;     # text color in inputs/editor
+field: &#123;light: "#E9E9F0", dark: "#343746"&#125;     # URL bar background
+selection: &#123;light: "#5A56E0", dark: "#BD93F9"&#125; # highlighted list row background
+on_selection: &#123;light: "#FFFFFF", dark: "#282A36"&#125; # text on the highlighted row
+
+methods:
+  GET: &#123;light: "#008000", dark: "#50FA7B"&#125;
+  POST: &#123;light: "#B58900", dark: "#F1FA8C"&#125;
+  PUT: &#123;light: "#0066CC", dark: "#8BE9FD"&#125;
+  PATCH: &#123;light: "#875FD7", dark: "#FF79C6"&#125;
+  DELETE: &#123;light: "#CC0000", dark: "#FF5555"&#125;
+  HEAD: &#123;light: "#999999", dark: "#6272A4"&#125;
+  OPTIONS: &#123;light: "#999999", dark: "#6272A4"&#125;</pre>
+  </div>
+</DocsLayout>
