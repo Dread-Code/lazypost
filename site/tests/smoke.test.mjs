@@ -204,3 +204,33 @@ test('theme script component parses', () => {
 test('landing links to docs', () => {
   assert.match(html(), /\/lazypost\/docs\//);
 });
+
+test('docs index page builds', () => {
+  assert.ok(existsSync(join(DIST, 'docs/index.html')), 'dist/docs/index.html must exist');
+});
+
+test('docs pages carry theme script and docs nav', () => {
+  const d = page('docs/index.html');
+  assert.match(d, /lazypost-theme/);
+  assert.match(d, /\/lazypost\/docs\//);
+});
+
+test('docs index content', () => {
+  const d = page('docs/index.html');
+  assert.match(d, /an API client that lives in your terminal/);
+  assert.match(d, /Quick start/);
+  assert.match(d, /Troubleshooting/);
+});
+
+test('docs installation page', () => {
+  const d = page('docs/installation/index.html');
+  assert.match(d, /install\.sh \| sh/);
+  assert.match(d, /sh -s -- v0\.4\.0/);
+  assert.match(d, /go build -o lazypost \./);
+});
+
+test('docs quickstart page', () => {
+  const d = page('docs/quickstart/index.html');
+  assert.match(d, /ctrl\+l edits the URL/);
+  assert.match(d, /-dir my-collection/);
+});
