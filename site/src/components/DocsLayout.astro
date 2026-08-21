@@ -17,7 +17,7 @@ const { title, slug, footer = false } = Astro.props;
   </head>
   <body class="flex min-h-screen flex-col">
     <Nav />
-    <main class="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
+    <main class="mx-auto w-full max-w-6xl flex-1 px-6 py-10 pb-28">
       <slot slug={slug} />
     </main>
     {footer && <Footer />}

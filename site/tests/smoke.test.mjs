@@ -347,3 +347,8 @@ test('docs pages have prev/next navigation', () => {
   assert.match(s, />← previous</);
   assert.match(s, />next →</);
 });
+
+test('docs pager is pinned to the viewport bottom', () => {
+  assert.match(page('docs/scripting/index.html'), /fixed inset-x-0 bottom-0 z-20/);
+  assert.doesNotMatch(page('docs/index.html'), /fixed inset-x-0 bottom-0/);
+});

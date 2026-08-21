@@ -151,7 +151,9 @@ export default function DocsApp({ slug }) {
         >
           {markdown}
         </ReactMarkdown>
-        <nav className="not-prose mt-12 flex items-center justify-between gap-4 border-t border-line pt-6">
+      </article>
+      <nav className="not-prose fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/95 px-4 py-3 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
           {prev ? (
             <a
               href={hrefFor(prev.slug)}
@@ -176,8 +178,8 @@ export default function DocsApp({ slug }) {
           ) : (
             <span />
           )}
-        </nav>
-      </article>
+        </div>
+      </nav>
     </div>
   );
 }
