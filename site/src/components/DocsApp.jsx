@@ -82,6 +82,10 @@ export default function DocsApp({ slug }) {
 
   const markdown = raw[`../docs/${current}.md`] ?? '';
 
+  const idx = docs.findIndex((d) => d.slug === current);
+  const prev = idx > 0 ? docs[idx - 1] : null;
+  const next = idx < docs.length - 1 ? docs[idx + 1] : null;
+
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
       <select
@@ -147,6 +151,32 @@ export default function DocsApp({ slug }) {
         >
           {markdown}
         </ReactMarkdown>
+        <nav className="not-prose mt-12 flex items-center justify-between gap-4 border-t border-line pt-6">
+          {prev ? (
+            <a
+              href={hrefFor(prev.slug)}
+              onClick={(e) => navigate(e, prev.slug)}
+              className="rounded-lg border border-line bg-raised px-4 py-3 font-mono text-xs transition-colors hover:border-accent"
+            >
+              <div className="text-faint">← previous</div>
+              <div className="mt-1 font-bold text-text">{prev.title}</div>
+            </a>
+          ) : (
+            <span />
+          )}
+          {next ? (
+            <a
+              href={hrefFor(next.slug)}
+              onClick={(e) => navigate(e, next.slug)}
+              className="ml-auto rounded-lg border border-line bg-raised px-4 py-3 text-right font-mono text-xs transition-colors hover:border-accent"
+            >
+              <div className="text-faint">next →</div>
+              <div className="mt-1 font-bold text-text">{next.title}</div>
+            </a>
+          ) : (
+            <span />
+          )}
+        </nav>
       </article>
     </div>
   );

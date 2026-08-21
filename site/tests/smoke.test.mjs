@@ -335,3 +335,15 @@ test('docs header and footer stretch full width', () => {
   assert.match(d, /<header id="top" class="mx-auto flex w-full max-w-6xl/);
   assert.match(d, /<footer class="mx-auto w-full max-w-6xl/);
 });
+
+test('docs pages have prev/next navigation', () => {
+  const q = page('docs/quickstart/index.html');
+  assert.match(q, />next →</);
+  assert.doesNotMatch(q, />← previous</);
+  const f = page('docs/faq/index.html');
+  assert.match(f, />← previous</);
+  assert.doesNotMatch(f, />next →</);
+  const s = page('docs/scripting/index.html');
+  assert.match(s, />← previous</);
+  assert.match(s, />next →</);
+});
