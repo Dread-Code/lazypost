@@ -1,6 +1,10 @@
 package codeeditor
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/charmbracelet/x/ansi"
+)
 
 func TestTruncateRunesAnsi(t *testing.T) {
 	cases := []struct {
@@ -22,6 +26,15 @@ func TestTruncateRunesAnsi(t *testing.T) {
 	for _, c := range cases {
 		if got := TruncateRunesAnsi(c.in, c.n); got != c.want {
 			t.Errorf("TruncateRunesAnsi(%q, %d) = %q, want %q", c.in, c.n, got, c.want)
+		}
+	}
+}
+
+func TestTruncateRunesAnsiUsesCellWidth(t *testing.T) {
+	for _, input := range []string{"界界", "🙂🙂", "\x1b[31m界界\x1b[0m"} {
+		got := TruncateRunesAnsi(input, 3)
+		if width := ansi.StringWidth(got); width > 3 {
+			t.Errorf("TruncateRunesAnsi(%q) width = %d, want <= 3: %q", input, width, got)
 		}
 	}
 }

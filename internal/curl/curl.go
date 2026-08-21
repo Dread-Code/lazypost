@@ -48,24 +48,34 @@ var valueFlags = map[string]bool{
 
 const noArgShorts = "sSkivLfGgGNq"
 
-// Parse turns a curl command line into a collection.Request. It mirrors
-// curl's semantics for the common flags; unsupported flags are errors.
+// Parse turns a curl command line into a collection.Request. Warnings about
+// ignored request-affecting flags are intentionally discarded for backwards
+// compatibility; callers that want them should use ParseWithWarnings.
 func Parse(cmdline string) (*collection.Request, error) {
+	req, _, err := ParseWithWarnings(cmdline)
+	return req, err
+}
+
+// ParseWithWarnings parses a curl command and reports flags that lazypost
+// cannot represent in collection.Request without changing request behavior.
+func ParseWithWarnings(cmdline string) (*collection.Request, []string, error) {
 	toks, err := tokenize(cmdline)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(toks) == 0 {
-		return nil, errors.New("empty command")
+		return nil, nil, errors.New("empty command")
 	}
 	if base := toks[0]; base != "curl" && !strings.HasSuffix(base, "/curl") {
-		return nil, fmt.Errorf("not a curl command (starts with %q)", base)
+		return nil, nil, fmt.Errorf("not a curl command (starts with %q)", base)
 	}
 
 	req := &collection.Request{Method: "GET"}
 	var body []string
+	var warnings []string
 	methodSet := false      // did the user pass -X explicitly?
 	hasContentType := false // did any -H set Content-Type?
+	getData := false        // did the user pass -G/--get?
 
 	// nextArg returns the token after the current one, advancing the
 	// loop index so the value isn't mistaken for a flag.
@@ -83,7 +93,7 @@ func Parse(cmdline string) (*collection.Request, error) {
 		case t == "-X" || t == "--request":
 			v, err := nextArg(&i, t)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			req.Method = strings.ToUpper(v)
 			methodSet = true
@@ -91,11 +101,11 @@ func Parse(cmdline string) (*collection.Request, error) {
 		case t == "-H" || t == "--header":
 			v, err := nextArg(&i, t)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			name, value, ok := strings.Cut(v, ":")
 			if !ok {
-				return nil, fmt.Errorf("malformed header %q", v)
+				return nil, nil, fmt.Errorf("malformed header %q", v)
 			}
 			name = strings.TrimSpace(name)
 			value = strings.TrimSpace(value)
@@ -107,7 +117,7 @@ func Parse(cmdline string) (*collection.Request, error) {
 		case t == "-d" || t == "--data" || t == "--data-raw" || t == "--data-binary" || t == "--data-ascii":
 			v, err := nextArg(&i, t)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			// curl joins repeated -d payloads with '&'
 			body = append(body, v)
@@ -115,14 +125,14 @@ func Parse(cmdline string) (*collection.Request, error) {
 		case t == "--data-urlencode":
 			v, err := nextArg(&i, t)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			body = append(body, urlEncodeData(v))
 
 		case t == "-u" || t == "--user":
 			v, err := nextArg(&i, t)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			user, pass, _ := strings.Cut(v, ":")
 			req.Auth = &collection.Auth{Type: "basic", Username: user, Password: pass}
@@ -130,17 +140,25 @@ func Parse(cmdline string) (*collection.Request, error) {
 		case t == "--url":
 			v, err := nextArg(&i, t)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			req.URL = v
 
+		case t == "-G" || t == "--get":
+			getData = true
+
 		case noArgFlags[t]:
-			// harmless for request building; skip
+			if warning, ok := ignoredFlagWarnings[t]; ok {
+				warnings = append(warnings, warning)
+			}
 
 		case strings.HasPrefix(t, "--") && valueFlags[t]:
 			// long value-taking flag: consume and drop its value
 			if _, err := nextArg(&i, t); err != nil {
-				return nil, err
+				return nil, nil, err
+			}
+			if warning, ok := ignoredFlagWarnings[t]; ok {
+				warnings = append(warnings, warning)
 			}
 
 		case isShortFlagCluster(t):
@@ -149,38 +167,97 @@ func Parse(cmdline string) (*collection.Request, error) {
 		case valueFlags[t]:
 			// short value-taking flag: consume and drop its value
 			if _, err := nextArg(&i, t); err != nil {
-				return nil, err
+				return nil, nil, err
+			}
+			if warning, ok := ignoredFlagWarnings[t]; ok {
+				warnings = append(warnings, warning)
 			}
 
 		case strings.HasPrefix(t, "-") && t != "-":
-			return nil, fmt.Errorf("unsupported flag %s", t)
+			return nil, nil, fmt.Errorf("unsupported flag %s", t)
 
 		default:
 			if req.URL != "" {
-				return nil, fmt.Errorf("unexpected argument %q", t)
+				return nil, nil, fmt.Errorf("unexpected argument %q", t)
 			}
 			req.URL = t
 		}
 	}
 
 	if req.URL == "" {
-		return nil, errors.New("no URL in curl command")
+		return nil, nil, errors.New("no URL in curl command")
 	}
 	if len(body) > 0 {
-		req.Body = strings.Join(body, "&")
-		if !methodSet {
-			// curl's default: a body without -X becomes a POST
-			req.Method = "POST"
-		}
-		if !hasContentType {
-			// mirror curl's implicit form content-type
-			req.Headers = append(req.Headers, collection.Header{
-				Name:  "Content-Type",
-				Value: "application/x-www-form-urlencoded",
-			})
+		if getData {
+			for _, data := range body {
+				req.Query = append(req.Query, parseGetData(data)...)
+			}
+		} else {
+			req.Body = strings.Join(body, "&")
+			if !methodSet {
+				// curl's default: a body without -X becomes a POST
+				req.Method = "POST"
+			}
+			if !hasContentType {
+				// mirror curl's implicit form content-type
+				req.Headers = append(req.Headers, collection.Header{
+					Name:  "Content-Type",
+					Value: "application/x-www-form-urlencoded",
+				})
+			}
 		}
 	}
-	return req, nil
+	return req, warnings, nil
+}
+
+var ignoredFlagWarnings = map[string]string{
+	"-k":                "TLS verification flag ignored during import",
+	"--insecure":        "TLS verification flag ignored during import",
+	"-A":                "user-agent flag ignored during import",
+	"--user-agent":      "user-agent flag ignored during import",
+	"-b":                "cookie flag ignored during import",
+	"--cookie":          "cookie flag ignored during import",
+	"-c":                "cookie-jar flag ignored during import",
+	"--cookie-jar":      "cookie-jar flag ignored during import",
+	"-x":                "proxy flag ignored during import",
+	"--proxy":           "proxy flag ignored during import",
+	"-U":                "proxy-user flag ignored during import",
+	"--proxy-user":      "proxy-user flag ignored during import",
+	"--resolve":         "resolve flag ignored during import",
+	"--cacert":          "CA certificate flag ignored during import",
+	"--cert":            "client certificate flag ignored during import",
+	"--key":             "client key flag ignored during import",
+	"-T":                "upload-file flag ignored during import",
+	"--upload-file":     "upload-file flag ignored during import",
+	"-o":                "output file flag ignored during import",
+	"--output":          "output file flag ignored during import",
+	"-m":                "max-time flag ignored during import",
+	"--max-time":        "max-time flag ignored during import",
+	"--connect-timeout": "connect-timeout flag ignored during import",
+}
+
+func parseGetData(data string) []collection.Param {
+	var params []collection.Param
+	for _, part := range strings.Split(data, "&") {
+		if part == "" {
+			continue
+		}
+		name, value, hasValue := strings.Cut(part, "=")
+		if !hasValue {
+			params = append(params, collection.Param{Name: queryUnescape(name)})
+			continue
+		}
+		params = append(params, collection.Param{Name: queryUnescape(name), Value: queryUnescape(value)})
+	}
+	return params
+}
+
+func queryUnescape(value string) string {
+	decoded, err := url.QueryUnescape(value)
+	if err != nil {
+		return value
+	}
+	return decoded
 }
 
 // isShortFlagCluster reports whether t is a short-flag bundle (like -sSL)
@@ -283,28 +360,20 @@ func Format(req collection.Request) string {
 	}
 
 	urlStr := req.URL
-
-	// explicit query params are appended so the exported curl is faithful;
-	// duplicates of URL-string params are kept
-	if len(req.Query) > 0 {
-		vals := url.Values{}
+	if parsed, err := url.Parse(req.URL); err == nil {
+		values := parsed.Query()
 		for _, p := range req.Query {
-			vals.Add(p.Name, p.Value)
+			values.Add(p.Name, p.Value)
 		}
-		sep := "?"
-		if strings.Contains(urlStr, "?") {
-			sep = "&"
+		if req.Auth != nil && req.Auth.Type == "apikey" && strings.EqualFold(req.Auth.KeyIn, "query") {
+			values.Set(req.Auth.KeyName, req.Auth.KeyValue)
 		}
-		urlStr += sep + vals.Encode()
-	}
-
-	if req.Auth != nil && req.Auth.Type == "apikey" && strings.EqualFold(req.Auth.KeyIn, "query") {
-		// apikey-as-query has no header form; append it to the URL
-		sep := "?"
-		if strings.Contains(urlStr, "?") {
-			sep = "&"
-		}
-		urlStr += sep + req.Auth.KeyName + "=" + req.Auth.KeyValue
+		parsed.RawQuery = values.Encode()
+		urlStr = restorePlaceholders(parsed.String())
+	} else if req.Auth != nil && req.Auth.Type == "apikey" && strings.EqualFold(req.Auth.KeyIn, "query") {
+		// Keep formatting useful for an invalid/unresolved URL while still
+		// escaping the API key value.
+		urlStr += "?" + url.QueryEscape(req.Auth.KeyName) + "=" + url.QueryEscape(req.Auth.KeyValue)
 	}
 	parts = append(parts, shquote(urlStr))
 
@@ -327,6 +396,15 @@ func Format(req collection.Request) string {
 		parts = append(parts, "--data-raw", shquote(req.Body))
 	}
 	return strings.Join(parts, " ")
+}
+
+func restorePlaceholders(value string) string {
+	return strings.NewReplacer(
+		"%7B%7B", "{{",
+		"%7D%7D", "}}",
+		"%7b%7b", "{{",
+		"%7d%7d", "}}",
+	).Replace(value)
 }
 
 // shquote wraps s in single quotes, escaping embedded single quotes the

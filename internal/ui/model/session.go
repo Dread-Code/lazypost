@@ -71,8 +71,9 @@ func (m *Model) saveState() tea.Cmd {
 		writer = session.NewWriter()
 		m.sessionWriter = writer
 	}
+	revision := writer.Reserve()
 	return func() tea.Msg {
-		if err := writer.Save(m.dir, st); err != nil {
+		if err := writer.SaveRevision(revision, m.dir, st); err != nil {
 			return saveErrMsg{err: err}
 		}
 		return nil

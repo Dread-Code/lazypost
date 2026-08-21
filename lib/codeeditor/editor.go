@@ -58,6 +58,12 @@ type Editor struct {
 	placeholder string
 	hl          Highlighter
 	styles      func() Style
+	// highlighted caches whole-buffer painting. Cursor and selection seams
+	// still use Split, but ordinary cursor movement avoids re-lexing the
+	// complete buffer on every frame.
+	highlightedSource string
+	highlighted       []string
+	highlightValid    bool
 
 	mode     Mode         // current editing mode
 	anchor   int          // visual-mode selection anchor (rune offset)
@@ -84,12 +90,19 @@ func (e *Editor) SetStyleProvider(fn func() Style) {
 	e.styles = fn
 }
 
+// InvalidateHighlight forces the next View to repaint the source buffer.
+// Consumers call this when a theme changes the highlighter's colors.
+func (e *Editor) InvalidateHighlight() { e.highlightValid = false }
+
 // Mode returns the current editing mode.
 func (e *Editor) Mode() Mode { return e.mode }
 
 // SetMode switches the editing mode. Leaving visual mode clears the
 // selection; entering visual modes anchors it at the cursor.
 func (e *Editor) SetMode(m Mode) {
+	if e.mode != m {
+		e.resetPending()
+	}
 	switch m {
 	case ModeVisualChar:
 		e.anchor = e.cursor
@@ -117,6 +130,11 @@ func (e *Editor) Value() string { return e.value }
 
 func (e *Editor) SetValue(v string) {
 	e.value = v
+	e.InvalidateHighlight()
+	e.resetPending()
+	if e.mode == ModeVisualChar || e.mode == ModeVisualLine {
+		e.SetMode(ModeNormal)
+	}
 	if e.cursor > utf8.RuneCountInString(v) {
 		e.cursor = utf8.RuneCountInString(v)
 	}
@@ -151,7 +169,11 @@ func (e *Editor) Focus() tea.Cmd {
 	e.SetMode(ModeNormal)
 	return nil
 }
-func (e *Editor) Blur() { e.focused = false }
+func (e *Editor) Blur() {
+	e.focused = false
+	e.resetPending()
+	e.SetMode(ModeNormal)
+}
 
 // Resize sets the editor's cell dimensions.
 func (e *Editor) Resize(width, height int) {
@@ -430,7 +452,7 @@ func (e *Editor) targetOp(target rune) {
 			if i >= e.cursor {
 				start, end = e.cursor, i+1
 			} else {
-				start, end = i, e.cursor
+				start, end = i, minRune(e.cursor+1, len(rs))
 			}
 		} else {
 			e.resetPending()
@@ -473,10 +495,16 @@ func (e *Editor) paste(before bool) {
 	ins := []rune(e.reg)
 	if len(ins) > 0 && ins[len(ins)-1] == '\n' {
 		pos := e.lineEndInclNewline(rs, e.cursor)
+		if before {
+			pos = e.lineStartRune(rs, e.cursor)
+		}
 		e.value = string(concat(rs[:pos], ins, rs[pos:]))
 		e.cursor = pos
 	} else {
 		pos := minRune(e.cursor+1, len(rs))
+		if before {
+			pos = e.cursor
+		}
 		e.value = string(concat(rs[:pos], ins, rs[pos:]))
 		e.cursor = pos
 	}
@@ -671,7 +699,7 @@ func (e *Editor) View() string {
 	}
 	st := e.style()
 	lines := strings.Split(e.value, "\n")
-	colored := e.hl.Lines(e.value)
+	colored := e.highlightLines()
 	total := len(lines)
 	gutterW := len(strconv.Itoa(total))
 	visibleW := e.width - gutterW - 2
@@ -719,6 +747,16 @@ func (e *Editor) View() string {
 		}
 	}
 	return b.String()
+}
+
+func (e *Editor) highlightLines() []string {
+	if e.highlightValid && e.highlightedSource == e.value {
+		return e.highlighted
+	}
+	e.highlighted = e.hl.Lines(e.value)
+	e.highlightedSource = e.value
+	e.highlightValid = true
+	return e.highlighted
 }
 
 // renderLine paints one source line as styled pieces: cuts split the
@@ -858,14 +896,21 @@ func lineRuneStart(lines []string, i int) int {
 }
 
 func (e *Editor) placeholderView() string {
+	if e.height <= 0 {
+		return ""
+	}
 	st := e.style()
 	p := st.Placeholder.Render(e.placeholder)
 	if e.focused {
 		p = st.CursorBlock.Render(" ") + p
 	}
-	// fill to exactly e.height rows, counting the placeholder's own
-	// lines (a multi-line placeholder must not overflow the window)
-	if rows := strings.Count(p, "\n") + 1; e.height > rows {
+	// Keep the placeholder within the same exact-height contract as a buffer.
+	lines := strings.Split(p, "\n")
+	if len(lines) > e.height {
+		lines = lines[:e.height]
+	}
+	p = strings.Join(lines, "\n")
+	if rows := len(lines); e.height > rows {
 		p += strings.Repeat("\n", e.height-rows)
 	}
 	return p

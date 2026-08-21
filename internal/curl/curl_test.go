@@ -58,6 +58,11 @@ func TestParse(t *testing.T) {
 			body: "q=hello+world", nHdrs: 1,
 		},
 		{
+			name:   "get moves data into query",
+			in:     `curl -G -d 'q=hello+world' https://api.test/search`,
+			method: "GET", url: "https://api.test/search",
+		},
+		{
 			name:   "ignored and skipped flags",
 			in:     `curl -sSL -A 'bot/1.0' --connect-timeout 5 -k https://api.test/x`,
 			method: "GET", url: "https://api.test/x",
@@ -189,6 +194,39 @@ func TestFormatAppendsQueryParams(t *testing.T) {
 	if !strings.Contains(got, "'https://api.test/search?q=hello+world&tag=news'") &&
 		!strings.Contains(got, "'https://api.test/search?tag=news&q=hello+world'") {
 		t.Errorf("Format = %q, want query params in URL", got)
+	}
+}
+
+func TestParseGetData(t *testing.T) {
+	req, err := Parse(`curl --get --data 'tag=one&tag=two' https://api.test/search`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Body != "" || len(req.Query) != 2 || req.Query[0].Value != "one" || req.Query[1].Value != "two" {
+		t.Fatalf("GET data = body %q query %+v, want repeated query values", req.Body, req.Query)
+	}
+}
+
+func TestParseWithWarnings(t *testing.T) {
+	_, warnings, err := ParseWithWarnings(`curl -k -A 'agent' https://api.test/x`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warnings) != 2 || !strings.Contains(warnings[0], "TLS") || !strings.Contains(warnings[1], "user-agent") {
+		t.Fatalf("warnings = %v", warnings)
+	}
+}
+
+func TestFormatQueryBeforeFragmentAndEscapesAPIKey(t *testing.T) {
+	req := collection.Request{
+		Method: "GET",
+		URL:    "https://api.test/search#results",
+		Query:  []collection.Param{{Name: "q", Value: "hello world"}},
+		Auth:   &collection.Auth{Type: "apikey", KeyName: "api key", KeyValue: "a+b", KeyIn: "query"},
+	}
+	got := Format(req)
+	if !strings.Contains(got, "api+key=a%2Bb") || !strings.Contains(got, "q=hello+world") || strings.Index(got, "?") > strings.Index(got, "#results") {
+		t.Errorf("Format = %q, want encoded query before fragment", got)
 	}
 }
 

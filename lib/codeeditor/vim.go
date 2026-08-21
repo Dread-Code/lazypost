@@ -78,10 +78,7 @@ func (e *Editor) lineEndInclNewline(r []rune, pos int) int {
 // the line containing pos.
 func (e *Editor) firstNonBlank(r []rune, pos int) int {
 	start := e.lineStartRune(r, pos)
-	for start < len(r) && r[start] != '\n' && isWordRune(r[start]) == false && r[start] != ' ' {
-		start++
-	}
-	for start < len(r) && r[start] == ' ' {
+	for start < len(r) && r[start] != '\n' && !isWordRune(r[start]) {
 		start++
 	}
 	return start
@@ -94,16 +91,16 @@ func nextWord(r []rune, pos int) int {
 		return n
 	}
 	i := pos
-	if r[i] == ' ' {
-		for i < n && r[i] == ' ' {
+	if !isWordRune(r[i]) {
+		for i < n && !isWordRune(r[i]) {
 			i++
 		}
 		return i
 	}
-	for i < n && r[i] != ' ' {
+	for i < n && isWordRune(r[i]) {
 		i++
 	}
-	for i < n && r[i] == ' ' {
+	for i < n && !isWordRune(r[i]) {
 		i++
 	}
 	return i
@@ -116,10 +113,10 @@ func prevWord(r []rune, pos int) int {
 		return 0
 	}
 	i := pos
-	for i > 0 && r[i-1] == ' ' {
+	for i > 0 && !isWordRune(r[i-1]) {
 		i--
 	}
-	for i > 0 && r[i-1] != ' ' {
+	for i > 0 && isWordRune(r[i-1]) {
 		i--
 	}
 	return i
@@ -133,16 +130,16 @@ func wordEnd(r []rune, pos int) int {
 		return n
 	}
 	i := pos
-	if r[i] == ' ' {
-		for i < n && r[i] == ' ' {
+	if !isWordRune(r[i]) {
+		for i < n && !isWordRune(r[i]) {
 			i++
 		}
-		for i < n && r[i] != ' ' {
+		for i < n && isWordRune(r[i]) {
 			i++
 		}
 		return i
 	}
-	for i < n && r[i] != ' ' {
+	for i < n && isWordRune(r[i]) {
 		i++
 	}
 	return i
@@ -199,8 +196,12 @@ func matchBracket(r []rune, pos int) int {
 func (e *Editor) selection(r []rune) (int, int) {
 	start, end := e.anchor, e.cursor
 	if e.mode == ModeVisualLine {
-		start = e.lineStartRune(r, start)
-		end = e.lineEndInclNewline(r, end)
+		anchorLine := e.lineStartRune(r, start)
+		cursorLine := e.lineStartRune(r, end)
+		if anchorLine > cursorLine {
+			anchorLine, cursorLine = cursorLine, anchorLine
+		}
+		return anchorLine, e.lineEndInclNewline(r, cursorLine)
 	}
 	if start > end {
 		start, end = end, start

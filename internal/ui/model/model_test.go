@@ -81,8 +81,9 @@ func TestHistoryRestoreKeepsSourcePath(t *testing.T) {
 	path := filepath.Join(m.dir, "users", "one.yaml")
 	m.history.Add(app.HistoryEntry{Req: req, Path: path})
 	_, _ = m.openHistory()
-	updated, _ := m.updateHistory(tea.KeyMsg{Type: tea.KeyEnter})
-	got := updated.(*Model)
+	updated, cmd := m.updateHistory(tea.KeyMsg{Type: tea.KeyEnter})
+	applied, _ := updated.(*Model).Update(cmd())
+	got := applied.(Model)
 	if got.editor.ActivePath() != path {
 		t.Fatalf("restored path = %q, want original path", got.editor.ActivePath())
 	}
@@ -93,8 +94,9 @@ func TestHistoryRestoreDropsDeletedSourcePath(t *testing.T) {
 	req := collection.Request{Name: "deleted", Method: "GET", URL: "https://api.test/deleted"}
 	m.history.Add(app.HistoryEntry{Req: req, Path: filepath.Join(m.dir, "users", "missing.yaml")})
 	_, _ = m.openHistory()
-	updated, _ := m.updateHistory(tea.KeyMsg{Type: tea.KeyEnter})
-	got := updated.(*Model)
+	updated, cmd := m.updateHistory(tea.KeyMsg{Type: tea.KeyEnter})
+	applied, _ := updated.(*Model).Update(cmd())
+	got := applied.(Model)
 	if got.editor.ActivePath() != "" {
 		t.Fatalf("deleted history path = %q, want unsaved request", got.editor.ActivePath())
 	}
@@ -120,8 +122,10 @@ func TestEnvironmentSelectionAndEditDelete(t *testing.T) {
 		t.Fatalf("selected variable = %q, want sorted first key alpha", got)
 	}
 
-	updated, _ := m.setEnvironmentVar("dev", "alpha", "renamed=value")
-	if updated.(*Model).overlay != ovEnv {
+	updated, cmd := m.setEnvironmentVar("dev", "alpha", "renamed=value")
+	applied, _ := updated.(*Model).Update(cmd())
+	m = *applied.(*Model)
+	if m.overlay != ovEnv {
 		t.Fatal("environment manager did not reopen after edit")
 	}
 	envs, _, err = collection.LoadEnvironments(root)
@@ -132,7 +136,9 @@ func TestEnvironmentSelectionAndEditDelete(t *testing.T) {
 		t.Fatalf("edited environment = %v", envs["dev"])
 	}
 
-	_ = m.deleteVariable("dev", "renamed")
+	deleteMsg := m.deleteVariable("dev", "renamed")()
+	applied, _ = m.Update(deleteMsg)
+	m = *applied.(*Model)
 	envs, _, err = collection.LoadEnvironments(root)
 	if err != nil {
 		t.Fatal(err)
@@ -148,12 +154,14 @@ func TestEnvironmentEditFailureDoesNotMutateMemory(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := New(root, nil, map[string]map[string]string{"dev": {"token": "old"}}, []string{"dev"}, session.State{})
-	_, _ = m.setEnvironmentVar("dev", "token", "token=new")
+	updated, cmd := m.setEnvironmentVar("dev", "token", "token=new")
+	applied, _ := updated.(*Model).Update(cmd())
+	m = *applied.(*Model)
 	if m.envs["dev"]["token"] != "old" {
 		t.Fatalf("in-memory environment mutated after failed save: %v", m.envs["dev"])
 	}
-	if !strings.Contains(m.notice, "edit environment") {
-		t.Fatalf("notice = %q, want edit failure", m.notice)
+	if !strings.Contains(m.notice, "environment operation failed") {
+		t.Fatalf("notice = %q, want environment failure", m.notice)
 	}
 }
 
@@ -187,7 +195,9 @@ func TestDeletingActiveFolderClearsChildRequest(t *testing.T) {
 	if folderEntry == nil {
 		t.Fatal("folder entry not found")
 	}
-	_ = m.doDelete(folderEntry)
+	deleteMsg := m.doDelete(folderEntry)()
+	applied, _ := m.Update(deleteMsg)
+	m = *applied.(*Model)
 	if m.editor.ActivePath() != "" {
 		t.Fatalf("active path after folder delete = %q", m.editor.ActivePath())
 	}

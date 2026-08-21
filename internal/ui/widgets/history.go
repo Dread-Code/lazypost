@@ -108,6 +108,11 @@ func NewHistory(width, height int) *History {
 	return h
 }
 
+// RefreshTheme reapplies list styles copied during construction.
+func (h *History) RefreshTheme() {
+	h.list.Styles.NoItems = themes.HintStyle
+}
+
 func (h *History) SetItems(entries []app.HistoryEntry) {
 	li := make([]list.Item, len(entries))
 	for i, e := range entries {

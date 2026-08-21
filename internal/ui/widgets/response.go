@@ -53,6 +53,13 @@ func NewResponse(width, height int) *Response {
 	return r
 }
 
+// RefreshTheme rebuilds cached response content with the current theme while
+// preserving viewport offsets.
+func (r *Response) RefreshTheme() {
+	r.spinner.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	r.refreshContent()
+}
+
 func (r *Response) resize() {
 	w := r.width - 4
 	h := r.height - 6 // tab row + divider + borders
@@ -71,6 +78,7 @@ func (r *Response) resize() {
 func (r *Response) Resize(width, height int) {
 	r.width, r.height = width, height
 	r.resize()
+	r.refreshContent()
 }
 
 func (r *Response) Focus() { r.focused = true }
@@ -122,11 +130,18 @@ func highlightedBody(res *httpclient.Response, w int) string {
 func (r *Response) SetResponse(res *httpclient.Response) {
 	r.state = stDone
 	r.res = res
-	w := r.width - 6 // border + viewport scrollbar room
-	r.body.SetContent(highlightedBody(res, w))
+	r.refreshContent()
 	r.body.GotoTop()
-	r.headers.SetContent(truncateLines(res.FormattedHeaders(), w))
 	r.headers.GotoTop()
+}
+
+func (r *Response) refreshContent() {
+	if r.res == nil {
+		return
+	}
+	w := r.width - 6 // border + viewport scrollbar room
+	r.body.SetContent(highlightedBody(r.res, w))
+	r.headers.SetContent(truncateLines(r.res.FormattedHeaders(), w))
 }
 
 func truncateLines(s string, w int) string {

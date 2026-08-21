@@ -116,6 +116,15 @@ func NewPalette(width, height int) *Palette {
 	return p
 }
 
+// RefreshTheme reapplies styles copied into the bubbles list at construction.
+func (p *Palette) RefreshTheme() {
+	p.list.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	p.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	p.list.FilterInput.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
+	p.list.FilterInput.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
+	p.list.Styles.NoItems = themes.HintStyle
+}
+
 func (p *Palette) SetItems(items []PaletteItem) {
 	p.items = items
 	li := make([]list.Item, len(items))

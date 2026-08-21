@@ -17,8 +17,8 @@ func bigBody(lines int) string {
 
 // BenchmarkView measures the widget core per render: whole-buffer
 // painting split into per-line pieces, gutter, and filler rows on a
-// 500-line buffer (identity highlighter — the chroma cost lives in the
-// lazypost-side BenchmarkRenderJSONBody).
+// 500-line buffer with the marker highlighter; the chroma cost lives in the
+// lazypost-side BenchmarkRenderJSONBody.
 func BenchmarkView(b *testing.B) {
 	e := New(80, 40, "", markerHighlighter{})
 	e.SetValue(bigBody(500))

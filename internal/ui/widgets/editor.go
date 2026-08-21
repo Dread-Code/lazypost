@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Dread-Code/codeeditor"
@@ -8,7 +9,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/clipboard"
 	"lazypost/internal/collection"
 	"lazypost/internal/render"
 
@@ -39,10 +39,11 @@ type Editor struct {
 	field   int
 	focused bool
 
-	activePath string
-	title      string // display name from the loaded request; "" = none
-	width      int
-	height     int
+	activePath  string
+	title       string // display name from the loaded request; "" = none
+	width       int
+	height      int
+	pendingYank string
 }
 
 // NewEditor builds the four-section editor. Method and URL are not
@@ -61,7 +62,7 @@ func NewEditor(width, height int) *Editor {
 
 	for _, ed := range []*codeeditor.Editor{e.query, e.headers, e.body, e.pre, e.post} {
 		ed.SetStyleProvider(editorStyles)
-		ed.SetYank(func(s string) { _ = clipboard.Write(s) })
+		ed.SetYank(func(s string) { e.pendingYank = s })
 	}
 
 	e.auth = NewAuthEditor()
@@ -125,6 +126,23 @@ func (e *Editor) FormatBody() {
 	e.body.SetValue(render.FormatJSON(e.body.Value()))
 }
 
+// RefreshTheme invalidates cached syntax output and refreshes auth input
+// styles after a runtime theme change.
+func (e *Editor) RefreshTheme() {
+	for _, ed := range []*codeeditor.Editor{e.query, e.headers, e.body, e.pre, e.post} {
+		ed.InvalidateHighlight()
+	}
+	e.auth.RefreshTheme()
+}
+
+// TakeYank returns and clears text produced by a code-editor yank. The root
+// model turns it into an asynchronous clipboard command.
+func (e *Editor) TakeYank() string {
+	yank := e.pendingYank
+	e.pendingYank = ""
+	return yank
+}
+
 func (e *Editor) focusSection() tea.Cmd {
 	e.query.Blur()
 	e.headers.Blur()
@@ -159,10 +177,18 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 		// ctrl+n/p and alt+arrows cycle the tabs (sections == tabs since
 		// URL left the editor in ADR-0010)
 		case key.Matches(km, keySectionNext) || key.Matches(km, keyAltRight):
-			e.section = Section((int(e.section) + 1) % len(sectionTabs))
+			next := Section((int(e.section) + 1) % len(sectionTabs))
+			if e.section == SecBody && next != SecBody {
+				e.FormatBody()
+			}
+			e.section = next
 			return e, e.focusSection()
 		case key.Matches(km, keySectionPrev) || key.Matches(km, keyAltLeft):
-			e.section = Section((int(e.section) - 1 + len(sectionTabs)) % len(sectionTabs))
+			next := Section((int(e.section) - 1 + len(sectionTabs)) % len(sectionTabs))
+			if e.section == SecBody && next != SecBody {
+				e.FormatBody()
+			}
+			e.section = next
 			return e, e.focusSection()
 		case key.Matches(km, keyCtrlT):
 			switch e.section {
@@ -278,15 +304,30 @@ func (e *Editor) scriptsView() string {
 // Request builds a collection.Request from the editor state. Method and
 // URL come from the URLBar; the root model fills them in.
 func (e *Editor) Request() *collection.Request {
+	req, _ := e.RequestWithError()
+	return req
+}
+
+// RequestWithError builds a request and rejects malformed header/query lines
+// instead of silently dropping user input.
+func (e *Editor) RequestWithError() (*collection.Request, error) {
+	query, err := parseParams(e.query.Value())
+	if err != nil {
+		return nil, err
+	}
+	headers, err := parseHeaders(e.headers.Value())
+	if err != nil {
+		return nil, err
+	}
 	return &collection.Request{
 		Name:    e.name(),
-		Query:   parseParams(e.query.Value()),
-		Headers: parseHeaders(e.headers.Value()),
+		Query:   query,
+		Headers: headers,
 		Auth:    e.auth.Auth(),
 		Body:    e.body.Value(),
 		Pre:     e.pre.Value(),
 		Post:    e.post.Value(),
-	}
+	}, nil
 }
 
 func (e *Editor) name() string {
@@ -303,7 +344,7 @@ func (e *Editor) name() string {
 	return ""
 }
 
-func parseHeaders(s string) []collection.Header {
+func parseHeaders(s string) ([]collection.Header, error) {
 	var out []collection.Header
 	for _, line := range strings.Split(s, "\n") {
 		line = strings.TrimSpace(line)
@@ -312,19 +353,23 @@ func parseHeaders(s string) []collection.Header {
 		}
 		i := strings.Index(line, ":")
 		if i <= 0 {
-			continue
+			return nil, fmt.Errorf("invalid header line %q: expected name: value", line)
+		}
+		name := strings.TrimSpace(line[:i])
+		if name == "" {
+			return nil, fmt.Errorf("invalid header line %q: name is required", line)
 		}
 		out = append(out, collection.Header{
-			Name:  strings.TrimSpace(line[:i]),
+			Name:  name,
 			Value: strings.TrimSpace(line[i+1:]),
 		})
 	}
-	return out
+	return out, nil
 }
 
 // parseParams parses query params from one "Name: Value" per line,
 // mirroring the headers format.
-func parseParams(s string) []collection.Param {
+func parseParams(s string) ([]collection.Param, error) {
 	var out []collection.Param
 	for _, line := range strings.Split(s, "\n") {
 		line = strings.TrimSpace(line)
@@ -333,14 +378,18 @@ func parseParams(s string) []collection.Param {
 		}
 		i := strings.Index(line, ":")
 		if i <= 0 {
-			continue
+			return nil, fmt.Errorf("invalid query line %q: expected name: value", line)
+		}
+		name := strings.TrimSpace(line[:i])
+		if name == "" {
+			return nil, fmt.Errorf("invalid query line %q: name is required", line)
 		}
 		out = append(out, collection.Param{
-			Name:  strings.TrimSpace(line[:i]),
+			Name:  name,
 			Value: strings.TrimSpace(line[i+1:]),
 		})
 	}
-	return out
+	return out, nil
 }
 
 // SetRequest loads req into the editor. path may be empty for unsaved

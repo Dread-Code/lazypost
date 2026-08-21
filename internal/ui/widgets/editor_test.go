@@ -236,6 +236,33 @@ func TestBlurFormatsValidJSONBody(t *testing.T) {
 	}
 }
 
+func TestSwitchingAwayFromBodyFormatsJSON(t *testing.T) {
+	e := NewEditor(60, 20)
+	e.Focus()
+	for e.section != SecBody {
+		e.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	}
+	e.body.SetMode(codeeditor.ModeInsert)
+	e.body.SetValue(`{"a":1}`)
+	e.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	if got := e.body.Value(); got != "{\n  \"a\": 1\n}" {
+		t.Errorf("body after section switch = %q, want formatted JSON", got)
+	}
+}
+
+func TestRequestWithErrorRejectsMalformedFieldLines(t *testing.T) {
+	e := NewEditor(60, 20)
+	e.headers.SetValue("not a header")
+	if _, err := e.RequestWithError(); err == nil || !strings.Contains(err.Error(), "invalid header line") {
+		t.Fatalf("header validation error = %v", err)
+	}
+	e.headers.SetValue("")
+	e.query.SetValue("not a query")
+	if _, err := e.RequestWithError(); err == nil || !strings.Contains(err.Error(), "invalid query line") {
+		t.Fatalf("query validation error = %v", err)
+	}
+}
+
 // Regression: bodies that are not valid JSON — including half-typed
 // bodies and plain text — must pass through untouched. Raw
 // {{placeholders}} in value positions (e.g. `"userId": {{user_id}}`) make

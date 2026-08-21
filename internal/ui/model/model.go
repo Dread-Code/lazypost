@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/base64"
 	"path/filepath"
 	"strings"
 	"time"
@@ -37,6 +38,50 @@ type errMsg struct {
 // notice, never routed to the response pane like errMsg.
 type saveErrMsg struct {
 	err error
+}
+
+type clipboardMsg struct {
+	text   string
+	notice string
+	err    error
+}
+
+type historyRestoreMsg struct {
+	req     collection.Request
+	path    string
+	missing bool
+}
+
+type collectionMutationOp string
+
+const (
+	mutationSave         collectionMutationOp = "save"
+	mutationRename       collectionMutationOp = "rename"
+	mutationCreateFolder collectionMutationOp = "create-folder"
+	mutationCreateReq    collectionMutationOp = "create-request"
+	mutationDelete       collectionMutationOp = "delete"
+)
+
+type collectionMutationMsg struct {
+	id       uint64
+	op       collectionMutationOp
+	entries  []collection.Entry
+	req      *collection.Request
+	path     string
+	oldPath  string
+	err      error
+	migrated bool
+}
+
+type environmentMutationMsg struct {
+	id       uint64
+	envs     map[string]map[string]string
+	names    []string
+	env      string
+	active   string
+	notice   string
+	err      error
+	migrated bool
 }
 
 // overlay is which modal currently sits on top of the frame. At most one
@@ -142,6 +187,10 @@ type Model struct {
 	activeSendID uint64
 	cancelSend   func()
 	executor     app.ContextClient
+
+	nextMutationID   uint64
+	activeMutationID uint64
+	mutationBusy     bool
 
 	// version is the build stamp (e.g. "v0.2.0"), shown at the status
 	// bar's far right; empty in plain `go test` builds.
@@ -269,6 +318,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case saveErrMsg:
 		m.setNotice("state save failed: "+msg.err.Error(), true)
 		return m, nil
+
+	case clipboardMsg:
+		if msg.err == nil {
+			m.setNotice(msg.notice, false)
+			return m, nil
+		}
+		m.setNotice(msg.notice+"; using terminal clipboard", false)
+		sequence := "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(msg.text)) + "\a"
+		return m, tea.Printf("%s", sequence)
+
+	case historyRestoreMsg:
+		if msg.missing {
+			m.setNotice("history source no longer exists; restored as new request", false)
+		}
+		m.urlbar.SetRequest(msg.req.Method, msg.req.URL)
+		return m, tea.Batch(m.editor.SetRequest(&msg.req, msg.path), m.enter(pBar))
+
+	case collectionMutationMsg:
+		return m.applyCollectionMutation(msg)
+
+	case environmentMutationMsg:
+		return m.applyEnvironmentMutation(msg)
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -427,6 +498,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		var cmd tea.Cmd
 		m.editor, cmd = m.editor.Update(msg)
+		if yank := m.editor.TakeYank(); yank != "" {
+			cmd = tea.Batch(cmd, clipboardCommand(yank, "yank copied to clipboard"))
+		}
 		return m, cmd
 
 	case pResponse:

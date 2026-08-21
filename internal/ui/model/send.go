@@ -15,7 +15,11 @@ import (
 // the render loop, and shows the result. Results come back as responseMsg
 // or errMsg; both carry any store writes made by the hooks.
 func (m *Model) send() (tea.Model, tea.Cmd) {
-	req := m.editor.Request()
+	req, err := m.editor.RequestWithError()
+	if err != nil {
+		m.setNotice("invalid request: "+err.Error(), true)
+		return m, nil
+	}
 	req.Method = m.urlbar.Method()
 	req.URL = m.urlbar.URL()
 	if req.URL == "" {

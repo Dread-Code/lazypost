@@ -26,7 +26,10 @@ type Writer struct {
 // NewWriter returns a session writer for one application lifecycle.
 func NewWriter() *Writer { return &Writer{} }
 
-func (w *Writer) next() uint64 {
+// Reserve assigns a revision synchronously, before an asynchronous command
+// is scheduled. This keeps submission order independent of command execution
+// order.
+func (w *Writer) Reserve() uint64 {
 	w.mu.Lock()
 	w.latest++
 	revision := w.latest
@@ -43,7 +46,11 @@ func (w *Writer) isLatest(revision uint64) bool {
 // Save submits a snapshot. If a newer snapshot has already been submitted,
 // this call becomes a no-op instead of allowing stale state to overwrite it.
 func (w *Writer) Save(dir string, s State) error {
-	revision := w.next()
+	return w.SaveRevision(w.Reserve(), dir, s)
+}
+
+// SaveRevision writes a snapshot only when revision is still current.
+func (w *Writer) SaveRevision(revision uint64, dir string, s State) error {
 	saveMu.Lock()
 	defer saveMu.Unlock()
 	if !w.isLatest(revision) {
@@ -55,7 +62,7 @@ func (w *Writer) Save(dir string, s State) error {
 // Flush synchronously writes the newest snapshot and prevents older queued
 // saves from writing after the caller's lifecycle barrier.
 func (w *Writer) Flush(dir string, s State) error {
-	revision := w.next()
+	revision := w.Reserve()
 	saveMu.Lock()
 	defer saveMu.Unlock()
 	if !w.isLatest(revision) {

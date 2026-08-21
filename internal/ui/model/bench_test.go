@@ -25,3 +25,22 @@ func BenchmarkNewModel(b *testing.B) {
 		New("../../../sample-collections", entries, envs, names, session.State{})
 	}
 }
+
+func BenchmarkModelView(b *testing.B) {
+	entries, err := collection.Load("../../../sample-collections")
+	if err != nil {
+		b.Fatal(err)
+	}
+	envs, names, err := collection.LoadEnvironments("../../../sample-collections")
+	if err != nil {
+		b.Fatal(err)
+	}
+	m := New("../../../sample-collections", entries, envs, names, session.State{})
+	m.width, m.height = 120, 40
+	m.layout()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = m.View()
+	}
+}

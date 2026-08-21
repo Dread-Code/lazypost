@@ -37,6 +37,14 @@ func NewNamer() *Namer {
 	return n
 }
 
+// RefreshTheme reapplies styles copied into the text input at construction.
+func (n *Namer) RefreshTheme() {
+	n.input.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	n.input.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	n.input.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
+	n.input.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
+}
+
 // SetLabel overrides the modal title (e.g. "new variable"). An empty label
 // falls back to the request/collection wording.
 func (n *Namer) SetLabel(label string) {

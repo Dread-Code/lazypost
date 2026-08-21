@@ -46,7 +46,18 @@ func NewAuthEditor() AuthEditor {
 	}
 	a.password.EchoMode = textinput.EchoPassword
 	a.password.EchoCharacter = '•'
+	a.RefreshTheme()
 	return a
+}
+
+// RefreshTheme reapplies input styles after a runtime theme change.
+func (a *AuthEditor) RefreshTheme() {
+	for _, ti := range []*textinput.Model{&a.username, &a.password, &a.token, &a.keyName, &a.keyValue} {
+		ti.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+		ti.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+		ti.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
+		ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
+	}
 }
 
 func (a *AuthEditor) SetWidth(w int) {

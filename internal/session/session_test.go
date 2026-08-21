@@ -144,6 +144,26 @@ func TestWriterFlushKeepsNewestSnapshot(t *testing.T) {
 	}
 }
 
+func TestWriterRevisionIsReservedBeforeCommandExecution(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	w := NewWriter()
+	oldRevision := w.Reserve()
+	newRevision := w.Reserve()
+	if err := w.SaveRevision(newRevision, "/tmp/collection", State{Env: "new"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.SaveRevision(oldRevision, "/tmp/collection", State{Env: "old"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load("/tmp/collection")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Env != "new" {
+		t.Fatalf("state = %+v, want newest reserved revision", got)
+	}
+}
+
 func TestSaveUsesRestrictivePermissions(t *testing.T) {
 	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)

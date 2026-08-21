@@ -145,6 +145,11 @@ func NewSidebar(entries []collection.Entry, root string, width, height int) *Sid
 	return s
 }
 
+// RefreshTheme reapplies list styles copied during construction.
+func (s *Sidebar) RefreshTheme() {
+	s.list.Styles.NoItems = themes.HintStyle
+}
+
 // items returns the visible entries as list items: the collection root
 // followed by anything not under a collapsed directory, so collapsing
 // hides a whole subtree.

@@ -222,20 +222,6 @@ func (m *Model) setEnv(name string) {
 	m.updateEnvBadge()
 }
 
-// reloadEnvs re-reads environments from disk and re-resolves envIdx so a
-// rename/delete of the active env falls back to none.
-func (m *Model) reloadEnvs() {
-	envs, names, err := collection.LoadEnvironments(m.dir)
-	if err != nil {
-		m.setNotice("reload environments: "+err.Error(), true)
-		return
-	}
-	active := m.activeEnvName()
-	m.envs = envs
-	m.envNames = names
-	m.setEnv(active)
-}
-
 // setEnvironmentVar writes key=value into an environment's map, persists
 // it, and reopens the env manager (now on that env's tab).
 func (m *Model) setEnvironmentVar(env, oldKey, kv string) (tea.Model, tea.Cmd) {
@@ -244,7 +230,8 @@ func (m *Model) setEnvironmentVar(env, oldKey, kv string) (tea.Model, tea.Cmd) {
 		m.setNotice("expected key=value", true)
 		return m, nil
 	}
-	if !m.prepareWrite() {
+	id, legacy, ok := m.beginMutation()
+	if !ok {
 		return m, nil
 	}
 	vars := make(map[string]string, len(m.envs[env])+1)
@@ -253,33 +240,46 @@ func (m *Model) setEnvironmentVar(env, oldKey, kv string) (tea.Model, tea.Cmd) {
 	}
 	key = strings.TrimSpace(key)
 	val = strings.TrimSpace(val)
-	if oldKey != "" && oldKey != key {
-		delete(vars, oldKey)
+	root := m.dir
+	active := m.activeEnvName()
+	return m, func() tea.Msg {
+		migrated, err := runLegacyMigration(root, legacy)
+		if err != nil {
+			return environmentMutationMsg{id: id, env: env, active: active, err: err, migrated: migrated}
+		}
+		if oldKey != "" && oldKey != key {
+			delete(vars, oldKey)
+		}
+		vars[key] = val
+		if err := collection.SaveEnvironment(root, env, vars); err != nil {
+			return environmentMutationMsg{id: id, env: env, active: active, err: err, migrated: migrated}
+		}
+		envs, names, err := collection.LoadEnvironments(root)
+		return environmentMutationMsg{id: id, envs: envs, names: names, env: env, active: active, notice: "environment " + env + " updated", err: err, migrated: migrated}
 	}
-	vars[key] = val
-	if err := collection.SaveEnvironment(m.dir, env, vars); err != nil {
-		m.writeNotice("edit environment: "+err.Error(), true)
-		return m, nil
-	}
-	m.reloadEnvs()
-	m.writeNotice("environment "+env+" updated", false)
-	return m.openEnvManagerAt(env)
 }
 
 // createEnvironment creates an empty environment (from a leading "/" in
 // the add-variable namer), persists it, and reopens the env manager on
 // the new tab.
 func (m *Model) createEnvironment(name string) (tea.Model, tea.Cmd) {
-	if !m.prepareWrite() {
+	id, legacy, ok := m.beginMutation()
+	if !ok {
 		return m, nil
 	}
-	if err := collection.CreateEnvironment(m.dir, name, map[string]string{}); err != nil {
-		m.writeNotice("create environment: "+err.Error(), true)
-		return m, nil
+	root := m.dir
+	active := m.activeEnvName()
+	return m, func() tea.Msg {
+		migrated, err := runLegacyMigration(root, legacy)
+		if err != nil {
+			return environmentMutationMsg{id: id, env: name, active: active, err: err, migrated: migrated}
+		}
+		if err := collection.CreateEnvironment(root, name, map[string]string{}); err != nil {
+			return environmentMutationMsg{id: id, env: name, active: active, err: err, migrated: migrated}
+		}
+		envs, names, err := collection.LoadEnvironments(root)
+		return environmentMutationMsg{id: id, envs: envs, names: names, env: name, active: active, notice: "environment " + name + " created", err: err, migrated: migrated}
 	}
-	m.reloadEnvs()
-	m.writeNotice("environment "+name+" created", false)
-	return m.openEnvManagerAt(name)
 }
 
 // deleteVariable removes key from an environment, persists it, and
@@ -288,22 +288,49 @@ func (m *Model) deleteVariable(env, key string) tea.Cmd {
 	if m.envs[env] == nil {
 		return nil
 	}
-	if !m.prepareWrite() {
-		return nil
-	}
 	vars := make(map[string]string, len(m.envs[env]))
 	for existingKey, existingValue := range m.envs[env] {
 		vars[existingKey] = existingValue
 	}
 	delete(vars, key)
-	if err := collection.SaveEnvironment(m.dir, env, vars); err != nil {
-		m.writeNotice("edit environment: "+err.Error(), true)
+	id, legacy, ok := m.beginMutation()
+	if !ok {
 		return nil
 	}
-	m.reloadEnvs()
-	m.writeNotice("deleted variable "+key, false)
-	_, _ = m.openEnvManagerAt(env) // mutates m in place via pointer receiver
-	return nil
+	root := m.dir
+	active := m.activeEnvName()
+	return func() tea.Msg {
+		migrated, err := runLegacyMigration(root, legacy)
+		if err != nil {
+			return environmentMutationMsg{id: id, env: env, active: active, err: err, migrated: migrated}
+		}
+		if err := collection.SaveEnvironment(root, env, vars); err != nil {
+			return environmentMutationMsg{id: id, env: env, active: active, err: err, migrated: migrated}
+		}
+		envs, names, err := collection.LoadEnvironments(root)
+		return environmentMutationMsg{id: id, envs: envs, names: names, env: env, active: active, notice: "deleted variable " + key, err: err, migrated: migrated}
+	}
+}
+
+func (m *Model) applyEnvironmentMutation(msg environmentMutationMsg) (tea.Model, tea.Cmd) {
+	if msg.id != m.activeMutationID {
+		return m, nil
+	}
+	m.activeMutationID = 0
+	m.mutationBusy = false
+	if msg.migrated {
+		m.legacyMarkers = nil
+		m.legacyMigrated = true
+	}
+	if msg.err != nil {
+		m.writeNotice("environment operation failed: "+msg.err.Error(), true)
+		return m, nil
+	}
+	m.envs = msg.envs
+	m.envNames = msg.names
+	m.setEnv(msg.active)
+	m.writeNotice(msg.notice, false)
+	return m.openEnvManagerAt(msg.env)
 }
 
 // envManagerView renders the environment manager overlay: a tab bar of

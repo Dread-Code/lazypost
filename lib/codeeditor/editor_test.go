@@ -305,6 +305,48 @@ func TestEditorViewFillsHeight(t *testing.T) {
 	}
 }
 
+func TestEditorPlaceholderNeverExceedsHeight(t *testing.T) {
+	e := New(60, 2, "one\ntwo\nthree", markerHighlighter{})
+	out := e.View()
+	if rows := strings.Count(out, "\n") + 1; rows != 2 {
+		t.Errorf("placeholder rows = %d, want 2: %q", rows, out)
+	}
+}
+
+type countingHighlighter struct {
+	lines int
+}
+
+func (h *countingHighlighter) Lines(src string) []string {
+	h.lines++
+	return strings.Split(src, "\n")
+}
+
+func (h *countingHighlighter) Split(_, line string, cuts ...int) []string {
+	return IdentityHighlighter().Split("", line, cuts...)
+}
+
+func TestEditorCachesWholeBufferHighlighting(t *testing.T) {
+	h := &countingHighlighter{}
+	e := New(60, 5, "", h)
+	e.SetValue("one\ntwo")
+	_ = e.View()
+	_ = e.View()
+	if h.lines != 1 {
+		t.Fatalf("highlight calls after repeated view = %d, want 1", h.lines)
+	}
+	e.SetValue("three")
+	_ = e.View()
+	if h.lines != 2 {
+		t.Fatalf("highlight calls after edit = %d, want 2", h.lines)
+	}
+	e.InvalidateHighlight()
+	_ = e.View()
+	if h.lines != 3 {
+		t.Fatalf("highlight calls after invalidation = %d, want 3", h.lines)
+	}
+}
+
 // The identity highlighter is the default for plain editing and must
 // never alter the buffer.
 func TestEditorNilHighlighterIdentity(t *testing.T) {

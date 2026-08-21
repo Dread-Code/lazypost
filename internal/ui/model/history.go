@@ -5,6 +5,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+
+	"lazypost/internal/collection"
 )
 
 // historyCap bounds the in-memory ring of past sends
@@ -54,26 +56,29 @@ func (m *Model) updateHistory(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.overlay = noOverlay
 				req := it.Req.Req
 				path := it.Req.Path
-				if path != "" {
-					if _, err := os.Stat(path); os.IsNotExist(err) {
-						path = ""
-						m.setNotice("history source no longer exists; restored as new request", false)
-					}
-				}
-				m.urlbar.SetRequest(req.Method, req.URL)
 				// restoring the entry also restores its response (or
 				// error) so the evidence comes back with the request
-				var cmds []tea.Cmd
 				if it.Req.Res != nil {
 					m.response.SetResponse(it.Req.Res)
 				} else if it.Req.Err != nil {
 					m.response.SetError(it.Req.Err)
 				}
-				cmds = append(cmds, m.editor.SetRequest(&req, path), m.enter(pBar))
-				return m, tea.Batch(cmds...)
+				return m, m.restoreHistoryCommand(req, path)
 			}
 			return m, nil
 		}
 	}
 	return m, m.historyWidget.Update(msg)
+}
+
+func (m *Model) restoreHistoryCommand(req collection.Request, path string) tea.Cmd {
+	return func() tea.Msg {
+		if path == "" {
+			return historyRestoreMsg{req: req}
+		}
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			return historyRestoreMsg{req: req, missing: true}
+		}
+		return historyRestoreMsg{req: req, path: path}
+	}
 }

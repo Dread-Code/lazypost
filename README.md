@@ -25,7 +25,7 @@ Requests are plain YAML files in a directory tree, so a collection is just a fol
 - **Response viewer** — status / time / size summary, theme-colored JSON, headers tab, and response retention capped at 16 MiB
 - **Request history** — last 20 sends (request + response) in memory; `ctrl+h` browses, enter restores, `ctrl+r` resends
 - **Keybindings panel** — `?` for a grouped reference of every binding
-- **curl import/export** — paste a `curl` command to import it; `ctrl+g` copies the current request as curl
+- **curl import/export** — paste a `curl` command to import it; `ctrl+g` copies the current request as curl, including `-G` query-data semantics and warnings for unsupported request flags
 - **Command palette** — `ctrl+/` to run any action, including switching themes and managing environments
 - **Themes** — dracula / catppuccin / solarized / gruvbox / nord / tokyonight / one-dark / monokai presets, plus custom YAML themes
 - **Session persistence** — active environment, last request, collapsed folders, active editor tab, and theme survive relaunch

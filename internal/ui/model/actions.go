@@ -101,7 +101,7 @@ func (m *Model) previewTheme() (tea.Model, tea.Cmd) {
 	if it == nil {
 		return m, nil
 	}
-	themes.ThemeByName(it.Title).Apply()
+	m.applyTheme(themes.ThemeByName(it.Title))
 	return m, nil
 }
 
@@ -116,7 +116,7 @@ func (m *Model) applySelectedTheme() (tea.Model, tea.Cmd) {
 	m.palette.theme = false
 	m.palette.prevTheme = ""
 	name := it.Title
-	themes.ThemeByName(name).Apply()
+	m.applyTheme(themes.ThemeByName(name))
 	m.state.Theme = name
 	m.setNotice("theme: "+name, false)
 	return m, m.saveState()
@@ -149,7 +149,7 @@ func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.palette.theme = false
 			// a theme previewed but not confirmed is undone on cancel
 			if m.palette.prevTheme != "" {
-				themes.ThemeByName(m.palette.prevTheme).Apply()
+				m.applyTheme(themes.ThemeByName(m.palette.prevTheme))
 				m.palette.prevTheme = ""
 			}
 			return m, m.enter(m.palette.prev)
@@ -189,6 +189,17 @@ func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cmd, _ := m.palette.widget.Update(msg)
 	return m, cmd
+}
+
+func (m *Model) applyTheme(theme themes.Theme) {
+	theme.Apply()
+	m.sidebar.RefreshTheme()
+	m.palette.widget.RefreshTheme()
+	m.namer.widget.RefreshTheme()
+	m.historyWidget.RefreshTheme()
+	m.editor.RefreshTheme()
+	m.response.RefreshTheme()
+	m.updateEnvBadge()
 }
 
 // paletteWidth sizes the palette to its widest item (+ shortcut/detail),

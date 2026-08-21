@@ -204,6 +204,84 @@ func TestVimOperators(t *testing.T) {
 	}
 }
 
+func TestVimPasteBeforeSemantics(t *testing.T) {
+	e := New(60, 10, "", markerHighlighter{})
+	load(e, "abcd", 2)
+	e.reg = "X"
+	e.Update(key("P"))
+	if e.Value() != "abXcd" || e.Cursor() != 2 {
+		t.Errorf("characterwise P = %q cursor=%d, want abXcd at 2", e.Value(), e.Cursor())
+	}
+
+	e = New(60, 10, "", markerHighlighter{})
+	load(e, "a\nb\nc", 2)
+	e.reg = "X\n"
+	e.Update(key("P"))
+	if e.Value() != "a\nX\nb\nc" {
+		t.Errorf("linewise P = %q, want line before cursor", e.Value())
+	}
+
+	e = New(60, 10, "", markerHighlighter{})
+	load(e, "a\nb\nc", 2)
+	e.reg = "X\n"
+	e.Update(key("p"))
+	if e.Value() != "a\nb\nX\nc" {
+		t.Errorf("linewise p = %q, want line after cursor", e.Value())
+	}
+}
+
+func TestVimReverseLineSelection(t *testing.T) {
+	e := New(60, 10, "", markerHighlighter{})
+	load(e, "a\nb\nc", 4)
+	e.Update(key("V"))
+	e.Update(key("kk"))
+	e.Update(key("y"))
+	if e.reg != "a\nb\nc" {
+		t.Errorf("reverse linewise yank = %q, want all lines", e.reg)
+	}
+}
+
+func TestVimReverseBracketOperatorIncludesClosingBracket(t *testing.T) {
+	e := New(60, 10, "", markerHighlighter{})
+	load(e, "(abc)", 4)
+	e.Update(key("d%"))
+	if e.Value() != "" {
+		t.Errorf("reverse d%% = %q, want empty buffer", e.Value())
+	}
+}
+
+func TestVimWhitespaceMotions(t *testing.T) {
+	e := New(60, 10, "", markerHighlighter{})
+	load(e, "one\t two\nthree", 0)
+	e.Update(key("w"))
+	if e.Cursor() != 5 {
+		t.Errorf("w across tab/newline = %d, want 5", e.Cursor())
+	}
+	e.Update(key("b"))
+	if e.Cursor() != 0 {
+		t.Errorf("b across tab/newline = %d, want 0", e.Cursor())
+	}
+
+	e = New(60, 10, "", markerHighlighter{})
+	load(e, " \tfoo", 4)
+	e.Update(key("I"))
+	if e.Cursor() != 2 {
+		t.Errorf("I with tab indentation = %d, want 2", e.Cursor())
+	}
+}
+
+func TestVimTransientStateClearsAcrossFocus(t *testing.T) {
+	e := New(60, 10, "", markerHighlighter{})
+	load(e, "one two", 0)
+	e.Update(key("d"))
+	e.Blur()
+	e.Focus()
+	e.Update(key("w"))
+	if e.Value() != "one two" {
+		t.Errorf("pending operator survived focus change: %q", e.Value())
+	}
+}
+
 func TestVimYankHook(t *testing.T) {
 	var yanked []string
 	e := New(60, 10, "", markerHighlighter{})
