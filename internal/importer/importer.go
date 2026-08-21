@@ -29,10 +29,15 @@ type ParseOptions struct {
 	EnvironmentFiles []string
 }
 
+const maxImportFileSize = 32 << 20 // 32 MiB per source/resource file
+
 type Result struct {
 	Name       string
 	Workspaces []Workspace
-	Warnings   []Warning
+	// Environments are source-level environments without an unambiguous
+	// workspace owner, such as Insomnia directory exports.
+	Environments []ImportedEnvironment
+	Warnings     []Warning
 }
 
 // Workspace is the source-level boundary around folders, requests, and
@@ -81,7 +86,7 @@ func ParseFile(path string, opts ParseOptions) (Result, error) {
 		}
 		return parseInsomniaDirectory(path, opts.EnvironmentFiles)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readImportFile(path)
 	if err != nil {
 		return Result{}, err
 	}
@@ -97,6 +102,17 @@ func ParseFile(path string, opts ParseOptions) (Result, error) {
 	default:
 		return Result{}, fmt.Errorf("unsupported import format %q", format)
 	}
+}
+
+func readImportFile(path string) ([]byte, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > maxImportFileSize {
+		return nil, fmt.Errorf("import file %s exceeds the %d MiB limit", path, maxImportFileSize>>20)
+	}
+	return os.ReadFile(path)
 }
 
 func Detect(data []byte, requested string) (Format, error) {
@@ -182,7 +198,7 @@ func stringValue(value any) string {
 }
 
 func readEnvironmentFile(path string) (ImportedEnvironment, error) {
-	data, err := os.ReadFile(path)
+	data, err := readImportFile(path)
 	if err != nil {
 		return ImportedEnvironment{}, err
 	}

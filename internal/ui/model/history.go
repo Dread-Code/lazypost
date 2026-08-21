@@ -1,6 +1,8 @@
 package model
 
 import (
+	"os"
+
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -13,7 +15,8 @@ const historyCap = 20
 // newest first, as a browsing list.
 func (m *Model) openHistory() (tea.Model, tea.Cmd) {
 	entries := m.history.List()
-	// newest first
+	// List returns a copy; reverse only the overlay snapshot so browsing never
+	// mutates the chronological ring.
 	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
 		entries[i], entries[j] = entries[j], entries[i]
 	}
@@ -50,6 +53,13 @@ func (m *Model) updateHistory(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if it := m.historyWidget.Selected(); it != nil {
 				m.overlay = noOverlay
 				req := it.Req.Req
+				path := it.Req.Path
+				if path != "" {
+					if _, err := os.Stat(path); os.IsNotExist(err) {
+						path = ""
+						m.setNotice("history source no longer exists; restored as new request", false)
+					}
+				}
 				m.urlbar.SetRequest(req.Method, req.URL)
 				// restoring the entry also restores its response (or
 				// error) so the evidence comes back with the request
@@ -59,7 +69,7 @@ func (m *Model) updateHistory(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else if it.Req.Err != nil {
 					m.response.SetError(it.Req.Err)
 				}
-				cmds = append(cmds, m.editor.SetRequest(&req, ""), m.enter(pBar))
+				cmds = append(cmds, m.editor.SetRequest(&req, path), m.enter(pBar))
 				return m, tea.Batch(cmds...)
 			}
 			return m, nil

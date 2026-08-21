@@ -13,6 +13,7 @@ import (
 // The ring is memory-bounded by its cap ([[Design - request history]]).
 type HistoryEntry struct {
 	Req     collection.Request
+	Path    string // source path, empty for unsaved requests
 	Summary string // res.Summary() on success, err.Error() on failure
 	At      time.Time
 	Res     *httpclient.Response // non-nil on success
@@ -43,5 +44,7 @@ func (h *History) Add(e HistoryEntry) {
 
 // List returns the entries oldest first.
 func (h *History) List() []HistoryEntry {
-	return h.entries
+	entries := make([]HistoryEntry, len(h.entries))
+	copy(entries, h.entries)
+	return entries
 }

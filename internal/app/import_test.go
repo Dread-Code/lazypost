@@ -146,3 +146,59 @@ func TestImportPreservesWorkspacesAndNamespacesEnvironments(t *testing.T) {
 		t.Fatalf("names = %v, want namespaced workspace environments", names)
 	}
 }
+
+func TestImportAllocatesWorkspaceAndEnvironmentSlugCollisions(t *testing.T) {
+	result := importer.Result{Workspaces: []importer.Workspace{
+		{
+			Name:     "Alpha",
+			Requests: []importer.ImportedRequest{{Request: collection.Request{Name: "List", Method: "GET", URL: "https://alpha.test"}}},
+			Environments: []importer.ImportedEnvironment{
+				{Name: "Dev", Variables: map[string]string{"host": "alpha.test"}},
+				{Name: "dev", Variables: map[string]string{"host": "alpha.test/second"}},
+			},
+		},
+		{
+			Name:     "alpha",
+			Requests: []importer.ImportedRequest{{Request: collection.Request{Name: "List", Method: "GET", URL: "https://alpha-2.test"}}},
+		},
+	}}
+	root := filepath.Join(t.TempDir(), "collision")
+	summary, err := ImportCollection(result, ImportOptions{Target: root})
+	if err != nil {
+		t.Fatalf("ImportCollection: %v", err)
+	}
+	if len(summary.Warnings) != 2 {
+		t.Fatalf("warnings = %+v, want workspace and environment collision warnings", summary.Warnings)
+	}
+	for _, path := range []string{
+		filepath.Join(root, "alpha", "list.yaml"),
+		filepath.Join(root, "alpha-2", "list.yaml"),
+		filepath.Join(root, "environments", "alpha-dev.yaml"),
+		filepath.Join(root, "environments", "alpha-dev-2.yaml"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected allocated import path %s: %v", path, err)
+		}
+	}
+}
+
+func TestImportUnscopedEnvironmentUsesSharedNamespace(t *testing.T) {
+	result := importer.Result{
+		Workspaces: []importer.Workspace{
+			{Name: "Alpha"},
+			{Name: "Beta"},
+		},
+		Environments: []importer.ImportedEnvironment{{Name: "dev", Variables: map[string]string{"host": "shared.test"}}},
+	}
+	root := filepath.Join(t.TempDir(), "shared-env")
+	summary, err := ImportCollection(result, ImportOptions{Target: root})
+	if err != nil {
+		t.Fatalf("ImportCollection: %v", err)
+	}
+	if summary.Environments != 1 || len(summary.Warnings) != 1 || !strings.Contains(summary.Warnings[0].Message, "shared") {
+		t.Fatalf("summary = %+v, want shared environment warning", summary)
+	}
+	if _, err := os.Stat(filepath.Join(root, "environments", "shared-dev.yaml")); err != nil {
+		t.Fatalf("shared environment missing: %v", err)
+	}
+}

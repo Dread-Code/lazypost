@@ -23,12 +23,14 @@ type responseMsg struct {
 	res   *httpclient.Response
 	store map[string]string // post-hook store writes to merge
 	req   collection.Request
+	path  string
 }
 type errMsg struct {
 	id    uint64
 	err   error
 	store map[string]string // store writes even when the send fails
 	req   collection.Request
+	path  string
 }
 
 // saveErrMsg is a session-state write failure. It is handled as a status
@@ -73,6 +75,7 @@ type namerState struct {
 	rename  bool   // renaming an existing request instead of creating one
 	old     string // path of the request being renamed
 	envEdit string // environment whose variables are being edited
+	envKey  string // original variable key during an edit
 	envNew  bool   // "a" (add) instead of "r" (edit): a leading "/" creates an environment
 }
 
@@ -246,7 +249,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cancelSend = nil
 		m.response.SetResponse(msg.res)
 		m.store = app.MergeVars(m.store, msg.store)
-		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.res.Summary(), At: time.Now(), Res: msg.res})
+		m.history.Add(app.HistoryEntry{Req: msg.req, Path: msg.path, Summary: msg.res.Summary(), At: time.Now(), Res: msg.res})
 		return m, nil
 
 	case errMsg:
@@ -260,7 +263,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cancelSend = nil
 		m.response.SetError(msg.err)
 		m.store = app.MergeVars(m.store, msg.store)
-		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.err.Error(), At: time.Now(), Err: msg.err})
+		m.history.Add(app.HistoryEntry{Req: msg.req, Path: msg.path, Summary: msg.err.Error(), At: time.Now(), Err: msg.err})
 		return m, nil
 
 	case saveErrMsg:

@@ -33,6 +33,7 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 	m.cancelSend = cancel
 	vars := app.CloneVars(m.activeVars())
 	store := app.CloneVars(m.store)
+	path := m.editor.ActivePath()
 	executor := m.executor
 	if executor == nil {
 		executor = func(ctx context.Context, sent collection.Request) (*httpclient.Response, error) {
@@ -43,9 +44,9 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 	cmd := func() tea.Msg {
 		res, err := app.SendContext(ctx, executor, *req, vars, store)
 		if err != nil {
-			return errMsg{id: id, err: err, store: res.Store, req: *req}
+			return errMsg{id: id, err: err, store: res.Store, req: *req, path: path}
 		}
-		return responseMsg{id: id, res: res.Response, store: res.Store, req: *req}
+		return responseMsg{id: id, res: res.Response, store: res.Store, req: *req, path: path}
 	}
 	return m, tea.Batch(m.response.StartLoading(), cmd)
 }

@@ -112,31 +112,29 @@ func ImportCollection(result importer.Result, opts ImportOptions) (ImportSummary
 
 func planImport(result importer.Result) importPlan {
 	plan := importPlan{}
-	used := map[string]bool{}
+	usedRequests := map[string]bool{}
+	usedFolders := map[string]bool{}
+	usedEnvironments := map[string]bool{}
 	multipleWorkspaces := len(result.Workspaces) > 1
 	for _, workspace := range result.Workspaces {
 		workspaceName := workspace.Name
 		if workspaceName == "" {
 			workspaceName = "workspace"
 		}
-		workspacePath := []string{workspaceName}
-		plan.Folders = append(plan.Folders, workspacePath)
+		workspacePath := allocateImportFolder(usedFolders, nil, workspaceName, workspaceName, &plan)
+		folderPaths := map[string][]string{}
 		for _, folder := range workspace.Folders {
-			plan.Folders = append(plan.Folders, append(append([]string{}, workspacePath...), folder...))
+			normalizeImportFolder(folderPaths, usedFolders, workspacePath, folder, &plan)
 		}
 		for _, env := range workspace.Environments {
 			if multipleWorkspaces {
-				env.Name = workspaceName + "--" + env.Name
+				env.Name = workspacePath[0] + "--" + env.Name
 			}
+			env.Name = allocateImportEnvironment(usedEnvironments, env.Name, &plan)
 			plan.Environments = append(plan.Environments, env)
 		}
 		for _, item := range workspace.Requests {
-			segments := make([]string, 0, len(item.Path)+len(workspacePath))
-			for _, part := range append(workspacePath, item.Path...) {
-				if safe := collection.Slug(part); safe != "" {
-					segments = append(segments, safe)
-				}
-			}
+			segments := normalizeImportFolder(folderPaths, usedFolders, workspacePath, item.Path, &plan)
 			name := collection.Slug(item.Request.Name)
 			if name == "" {
 				name = "untitled"
@@ -144,7 +142,7 @@ func planImport(result importer.Result) importPlan {
 			}
 			base := filepath.Join(append(segments, name+".yaml")...)
 			candidate := base
-			for n := 2; used[candidate]; n++ {
+			for n := 2; usedRequests[candidate]; n++ {
 				ext := filepath.Ext(base)
 				stem := strings.TrimSuffix(base, ext)
 				candidate = stem + "-" + strconv.Itoa(n) + ext
@@ -152,11 +150,93 @@ func planImport(result importer.Result) importPlan {
 			if candidate != base {
 				plan.Warnings = append(plan.Warnings, importer.Warning{Path: strings.Join(append(append(workspacePath, item.Path...), item.Request.Name), "/"), Message: "filename collision resolved as " + candidate})
 			}
-			used[candidate] = true
+			usedRequests[candidate] = true
 			plan.Requests = append(plan.Requests, plannedRequest{Path: candidate, Req: item.Request})
 		}
 	}
+	for _, env := range result.Environments {
+		if multipleWorkspaces {
+			env.Name = "shared--" + env.Name
+			plan.Warnings = append(plan.Warnings, importer.Warning{Path: env.Name, Message: "environment has no workspace owner; imported as shared"})
+		}
+		env.Name = allocateImportEnvironment(usedEnvironments, env.Name, &plan)
+		plan.Environments = append(plan.Environments, env)
+	}
 	return plan
+}
+
+func allocateImportFolder(used map[string]bool, parent []string, raw, warningPath string, plan *importPlan) []string {
+	base := collection.Slug(raw)
+	if base == "" {
+		base = "untitled"
+		plan.Warnings = append(plan.Warnings, importer.Warning{Path: warningPath, Message: "empty folder name replaced with untitled"})
+	}
+	candidate := base
+	for n := 2; used[filepath.Join(append(parent, candidate)...)]; n++ {
+		candidate = base + "-" + strconv.Itoa(n)
+	}
+	if candidate != base {
+		plan.Warnings = append(plan.Warnings, importer.Warning{Path: warningPath, Message: "folder collision resolved as " + candidate})
+	}
+	path := append(append([]string{}, parent...), candidate)
+	used[filepath.Join(path...)] = true
+	if !hasImportFolder(plan.Folders, path) {
+		plan.Folders = append(plan.Folders, path)
+	}
+	return path
+}
+
+func normalizeImportFolder(paths map[string][]string, used map[string]bool, workspacePath, raw []string, plan *importPlan) []string {
+	current := append([]string{}, workspacePath...)
+	for i, part := range raw {
+		key := strings.Join(raw[:i+1], "\x00")
+		if existing, ok := paths[key]; ok {
+			current = append([]string{}, existing...)
+			continue
+		}
+		current = allocateImportFolder(used, current, part, strings.Join(append(workspacePath, raw[:i+1]...), "/"), plan)
+		paths[key] = append([]string{}, current...)
+	}
+	return current
+}
+
+func hasImportFolder(folders [][]string, want []string) bool {
+	if len(folders) == 0 {
+		return false
+	}
+	for _, folder := range folders {
+		if len(folder) != len(want) {
+			continue
+		}
+		match := true
+		for i := range folder {
+			if folder[i] != want[i] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
+	}
+	return false
+}
+
+func allocateImportEnvironment(used map[string]bool, raw string, plan *importPlan) string {
+	base := collection.Slug(raw)
+	if base == "" {
+		base = "environment"
+		plan.Warnings = append(plan.Warnings, importer.Warning{Path: raw, Message: "empty environment name replaced with environment"})
+	}
+	candidate := base
+	for n := 2; used[candidate]; n++ {
+		candidate = base + "-" + strconv.Itoa(n)
+	}
+	if candidate != base {
+		plan.Warnings = append(plan.Warnings, importer.Warning{Path: raw, Message: "environment collision resolved as " + candidate})
+	}
+	used[candidate] = true
+	return candidate
 }
 
 func safeImportPath(root string, parts ...string) string {

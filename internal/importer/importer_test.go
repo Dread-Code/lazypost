@@ -1,9 +1,15 @@
 package importer
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"lazypost/internal/collection"
+	"lazypost/internal/httpclient"
 )
 
 func TestPostmanCollectionAndEnvironment(t *testing.T) {
@@ -21,7 +27,7 @@ func TestPostmanCollectionAndEnvironment(t *testing.T) {
 		t.Fatalf("workspace = %+v, want one folder and request", workspace)
 	}
 	req := workspace.Requests[0].Request
-	if workspace.Requests[0].Path[0] != "Users" || req.Method != "GET" || req.URL != "{{base_url}}/users?limit=10" {
+	if workspace.Requests[0].Path[0] != "Users" || req.Method != "GET" || req.URL != "{{base_url}}/users" {
 		t.Errorf("request = %+v", req)
 	}
 	if len(req.Headers) != 1 || req.Headers[0].Name != "Accept" || len(req.Query) != 1 || req.Auth == nil || req.Auth.Token != "{{token}}" {
@@ -101,9 +107,104 @@ func TestInsomniaDirectoryCombinesWorkspacesAndSkipsMocks(t *testing.T) {
 	}
 }
 
+func TestInsomniaDirectoryKeepsUnscopedEnvironmentsSeparate(t *testing.T) {
+	dir := t.TempDir()
+	for name, workspace := range map[string]string{
+		"alpha.yaml": "type: collection.insomnia.rest/5.0\nschema_version: '5.1'\nname: Alpha\n",
+		"beta.yaml":  "type: collection.insomnia.rest/5.0\nschema_version: '5.1'\nname: Beta\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(workspace), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	env := "type: environment.insomnia.rest/5.0\nschema_version: '5.1'\nname: Shared\ndata:\n  host: https://shared.test\n"
+	if err := os.WriteFile(filepath.Join(dir, "shared.yaml"), []byte(env), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := ParseFile(dir, ParseOptions{})
+	if err != nil {
+		t.Fatalf("ParseFile directory: %v", err)
+	}
+	if len(result.Workspaces) != 2 || len(result.Environments) != 1 || result.Environments[0].Name != "Shared" {
+		t.Fatalf("workspaces=%+v global environments=%+v", result.Workspaces, result.Environments)
+	}
+}
+
 func TestDetectRejectsOpenAPIInsomniaDocument(t *testing.T) {
 	_, err := Detect([]byte("type: spec.insomnia.rest/5.0\nschema_version: '5.1'\n"), "")
 	if err == nil || !strings.Contains(err.Error(), "OpenAPI-backed") {
 		t.Fatalf("Detect error = %v, want deferred OpenAPI error", err)
+	}
+}
+
+func TestImportRejectsCyclicInsomniaResources(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cycle.json")
+	data := `{"_type":"export","__export_format":4,"resources":[{"_type":"workspace","_id":"w","name":"Demo"},{"_type":"request_group","_id":"g","parentId":"w","name":"A"},{"_type":"request_group","_id":"g","parentId":"g","name":"B"}]}`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseFile(path, ParseOptions{}); err == nil || !strings.Contains(err.Error(), "cyclic resource graph") {
+		t.Fatalf("ParseFile cycle error = %v, want cyclic resource graph", err)
+	}
+}
+
+func TestImportRejectsOversizedFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "large.json")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(path, maxImportFileSize+1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseFile(path, ParseOptions{}); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("ParseFile oversized error = %v, want size limit error", err)
+	}
+}
+
+func TestImportedQueriesExecuteExactlyOnce(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query()["limit"]; len(got) != 1 || got[0] != "10" {
+			t.Errorf("limit query = %v, want exactly one value", got)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	for _, source := range []string{
+		filepath.Join("testdata", "postman", "collection.json"),
+		filepath.Join("testdata", "insomnia", "v4.json"),
+	} {
+		result, err := ParseFile(source, ParseOptions{})
+		if err != nil {
+			t.Fatalf("ParseFile(%s): %v", source, err)
+		}
+		req := result.Workspaces[0].Requests[0].Request
+		req.URL = srv.URL + "/users"
+		if _, err := httpclient.Exec(req, nil); err != nil {
+			t.Fatalf("Exec(%s): %v", source, err)
+		}
+	}
+}
+
+func TestNormalizeURLQueryPreservesFragmentAndRepeatedValues(t *testing.T) {
+	base, params := normalizeURLQuery(
+		"https://api.test/items?keep=yes&limit=10#fragment",
+		[]collection.Param{
+			{Name: "limit", Value: "10"},
+			{Name: "tag", Value: "one"},
+			{Name: "tag", Value: "two"},
+		},
+		map[string]struct{}{"limit": {}},
+	)
+	if base != "https://api.test/items#fragment" {
+		t.Errorf("base URL = %q", base)
+	}
+	if len(params) != 4 || params[0].Name != "keep" || params[1].Name != "limit" || params[2].Value != "one" || params[3].Value != "two" {
+		t.Errorf("normalized params = %+v", params)
 	}
 }

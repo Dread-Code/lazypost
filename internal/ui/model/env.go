@@ -2,6 +2,7 @@ package model
 
 import (
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -23,12 +24,20 @@ func (m *Model) openEnvManager() (tea.Model, tea.Cmd) {
 		m.setNotice("no environments", true)
 		return m, nil
 	}
-	if m.overlay != ovEnv {
-		// open on the active environment if set, else the first
-		m.palette.envTab = m.envIdx - 1
-		if m.palette.envTab < 0 {
-			m.palette.envTab = 0
-		}
+	env := ""
+	if m.overlay == ovEnv {
+		env = m.envTabName()
+	} else if active := m.activeEnvName(); active != "" {
+		env = active
+	}
+	return m.openEnvManagerAt(env)
+}
+
+func (m *Model) openEnvManagerAt(name string) (tea.Model, tea.Cmd) {
+	if idx := slices.Index(m.envNames, name); idx >= 0 {
+		m.palette.envTab = idx
+	} else if m.palette.envTab < 0 || m.palette.envTab >= len(m.envNames) {
+		m.palette.envTab = 0
 	}
 	m.overlay = ovEnv
 	m.palette.envFiltering = false
@@ -52,7 +61,13 @@ func (m *Model) envTabName() string {
 func (m *Model) loadEnvTab() {
 	items := []ui.PaletteItem{}
 	if env := m.envTabName(); env != "" {
-		for k, v := range m.envs[env] {
+		keys := make([]string, 0, len(m.envs[env]))
+		for k := range m.envs[env] {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v := m.envs[env][k]
 			items = append(items, ui.PaletteItem{Title: k, Detail: "= " + v})
 		}
 	}
@@ -82,6 +97,16 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.palette.envFiltering = false
 				m.palette.widget.ClearFilter()
 				return m, nil
+			case key.Matches(km, keyUp) || key.Matches(km, keyCtrlP):
+				m.palette.widget.CursorUp()
+				return m, nil
+			case key.Matches(km, keyDown) || key.Matches(km, keyCtrlN):
+				m.palette.widget.CursorDown()
+				return m, nil
+			case key.Matches(km, keyRename):
+				return m.editSelectedVariable()
+			case key.Matches(km, keyDelete):
+				return m.confirmDeleteSelectedVariable()
 			}
 			cmd, _ := m.palette.widget.Update(msg)
 			return m, cmd
@@ -117,6 +142,7 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(km, keyAdd):
 			if env := m.envTabName(); env != "" {
 				m.namer.envEdit = env
+				m.namer.envKey = ""
 				m.namer.envNew = true
 				m.overlay = ovNamer
 				m.namer.widget.SetLabel("new variable")
@@ -127,29 +153,10 @@ func (m *Model) updateEnvManager(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(km, keyRename):
-			if env := m.envTabName(); env != "" {
-				if key := m.selectedVarName(); key != "" {
-					m.namer.envEdit = env
-					m.namer.envNew = false
-					m.overlay = ovNamer
-					m.namer.widget.SetLabel("edit variable")
-					m.namer.widget.SetPlaceholder("key=value")
-					m.namer.widget.SetEnvMode(true)
-					return m, m.namer.widget.OpenPrefilled(key + "=" + m.envs[env][key])
-				}
-			}
-			return m, nil
+			return m.editSelectedVariable()
 
 		case key.Matches(km, keyDelete):
-			if env := m.envTabName(); env != "" {
-				if key := m.selectedVarName(); key != "" {
-					m.confirm.widget.Ask("delete variable " + themes.TruncateRunes(key, 30) + "?")
-					m.overlay = ovConfirm
-					m.confirm.env = env
-					m.confirm.key = key
-				}
-			}
-			return m, nil
+			return m.confirmDeleteSelectedVariable()
 
 		case key.Matches(km, keyEnter):
 			m.setEnv(m.envTabName())
@@ -168,10 +175,36 @@ func (m *Model) selectedVarName() string {
 	if it == nil {
 		return ""
 	}
-	if k, _, ok := strings.Cut(it.Title, " = "); ok {
-		return k
+	return it.Title
+}
+
+func (m *Model) editSelectedVariable() (tea.Model, tea.Cmd) {
+	env := m.envTabName()
+	key := m.selectedVarName()
+	if env == "" || key == "" {
+		return m, nil
 	}
-	return ""
+	m.namer.envEdit = env
+	m.namer.envKey = key
+	m.namer.envNew = false
+	m.overlay = ovNamer
+	m.namer.widget.SetLabel("edit variable")
+	m.namer.widget.SetPlaceholder("key=value")
+	m.namer.widget.SetEnvMode(true)
+	return m, m.namer.widget.OpenPrefilled(key + "=" + m.envs[env][key])
+}
+
+func (m *Model) confirmDeleteSelectedVariable() (tea.Model, tea.Cmd) {
+	env := m.envTabName()
+	key := m.selectedVarName()
+	if env == "" || key == "" {
+		return m, nil
+	}
+	m.confirm.widget.Ask("delete variable " + themes.TruncateRunes(key, 30) + "?")
+	m.overlay = ovConfirm
+	m.confirm.env = env
+	m.confirm.key = key
+	return m, nil
 }
 
 // setEnv activates env by name ("" = none), re-resolving envIdx.
@@ -205,7 +238,7 @@ func (m *Model) reloadEnvs() {
 
 // setEnvironmentVar writes key=value into an environment's map, persists
 // it, and reopens the env manager (now on that env's tab).
-func (m *Model) setEnvironmentVar(env, kv string) (tea.Model, tea.Cmd) {
+func (m *Model) setEnvironmentVar(env, oldKey, kv string) (tea.Model, tea.Cmd) {
 	key, val, ok := strings.Cut(kv, "=")
 	if !ok || strings.TrimSpace(key) == "" {
 		m.setNotice("expected key=value", true)
@@ -214,19 +247,23 @@ func (m *Model) setEnvironmentVar(env, kv string) (tea.Model, tea.Cmd) {
 	if !m.prepareWrite() {
 		return m, nil
 	}
-	vars := m.envs[env]
-	if vars == nil {
-		vars = map[string]string{}
+	vars := make(map[string]string, len(m.envs[env])+1)
+	for existingKey, existingValue := range m.envs[env] {
+		vars[existingKey] = existingValue
 	}
-	vars[strings.TrimSpace(key)] = strings.TrimSpace(val)
+	key = strings.TrimSpace(key)
+	val = strings.TrimSpace(val)
+	if oldKey != "" && oldKey != key {
+		delete(vars, oldKey)
+	}
+	vars[key] = val
 	if err := collection.SaveEnvironment(m.dir, env, vars); err != nil {
 		m.writeNotice("edit environment: "+err.Error(), true)
 		return m, nil
 	}
 	m.reloadEnvs()
 	m.writeNotice("environment "+env+" updated", false)
-	m.palette.envTab = slices.Index(m.envNames, env)
-	return m.openEnvManager()
+	return m.openEnvManagerAt(env)
 }
 
 // createEnvironment creates an empty environment (from a leading "/" in
@@ -242,19 +279,21 @@ func (m *Model) createEnvironment(name string) (tea.Model, tea.Cmd) {
 	}
 	m.reloadEnvs()
 	m.writeNotice("environment "+name+" created", false)
-	m.palette.envTab = slices.Index(m.envNames, name)
-	return m.openEnvManager()
+	return m.openEnvManagerAt(name)
 }
 
 // deleteVariable removes key from an environment, persists it, and
 // reopens the env manager.
 func (m *Model) deleteVariable(env, key string) tea.Cmd {
-	vars := m.envs[env]
-	if vars == nil {
+	if m.envs[env] == nil {
 		return nil
 	}
 	if !m.prepareWrite() {
 		return nil
+	}
+	vars := make(map[string]string, len(m.envs[env]))
+	for existingKey, existingValue := range m.envs[env] {
+		vars[existingKey] = existingValue
 	}
 	delete(vars, key)
 	if err := collection.SaveEnvironment(m.dir, env, vars); err != nil {
@@ -263,8 +302,7 @@ func (m *Model) deleteVariable(env, key string) tea.Cmd {
 	}
 	m.reloadEnvs()
 	m.writeNotice("deleted variable "+key, false)
-	m.palette.envTab = slices.Index(m.envNames, env)
-	_, _ = m.openEnvManager() // mutates m in place via pointer receiver
+	_, _ = m.openEnvManagerAt(env) // mutates m in place via pointer receiver
 	return nil
 }
 

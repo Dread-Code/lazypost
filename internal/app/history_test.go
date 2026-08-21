@@ -48,3 +48,17 @@ func TestHistoryZeroCap(t *testing.T) {
 		t.Error("zero-cap history should keep nothing")
 	}
 }
+
+func TestHistoryListReturnsCopy(t *testing.T) {
+	h := NewHistory(2)
+	h.Add(HistoryEntry{Path: "/collection/one.yaml", At: time.Unix(1, 0)})
+	h.Add(HistoryEntry{Path: "/collection/two.yaml", At: time.Unix(2, 0)})
+	got := h.List()
+	got[0].Path = "mutated"
+	got[0], got[1] = got[1], got[0]
+
+	stored := h.List()
+	if stored[0].Path != "/collection/one.yaml" || stored[1].Path != "/collection/two.yaml" {
+		t.Fatalf("history backing state changed through List: %+v", stored)
+	}
+}

@@ -22,6 +22,7 @@ $ lazypost import insomnia-export-folder/ -dir ./collections/my-api
 - Sources: Postman Collection v2.1 JSON, Insomnia v4 JSON (`__export_format: 4`), and Insomnia v5 YAML — a single file or a full export directory.
 - Format detection is automatic from file contents; `--format` only for ambiguous inputs.
 - Workspaces become top-level folders; Insomnia export directories combine all workspaces, skipping unrelated resources (mock servers, OpenAPI documents) with warnings.
-- Collection/base variables become a `base` environment plus one per named environment; multi-workspace imports namespace them as `workspace--environment`; Insomnia's `{{ _.var }}` placeholders normalize to `{{var}}`.
-- Everything validates first, stages in a temporary sibling directory, then renames into place; filename collisions get deterministic `-2`, `-3` suffixes with warnings; a `config/config.yaml` marker is created automatically.
+- Collection/base variables become a `base` environment plus one per named environment; multi-workspace imports namespace them logically as `workspace--environment` (slugged filenames use `workspace-environment`); unscoped directory environments use `shared-environment` with a warning. Insomnia's `{{ _.var }}` placeholders normalize to `{{var}}`.
+- Structured query parameters become the request's canonical `query` list, so raw URL queries are not sent twice; intentional repeated values remain supported.
+- Everything validates first, stages in a temporary sibling directory, then renames into place; workspace, environment, and request filename collisions get deterministic suffixes with warnings; a `config/config.yaml` marker is created automatically.
 - Unsupported features (JS pre/test scripts, multipart/binary/GraphQL bodies, unsupported auth) are reported per request and omitted — never guessed. `--strict` promotes any warning to a failure.

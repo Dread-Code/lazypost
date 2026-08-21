@@ -92,7 +92,7 @@ func parseInsomniaDirectory(dir string, environmentFiles []string) (Result, erro
 			continue
 		}
 		path := filepath.Join(dir, entry.Name())
-		data, err := os.ReadFile(path)
+		data, err := readImportFile(path)
 		if err != nil {
 			return Result{}, err
 		}
@@ -135,15 +135,13 @@ func parseInsomniaDirectory(dir string, environmentFiles []string) (Result, erro
 	if len(result.Workspaces) == 0 {
 		return Result{}, fmt.Errorf("directory contains no supported Insomnia workspaces")
 	}
-	for _, env := range pendingEnvironments {
-		addEnvironment(&result.Workspaces[0], env)
-	}
+	result.Environments = append(result.Environments, pendingEnvironments...)
 	for _, path := range environmentFiles {
 		env, err := readEnvironmentFile(path)
 		if err != nil {
 			return Result{}, err
 		}
-		addEnvironment(&result.Workspaces[0], env)
+		result.Environments = append(result.Environments, env)
 	}
 	return result, nil
 }
@@ -168,9 +166,12 @@ func parseInsomniaV4(doc insomniaExport, source string, environmentFiles []strin
 			name = "workspace"
 		}
 		ws := Workspace{Name: name}
-		var walk func(string, []string)
-		walk = func(parent string, path []string) {
+		var walk func(string, []string, map[string]bool) error
+		walk = func(parent string, path []string, ancestors map[string]bool) error {
 			for _, resource := range children[parent] {
+				if resource.ID != "" && ancestors[resource.ID] {
+					return fmt.Errorf("%s: cyclic resource graph at %q", source, resource.ID)
+				}
 				switch resource.Type {
 				case "request_group":
 					name := resource.Name
@@ -179,14 +180,30 @@ func parseInsomniaV4(doc insomniaExport, source string, environmentFiles []strin
 					}
 					folder := append(append([]string{}, path...), name)
 					ws.Folders = append(ws.Folders, folder)
-					walk(resource.ID, folder)
+					nextAncestors := make(map[string]bool, len(ancestors)+1)
+					for id := range ancestors {
+						nextAncestors[id] = true
+					}
+					if resource.ID != "" {
+						nextAncestors[resource.ID] = true
+					}
+					if err := walk(resource.ID, folder, nextAncestors); err != nil {
+						return err
+					}
 				case "request":
 					request := mapInsomniaRequest(resource, path, &ws)
 					ws.Requests = append(ws.Requests, ImportedRequest{Path: path, Request: request})
 				}
 			}
+			return nil
 		}
-		walk(workspace.ID, nil)
+		ancestors := map[string]bool{}
+		if workspace.ID != "" {
+			ancestors[workspace.ID] = true
+		}
+		if err := walk(workspace.ID, nil, ancestors); err != nil {
+			return Result{}, err
+		}
 		result.Workspaces = append(result.Workspaces, ws)
 		result.Warnings = append(result.Warnings, ws.Warnings...)
 	}
@@ -206,7 +223,7 @@ func parseInsomniaV4(doc insomniaExport, source string, environmentFiles []strin
 		if err != nil {
 			return Result{}, err
 		}
-		addEnvironment(&result.Workspaces[0], env)
+		result.Environments = append(result.Environments, env)
 	}
 	return result, nil
 }
@@ -227,13 +244,18 @@ func mapInsomniaRequest(resource insomniaResource, path []string, workspace *Wor
 		}
 		req.Headers = append(req.Headers, collection.Header{Name: kvName(header), Value: normalizeVariables(stringValue(header.Value))})
 	}
+	explicitQuery := make([]collection.Param, 0, len(resource.Parameters))
+	explicitQueryKeys := make(map[string]struct{}, len(resource.Parameters))
 	for _, parameter := range resource.Parameters {
+		paramName := kvName(parameter)
+		explicitQueryKeys[paramName] = struct{}{}
 		if parameter.Disabled {
-			workspace.Warnings = append(workspace.Warnings, Warning{Path: strings.Join(append(path, name), "/"), Message: "disabled query parameter skipped: " + kvName(parameter)})
+			workspace.Warnings = append(workspace.Warnings, Warning{Path: strings.Join(append(path, name), "/"), Message: "disabled query parameter skipped: " + paramName})
 			continue
 		}
-		req.Query = append(req.Query, collection.Param{Name: kvName(parameter), Value: normalizeVariables(stringValue(parameter.Value))})
+		explicitQuery = append(explicitQuery, collection.Param{Name: paramName, Value: normalizeVariables(stringValue(parameter.Value))})
 	}
+	req.URL, req.Query = normalizeURLQuery(req.URL, explicitQuery, explicitQueryKeys)
 	if resource.Body != nil {
 		switch resource.Body.MimeType {
 		case "", "application/json", "text/plain", "application/xml", "text/xml", "text/html":

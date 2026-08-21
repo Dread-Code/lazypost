@@ -402,7 +402,8 @@ func Load(root string) ([]Entry, error) {
 		if d.IsDir() {
 			// Root config/ and environments/ hold collection metadata, not
 			// requests. Nested config/ folders remain ordinary user folders.
-			if d.Name() == environmentsDir || (d.Name() == ConfigDir && path == filepath.Join(root, ConfigDir)) {
+			if (d.Name() == environmentsDir && path == filepath.Join(root, environmentsDir)) ||
+				(d.Name() == ConfigDir && path == filepath.Join(root, ConfigDir)) {
 				return filepath.SkipDir
 			}
 			entries = append(entries, Entry{Kind: Dir, Name: d.Name(), Depth: depth, Path: path})
@@ -760,6 +761,9 @@ func LoadEnvironments(root string) (map[string]map[string]string, []string, erro
 		name := strings.TrimSuffix(item.Name(), filepath.Ext(item.Name()))
 		if env.Variables == nil {
 			env.Variables = map[string]string{}
+		}
+		if _, exists := envs[name]; exists {
+			return nil, nil, fmt.Errorf("duplicate environment name %q in %s", name, dir)
 		}
 		envs[name] = env.Variables
 		names = append(names, name)

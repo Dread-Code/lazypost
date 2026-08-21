@@ -18,7 +18,7 @@ func (m *Model) restore(st session.State) {
 		m.envIdx = idx + 1
 	}
 	m.sidebar.SetCollapsed(m.dir, st.Collapsed)
-	if st.ActivePath != "" && m.sidebar.SelectPath(filepath.Join(m.dir, st.ActivePath)) {
+	if st.ActivePath != "" && m.sidebar.RevealPath(filepath.Join(m.dir, st.ActivePath)) {
 		if e := m.sidebar.Selected(); e != nil {
 			m.urlbar.SetRequest(e.Req.Method, e.Req.URL)
 			m.editor.SetRequest(e.Req, e.Path)

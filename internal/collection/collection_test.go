@@ -176,6 +176,22 @@ func TestLoadEnvironments(t *testing.T) {
 	}
 }
 
+func TestLoadEnvironmentsRejectsYamlExtensionCollision(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, environmentsDir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"dev.yaml", "dev.yml"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("variables:\n  host: https://example.test\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, _, err := LoadEnvironments(root); err == nil || !strings.Contains(err.Error(), "duplicate environment name") {
+		t.Fatalf("LoadEnvironments error = %v, want duplicate-name error", err)
+	}
+}
+
 func TestRename(t *testing.T) {
 	root := t.TempDir()
 	old := filepath.Join(root, "old-name.yaml")
@@ -512,5 +528,26 @@ func TestNestedConfigIsInTree(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("Load omitted nested config directory")
+	}
+}
+
+func TestNestedEnvironmentsDirectoryIsInTree(t *testing.T) {
+	dir := t.TempDir()
+	nested := filepath.Join(dir, "folder", environmentsDir)
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	var found bool
+	for _, e := range entries {
+		if e.Path == nested && e.Kind == Dir {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("Load omitted nested environments directory")
 	}
 }

@@ -251,6 +251,26 @@ func (s *Sidebar) SelectPath(path string) bool {
 	return false
 }
 
+// RevealPath expands collapsed ancestors of path and selects it. Session
+// restore uses this so the saved request remains visible even when its
+// previous folder was collapsed.
+func (s *Sidebar) RevealPath(path string) bool {
+	current := filepath.Dir(path)
+	for {
+		if current == s.root.Path || current == "." || current == string(filepath.Separator) {
+			break
+		}
+		delete(s.collapsed, current)
+		next := filepath.Dir(current)
+		if next == current {
+			break
+		}
+		current = next
+	}
+	_ = s.list.SetItems(s.items())
+	return s.SelectPath(path)
+}
+
 // Selected returns the currently highlighted request entry, or nil when
 // the cursor is on a directory or nothing is selected.
 func (s *Sidebar) Selected() *collection.Entry {

@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
 
+	"lazypost/internal/app"
 	"lazypost/internal/collection"
 	"lazypost/internal/httpclient"
 	"lazypost/internal/session"
@@ -71,6 +72,136 @@ func TestStaleSendResultsAreIgnored(t *testing.T) {
 	}
 	if got.store["current-result"] != "yes" || len(got.history.List()) != 1 {
 		t.Fatalf("current response state = store %v history %d", got.store, len(got.history.List()))
+	}
+}
+
+func TestHistoryRestoreKeepsSourcePath(t *testing.T) {
+	m := loadSample(t)
+	req := collection.Request{Name: "saved", Method: "GET", URL: "https://api.test/saved"}
+	path := filepath.Join(m.dir, "users", "one.yaml")
+	m.history.Add(app.HistoryEntry{Req: req, Path: path})
+	_, _ = m.openHistory()
+	updated, _ := m.updateHistory(tea.KeyMsg{Type: tea.KeyEnter})
+	got := updated.(*Model)
+	if got.editor.ActivePath() != path {
+		t.Fatalf("restored path = %q, want original path", got.editor.ActivePath())
+	}
+}
+
+func TestHistoryRestoreDropsDeletedSourcePath(t *testing.T) {
+	m := loadSample(t)
+	req := collection.Request{Name: "deleted", Method: "GET", URL: "https://api.test/deleted"}
+	m.history.Add(app.HistoryEntry{Req: req, Path: filepath.Join(m.dir, "users", "missing.yaml")})
+	_, _ = m.openHistory()
+	updated, _ := m.updateHistory(tea.KeyMsg{Type: tea.KeyEnter})
+	got := updated.(*Model)
+	if got.editor.ActivePath() != "" {
+		t.Fatalf("deleted history path = %q, want unsaved request", got.editor.ActivePath())
+	}
+	if !strings.Contains(got.notice, "source no longer exists") {
+		t.Fatalf("notice = %q, want missing source notice", got.notice)
+	}
+}
+
+func TestEnvironmentSelectionAndEditDelete(t *testing.T) {
+	root := t.TempDir()
+	if err := collection.SaveEnvironment(root, "dev", map[string]string{"zeta": "last", "alpha": "first"}); err != nil {
+		t.Fatal(err)
+	}
+	envs, names, err := collection.LoadEnvironments(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(root, nil, envs, names, session.State{})
+	m.overlay = ovEnv
+	m.palette.envTab = 0
+	m.loadEnvTab()
+	if got := m.selectedVarName(); got != "alpha" {
+		t.Fatalf("selected variable = %q, want sorted first key alpha", got)
+	}
+
+	updated, _ := m.setEnvironmentVar("dev", "alpha", "renamed=value")
+	if updated.(*Model).overlay != ovEnv {
+		t.Fatal("environment manager did not reopen after edit")
+	}
+	envs, _, err = collection.LoadEnvironments(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := envs["dev"]["alpha"]; ok || envs["dev"]["renamed"] != "value" {
+		t.Fatalf("edited environment = %v", envs["dev"])
+	}
+
+	_ = m.deleteVariable("dev", "renamed")
+	envs, _, err = collection.LoadEnvironments(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := envs["dev"]["renamed"]; ok {
+		t.Fatalf("deleted variable remains: %v", envs["dev"])
+	}
+}
+
+func TestEnvironmentEditFailureDoesNotMutateMemory(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "environments"), []byte("blocked"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := New(root, nil, map[string]map[string]string{"dev": {"token": "old"}}, []string{"dev"}, session.State{})
+	_, _ = m.setEnvironmentVar("dev", "token", "token=new")
+	if m.envs["dev"]["token"] != "old" {
+		t.Fatalf("in-memory environment mutated after failed save: %v", m.envs["dev"])
+	}
+	if !strings.Contains(m.notice, "edit environment") {
+		t.Fatalf("notice = %q, want edit failure", m.notice)
+	}
+}
+
+func TestDeletingActiveFolderClearsChildRequest(t *testing.T) {
+	root := t.TempDir()
+	folder := filepath.Join(root, "users")
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path, err := collection.Save(root, filepath.Join(folder, "list.yaml"), &collection.Request{Name: "list", Method: "GET", URL: "https://api.test/users"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, err := collection.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(root, entries, nil, nil, session.State{})
+	request, err := collection.LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.editor.SetRequest(request, path)
+	var folderEntry *collection.Entry
+	for i := range entries {
+		if entries[i].Kind == collection.Dir && entries[i].Path == folder {
+			folderEntry = &entries[i]
+			break
+		}
+	}
+	if folderEntry == nil {
+		t.Fatal("folder entry not found")
+	}
+	_ = m.doDelete(folderEntry)
+	if m.editor.ActivePath() != "" {
+		t.Fatalf("active path after folder delete = %q", m.editor.ActivePath())
+	}
+}
+
+func TestOpeningHistoryDoesNotChangeChronologicalOrder(t *testing.T) {
+	m := loadSample(t)
+	m.history.Add(app.HistoryEntry{Req: collection.Request{Name: "old"}, Path: "old.yaml", At: time.Unix(1, 0)})
+	m.history.Add(app.HistoryEntry{Req: collection.Request{Name: "new"}, Path: "new.yaml", At: time.Unix(2, 0)})
+	_, _ = m.openHistory()
+	_, _ = m.openHistory()
+	entries := m.history.List()
+	if len(entries) != 2 || entries[0].Req.Name != "old" || entries[1].Req.Name != "new" {
+		t.Fatalf("chronological history = %+v", entries)
 	}
 }
 
@@ -607,6 +738,26 @@ func TestRestoreSessionState(t *testing.T) {
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestRestoreSessionRevealsActiveCollapsedRequest(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	entries, err := collection.Load("../../../sample-collections")
+	if err != nil {
+		t.Fatal(err)
+	}
+	envs, names, err := collection.LoadEnvironments("../../../sample-collections")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := session.State{
+		ActivePath: "users/one.yaml",
+		Collapsed:  []string{"users"},
+	}
+	m := New("../../../sample-collections", entries, envs, names, st)
+	if m.editor.ActivePath() != filepath.Join("../../../sample-collections", "users/one.yaml") {
+		t.Fatalf("active path = %q, want restored request under collapsed folder", m.editor.ActivePath())
+	}
 }
 
 func TestSessionSnapshot(t *testing.T) {

@@ -1,6 +1,9 @@
 package model
 
 import (
+	"path/filepath"
+	"strings"
+
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -62,11 +65,24 @@ func (m *Model) doDelete(e *collection.Entry) tea.Cmd {
 		m.writeNotice("delete failed: "+err.Error(), true)
 		return nil
 	}
-	if e.Path == m.editor.ActivePath() {
+	if pathContains(e.Path, m.editor.ActivePath()) {
 		m.urlbar.New()
 		m.editor.New()
 	}
 	m.sidebar.SetEntries(entries)
 	m.writeNotice("deleted "+rel(m.dir, e.Path), false)
 	return m.saveState()
+}
+
+func pathContains(parent, child string) bool {
+	if parent == "" || child == "" {
+		return false
+	}
+	parent = filepath.Clean(parent)
+	child = filepath.Clean(child)
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }

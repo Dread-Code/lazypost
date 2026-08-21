@@ -176,15 +176,20 @@ func mapPostmanRequest(raw postmanRequest, name string, path []string, workspace
 		}
 		req.Headers = append(req.Headers, collection.Header{Name: header.Key, Value: normalizeVariables(stringValue(header.Value))})
 	}
+	var explicitQuery []collection.Param
+	var explicitQueryKeys map[string]struct{}
 	if u := postmanURLObject(raw.URL); u != nil {
+		explicitQueryKeys = make(map[string]struct{}, len(u.Query))
 		for _, query := range u.Query {
+			explicitQueryKeys[query.Key] = struct{}{}
 			if query.Disabled {
 				workspace.Warnings = append(workspace.Warnings, Warning{Path: strings.Join(append(path, name), "/"), Message: "disabled query parameter skipped: " + query.Key})
 				continue
 			}
-			req.Query = append(req.Query, collection.Param{Name: query.Key, Value: normalizeVariables(stringValue(query.Value))})
+			explicitQuery = append(explicitQuery, collection.Param{Name: query.Key, Value: normalizeVariables(stringValue(query.Value))})
 		}
 	}
+	req.URL, req.Query = normalizeURLQuery(req.URL, explicitQuery, explicitQueryKeys)
 	if raw.Body != nil {
 		switch raw.Body.Mode {
 		case "raw":

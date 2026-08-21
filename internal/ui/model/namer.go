@@ -15,6 +15,7 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.overlay = noOverlay
 			m.namer.rename = false
 			m.namer.envEdit = ""
+			m.namer.envKey = ""
 			m.namer.envNew = false
 			m.namer.widget.SetEnvMode(false)
 			return m, nil
@@ -31,7 +32,9 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.namer.envEdit != "" {
 				m.overlay = noOverlay
 				env := m.namer.envEdit
+				oldKey := m.namer.envKey
 				m.namer.envEdit = ""
+				m.namer.envKey = ""
 				if m.namer.envNew && m.namer.widget.IsFolder() {
 					m.namer.envNew = false
 					m.namer.widget.SetEnvMode(false)
@@ -39,7 +42,7 @@ func (m *Model) updateNamer(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.namer.envNew = false
 				m.namer.widget.SetEnvMode(false)
-				return m.setEnvironmentVar(env, name)
+				return m.setEnvironmentVar(env, oldKey, name)
 			}
 
 			// renaming is only valid for requests, so a leading / (folder
