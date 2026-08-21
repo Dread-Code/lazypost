@@ -1,9 +1,6 @@
 package app
 
 import (
-	"os"
-	"path/filepath"
-
 	"lazypost/internal/collection"
 )
 
@@ -47,8 +44,8 @@ func RenameRequest(dir, oldPath, name string) (*collection.Request, string, []co
 // CreateFolder makes a new directory under parent and returns its path
 // plus the reloaded tree.
 func CreateFolder(root, parent, name string) (string, []collection.Entry, error) {
-	path := filepath.Join(parent, collection.Slug(name))
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	path, err := collection.CreateFolder(root, parent, name)
+	if err != nil {
 		return "", nil, err
 	}
 	entries, err := collection.Load(root)
@@ -61,9 +58,8 @@ func CreateFolder(root, parent, name string) (string, []collection.Entry, error)
 // CreateRequest writes a blank named request under parent and returns
 // the request, its path, and the reloaded tree.
 func CreateRequest(root, parent, name string) (*collection.Request, string, []collection.Entry, error) {
-	req := &collection.Request{Name: name, Method: "GET"}
-	path := filepath.Join(parent, collection.Slug(name)+".yaml")
-	if _, err := collection.Save(root, path, req); err != nil {
+	req, path, err := collection.CreateRequest(root, parent, name)
+	if err != nil {
 		return nil, "", nil, err
 	}
 	entries, err := collection.Load(root)

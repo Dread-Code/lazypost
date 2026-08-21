@@ -12,6 +12,10 @@ Legacy `.lazypost` markers remain readable for the current session and migrate t
 `config/config.yaml` on the first write. `./sample-collections` / `./collections` are implicit
 collections without a marker.
 
+Collection writes are root-confined and atomic. New requests, folders, environments, and renames
+refuse path collisions instead of replacing existing data; newly created request and environment
+files default to owner-only permissions.
+
 ## request format
 
 ```yaml

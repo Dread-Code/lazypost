@@ -30,7 +30,17 @@ func (m *Model) restore(st session.State) {
 // quit persists state synchronously (the program is about to exit, so an
 // async save could be cut off) then quits.
 func (m *Model) quit() tea.Cmd {
-	if err := session.Save(m.dir, m.snapshot()); err != nil {
+	if m.cancelSend != nil {
+		m.cancelSend()
+		m.cancelSend = nil
+	}
+	m.activeSendID = 0
+	writer := m.sessionWriter
+	if writer == nil {
+		writer = session.NewWriter()
+		m.sessionWriter = writer
+	}
+	if err := writer.Flush(m.dir, m.snapshot()); err != nil {
 		fmt.Fprintln(os.Stderr, "lazypost: save state failed: "+err.Error())
 	}
 	return tea.Quit
@@ -56,8 +66,13 @@ func (m *Model) snapshot() session.State {
 // status-bar notice, never the response pane (errMsg renders there).
 func (m *Model) saveState() tea.Cmd {
 	st := m.snapshot()
+	writer := m.sessionWriter
+	if writer == nil {
+		writer = session.NewWriter()
+		m.sessionWriter = writer
+	}
 	return func() tea.Msg {
-		if err := session.Save(m.dir, st); err != nil {
+		if err := writer.Save(m.dir, st); err != nil {
 			return saveErrMsg{err: err}
 		}
 		return nil

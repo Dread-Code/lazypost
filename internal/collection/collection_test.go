@@ -1,6 +1,7 @@
 package collection
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -201,6 +202,144 @@ func TestRename(t *testing.T) {
 	}
 	if out.Name != "new name" {
 		t.Errorf("on-disk name = %q, want new name", out.Name)
+	}
+}
+
+func TestRenameWithSameSlugDoesNotDeleteRequest(t *testing.T) {
+	root := t.TempDir()
+	old := filepath.Join(root, "old-name.yaml")
+	if _, err := Save(root, old, &Request{Name: "old name", Method: "GET", URL: "https://api.test/x"}); err != nil {
+		t.Fatal(err)
+	}
+
+	req, newPath, err := Rename(root, old, "Old Name")
+	if err != nil {
+		t.Fatalf("Rename: %v", err)
+	}
+	if newPath != old || req.Name != "Old Name" {
+		t.Fatalf("rename = %q, %q; want same path and updated name", newPath, req.Name)
+	}
+	got, err := LoadFile(old)
+	if err != nil {
+		t.Fatalf("LoadFile after same-slug rename: %v", err)
+	}
+	if got.Name != "Old Name" {
+		t.Errorf("name = %q, want Old Name", got.Name)
+	}
+}
+
+func TestRelativeRootPathsRemainWithinRoot(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "collection")
+	if err := os.Mkdir(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(parent)
+
+	path, err := Save("collection", "", &Request{Name: "old", Method: "GET"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != filepath.Join("collection", "old.yaml") {
+		t.Fatalf("path = %q, want relative collection path", path)
+	}
+	_, newPath, err := Rename("collection", path, "new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newPath != filepath.Join("collection", "new.yaml") {
+		t.Fatalf("new path = %q, want relative collection path", newPath)
+	}
+}
+
+func TestCreateOperationsDoNotReplaceExistingPaths(t *testing.T) {
+	root := t.TempDir()
+	if _, err := CreateFolder(root, root, "v1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CreateFolder(root, root, "v1"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("second folder create error = %v, want ErrConflict", err)
+	}
+
+	if _, _, err := CreateRequest(root, root, "list users"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := CreateRequest(root, root, "list users"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("second request create error = %v, want ErrConflict", err)
+	}
+	if err := SaveEnvironment(root, "dev", map[string]string{"token": "old"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := CreateEnvironment(root, "dev", map[string]string{"token": "new"}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("second environment create error = %v, want ErrConflict", err)
+	}
+}
+
+func TestCollectionRejectsPathsOutsideRoot(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "collection")
+	if err := os.Mkdir(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(parent, "outside.yaml")
+	req := &Request{Name: "outside", Method: "GET", URL: "https://api.test"}
+
+	if _, err := Save(root, outside, req); !errors.Is(err, ErrOutsideRoot) {
+		t.Fatalf("Save outside root error = %v, want ErrOutsideRoot", err)
+	}
+	if err := Delete(root, outside); !errors.Is(err, ErrOutsideRoot) {
+		t.Fatalf("Delete outside root error = %v, want ErrOutsideRoot", err)
+	}
+}
+
+func TestCollectionRejectsSymlinkPaths(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(t.TempDir(), "target.yaml")
+	if err := os.WriteFile(target, []byte("name: target\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link.yaml")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	req := &Request{Name: "link", Method: "GET", URL: "https://api.test"}
+	if _, err := Save(root, link, req); !errors.Is(err, ErrSymlink) {
+		t.Fatalf("Save through symlink error = %v, want ErrSymlink", err)
+	}
+	if err := Delete(root, link); !errors.Is(err, ErrSymlink) {
+		t.Fatalf("Delete symlink error = %v, want ErrSymlink", err)
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "name: target\n" {
+		t.Fatalf("symlink target changed: %q", data)
+	}
+}
+
+func TestNewCollectionFilesUseRestrictivePermissions(t *testing.T) {
+	root := t.TempDir()
+	path, err := Save(root, "", &Request{Name: "secret", Method: "GET"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Errorf("request mode = %o, want 600", got)
+	}
+	if err := SaveEnvironment(root, "dev", map[string]string{"token": "secret"}); err != nil {
+		t.Fatal(err)
+	}
+	info, err = os.Stat(filepath.Join(root, "environments", "dev.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Errorf("environment mode = %o, want 600", got)
 	}
 }
 

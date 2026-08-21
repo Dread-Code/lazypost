@@ -1,6 +1,8 @@
 package script
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	"lazypost/internal/collection"
@@ -58,6 +60,50 @@ func TestPreBlocksDangerousLibs(t *testing.T) {
 	_, err := Pre(`os.execute("rm -rf /")`, req, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for dangerous os.execute")
+	}
+}
+
+func TestPreRejectsFilesystemAndOutputBaseFunctions(t *testing.T) {
+	for _, source := range []string{
+		`dofile("/etc/hosts")`,
+		`loadfile("/etc/hosts")`,
+		`load("return true")`,
+		`loadstring("return true")`,
+		`require("anything")`,
+		`print("not allowed")`,
+	} {
+		req := &collection.Request{URL: "https://api.test"}
+		_, err := Pre(source, req, nil, nil)
+		if err == nil {
+			t.Errorf("script %q succeeded; dangerous base function should be unavailable", source)
+		}
+	}
+}
+
+func TestHookContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := PreContext(ctx, `while true do end`, &collection.Request{URL: "https://api.test"}, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "context canceled") {
+		t.Fatalf("PreContext error = %v, want context cancellation", err)
+	}
+
+	ctx, cancel = context.WithCancel(context.Background())
+	cancel()
+	_, err = PostContext(ctx, `while true do end`, &collection.Request{}, nil, nil, "200 OK", 200, nil, "")
+	if err == nil || !strings.Contains(err.Error(), "context canceled") {
+		t.Fatalf("PostContext error = %v, want context cancellation", err)
+	}
+}
+
+func TestNilStoreSetDoesNotPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("nil store panicked: %v", r)
+		}
+	}()
+	if _, err := Pre(`store.set("key", "value")`, &collection.Request{URL: "https://api.test"}, nil, nil); err != nil {
+		t.Fatalf("Pre with nil store: %v", err)
 	}
 }
 

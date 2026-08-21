@@ -5,6 +5,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 
 	"lazypost/internal/collection"
@@ -14,9 +15,13 @@ import (
 	"lazypost/internal/script"
 )
 
-// Client executes an already-interpolated request. httpclient.Exec is
-// the production implementation; tests substitute a fake.
+// Client is the legacy execution seam. It receives the request after pre-hook
+// mutation plus the variables used for interpolation. New UI code should use
+// ContextClient through SendContext.
 type Client func(req collection.Request, vars map[string]string) (*httpclient.Response, error)
+
+// ContextClient executes the fully rendered request with cancellation.
+type ContextClient func(context.Context, collection.Request) (*httpclient.Response, error)
 
 // Result is the outcome of one send: the HTTP response plus any chain
 // store writes the hooks produced. Store is populated even on failure
@@ -38,8 +43,26 @@ func CurlLine(req collection.Request, vars map[string]string) string {
 // store is the session chain store; hooks may mutate both. The caller
 // merges Result.Store back into its own chain store.
 func Send(c Client, req collection.Request, vars, store map[string]string) (Result, error) {
+	return sendPipeline(context.Background(), req, vars, store, func(_ context.Context, raw, _ collection.Request, effectiveVars map[string]string) (*httpclient.Response, error) {
+		return c(raw, effectiveVars)
+	})
+}
+
+// SendContext runs the request pipeline with a context-aware executor. The
+// executor receives the exact rendered request that post hooks observe.
+func SendContext(ctx context.Context, c ContextClient, req collection.Request, vars, store map[string]string) (Result, error) {
+	return sendPipeline(ctx, req, vars, store, func(ctx context.Context, _, sent collection.Request, _ map[string]string) (*httpclient.Response, error) {
+		return c(ctx, sent)
+	})
+}
+
+func sendPipeline(ctx context.Context, req collection.Request, vars, store map[string]string, execute func(context.Context, collection.Request, collection.Request, map[string]string) (*httpclient.Response, error)) (Result, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	workingStore := CloneVars(store)
 	if req.Pre != "" {
-		extra, err := script.Pre(req.Pre, &req, vars, store)
+		extra, err := script.PreContext(ctx, req.Pre, &req, vars, workingStore)
 		if err != nil {
 			// pre-hook store writes are discarded, matching the old
 			// synchronous-failure path
@@ -49,23 +72,25 @@ func Send(c Client, req collection.Request, vars, store map[string]string) (Resu
 	}
 
 	// interpolation precedence: env → pre-returned vars → store
-	vars = MergeVars(vars, store)
+	vars = MergeVars(vars, workingStore)
 
-	// snapshot for the post hook: it must see the request as sent
-	sent := req
-	res, err := c(sent, vars)
+	// Render once for the canonical executor and post hook. The legacy
+	// executor receives the pre-rendered request plus variables through its
+	// compatibility path.
+	sent := render.Request(req, vars)
+	res, err := execute(ctx, req, sent, vars)
 	if err != nil {
-		return Result{Store: store}, err
+		return Result{Store: workingStore}, err
 	}
 	if sent.Post != "" {
-		if fail, err := script.Post(sent.Post, &sent, vars, store,
+		if fail, err := script.PostContext(ctx, sent.Post, &sent, vars, workingStore,
 			res.Status, res.StatusCode, res.Headers, string(res.Body)); err != nil {
-			return Result{Store: store}, err
+			return Result{Store: workingStore}, err
 		} else if fail != "" {
-			return Result{Store: store}, fmt.Errorf("post hook: %s", fail)
+			return Result{Store: workingStore}, fmt.Errorf("post hook: %s", fail)
 		}
 	}
-	return Result{Response: res, Store: store}, nil
+	return Result{Response: res, Store: workingStore}, nil
 }
 
 // MergeVars layers extra over base (extra wins).

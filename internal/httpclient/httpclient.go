@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,12 +16,13 @@ import (
 )
 
 type Response struct {
-	StatusCode  int
-	Status      string
-	Headers     http.Header
-	Body        []byte
-	Duration    time.Duration
-	ContentType string
+	StatusCode    int
+	Status        string
+	Headers       http.Header
+	Body          []byte
+	Duration      time.Duration
+	ContentType   string
+	BodyTruncated bool
 	// URL is the exact URL that was executed — after interpolation and
 	// query-param merge — so the response can show what was really sent.
 	URL string
@@ -28,11 +30,29 @@ type Response struct {
 
 var client = &http.Client{Timeout: 30 * time.Second}
 
+const maxResponseBody = 16 << 20 // 16 MiB retained per response
+
 // Exec builds and executes the HTTP request described by req after
 // interpolating vars, and returns the raw response. Transport errors
 // (dial/TLS/timeout) are errors; HTTP error statuses are not.
 func Exec(req collection.Request, vars map[string]string) (*Response, error) {
+	return ExecContext(context.Background(), req, vars)
+}
+
+// ExecContext is Exec with caller-provided cancellation. It accepts the
+// persisted request shape and performs interpolation before execution.
+func ExecContext(ctx context.Context, req collection.Request, vars map[string]string) (*Response, error) {
 	req = render.Request(req, vars)
+	return ExecuteContext(ctx, req)
+}
+
+// ExecuteContext executes an already-rendered request. Application code that
+// owns interpolation should use this function so post hooks and transport
+// execution observe the same request.
+func ExecuteContext(ctx context.Context, req collection.Request) (*Response, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	// a leftover placeholder in the URL can never succeed — fail loudly
 	// with an actionable message instead of a cryptic transport error
@@ -49,7 +69,7 @@ func Exec(req collection.Request, vars map[string]string) (*Response, error) {
 	if req.Body != "" {
 		body = strings.NewReader(req.Body)
 	}
-	httpReq, err := http.NewRequest(method, req.URL, body)
+	httpReq, err := http.NewRequestWithContext(ctx, method, req.URL, body)
 	if err != nil {
 		return nil, err
 	}
@@ -88,18 +108,23 @@ func Exec(req collection.Request, vars map[string]string) (*Response, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	raw, err := io.ReadAll(resp.Body)
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody+1))
 	if err != nil {
 		return nil, err
 	}
+	truncated := len(raw) > maxResponseBody
+	if truncated {
+		raw = raw[:maxResponseBody]
+	}
 	return &Response{
-		StatusCode:  resp.StatusCode,
-		Status:      resp.Status,
-		Headers:     resp.Header,
-		Body:        raw,
-		Duration:    time.Since(start),
-		ContentType: resp.Header.Get("Content-Type"),
-		URL:         httpReq.URL.String(),
+		StatusCode:    resp.StatusCode,
+		Status:        resp.Status,
+		Headers:       resp.Header,
+		Body:          raw,
+		Duration:      time.Since(start),
+		ContentType:   resp.Header.Get("Content-Type"),
+		BodyTruncated: truncated,
+		URL:           httpReq.URL.String(),
 	}, nil
 }
 
@@ -138,11 +163,15 @@ func (r *Response) FormattedHeaders() string {
 // Summary renders the one-line "Status · size · duration" for the pane
 // title, colored by status class in the response pane.
 func (r *Response) Summary() string {
-	return fmt.Sprintf("%s · %s · %s",
+	summary := fmt.Sprintf("%s · %s · %s",
 		r.Status,
 		humanSize(len(r.Body)),
 		r.Duration.Round(time.Millisecond),
 	)
+	if r.BodyTruncated {
+		summary += " · truncated"
+	}
+	return summary
 }
 
 // humanSize renders n bytes as e.g. "1.2 KiB".

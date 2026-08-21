@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -163,5 +164,41 @@ func TestSendPostSeesSentRequest(t *testing.T) {
 	}
 	if res.Store["sent_url"] != "yes" {
 		t.Errorf("post hook must see the request as sent, store = %v", res.Store)
+	}
+}
+
+func TestSendContextExecutesRenderedRequestAndPostSeesSameRequest(t *testing.T) {
+	var executed collection.Request
+	req := collection.Request{
+		Method: "GET",
+		URL:    "https://api.test/{{path}}",
+		Post:   `if req.url == "https://api.test/users" then store.set("same", "yes") end return true`,
+	}
+	exec := func(_ context.Context, sent collection.Request) (*httpclient.Response, error) {
+		executed = sent
+		return fakeResponse(), nil
+	}
+
+	res, err := SendContext(context.Background(), exec, req, map[string]string{"path": "users"}, nil)
+	if err != nil {
+		t.Fatalf("SendContext: %v", err)
+	}
+	if executed.URL != "https://api.test/users" {
+		t.Errorf("executed URL = %q, want rendered URL", executed.URL)
+	}
+	if res.Store["same"] != "yes" {
+		t.Errorf("post hook store = %v, want same request observation", res.Store)
+	}
+}
+
+func TestSendContextCancellationReachesExecutor(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	exec := func(ctx context.Context, _ collection.Request) (*httpclient.Response, error) {
+		return nil, ctx.Err()
+	}
+	_, err := SendContext(ctx, exec, collection.Request{Method: "GET", URL: "https://api.test"}, nil, nil)
+	if err == nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendContext error = %v, want context.Canceled", err)
 	}
 }

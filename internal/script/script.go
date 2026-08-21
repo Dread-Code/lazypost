@@ -30,6 +30,16 @@ func newState() *lua.LState {
 	} {
 		open(ls)
 	}
+	// OpenBase is broader than the scripting contract. Remove file loading,
+	// module loading, stdout, and runtime/environment escape hatches before a
+	// request hook can run.
+	for _, name := range []string{
+		"collectgarbage", "dofile", "getfenv", "load", "loadfile",
+		"loadstring", "module", "newproxy", "print", "require",
+		"setfenv", "_printregs",
+	} {
+		ls.SetGlobal(name, lua.LNil)
+	}
 	osmod := ls.NewTable()
 	ls.SetField(osmod, "time", ls.NewFunction(func(L *lua.LState) int {
 		L.Push(lua.LNumber(time.Now().Unix()))
@@ -42,6 +52,9 @@ func newState() *lua.LState {
 // run executes src with ctx bound and returns (result, nil) or
 // (nil, error) on parse/run errors.
 func run(ls *lua.LState, ctx context.Context, src string) (lua.LValue, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ls.SetContext(ctx)
 	if err := ls.DoString(src); err != nil {
 		return nil, err
@@ -56,11 +69,19 @@ func run(ls *lua.LState, ctx context.Context, src string) (lua.LValue, error) {
 // that get merged into interpolation. It applies any mutations back to
 // req and returns the extra vars map.
 func Pre(src string, req *collection.Request, vars, store map[string]string) (map[string]string, error) {
+	return PreContext(context.Background(), src, req, vars, store)
+}
+
+// PreContext is Pre with caller-provided cancellation and deadline context.
+func PreContext(parent context.Context, src string, req *collection.Request, vars, store map[string]string) (map[string]string, error) {
 	ls := newState()
 	defer ls.Close()
 	setup(ls, req, vars, store, nil)
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	res, err := run(ls, ctx, src)
 	if err != nil {
@@ -119,12 +140,20 @@ func tableParams(v lua.LValue) []collection.Param {
 // error string. Store mutations made by the hook are applied to store in
 // place.
 func Post(src string, req *collection.Request, vars, store map[string]string, statusText string, statusCode int, headers map[string][]string, body string) (string, error) {
+	return PostContext(context.Background(), src, req, vars, store, statusText, statusCode, headers, body)
+}
+
+// PostContext is Post with caller-provided cancellation and deadline context.
+func PostContext(parent context.Context, src string, req *collection.Request, vars, store map[string]string, statusText string, statusCode int, headers map[string][]string, body string) (string, error) {
 	ls := newState()
 	defer ls.Close()
 	body = truncate(body, maxPostBody)
 	setup(ls, req, vars, store, responseTable(ls, statusText, statusCode, headers, body))
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	res, err := run(ls, ctx, src)
 	if err != nil {

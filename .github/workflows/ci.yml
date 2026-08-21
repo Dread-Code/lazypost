@@ -20,9 +20,10 @@ jobs:
       - run: go vet ./...
       - run: go build ./...
       - run: go test ./... -count=1
+      - run: go test ./... -race -count=1
       # the codeeditor submodule has its own go.mod: the root steps above
       # do not walk into it (gofmt does — it ignores module boundaries)
-      - run: cd lib/codeeditor && go mod tidy && test -z "$(git diff -- go.mod go.sum)" && go vet ./... && go test ./... -count=1
+      - run: cd lib/codeeditor && go mod tidy && test -z "$(git diff -- go.mod go.sum)" && go vet ./... && go test ./... -count=1 && go test ./... -race -count=1
 
   # Benchmark visibility job: prints ns/op + allocs on every push without
   # failing — shared runners are noisy, so no thresholds until baselines

@@ -13,6 +13,9 @@ import (
 // and writing the given map — mutations are written back in place). When
 // res is non-nil it is exposed as the response table for post hooks.
 func setup(ls *lua.LState, req *collection.Request, vars map[string]string, store map[string]string, res *lua.LTable) {
+	if store == nil {
+		store = map[string]string{}
+	}
 	env := ls.NewTable()
 	for k, v := range vars {
 		env.RawSetString(k, lua.LString(v))

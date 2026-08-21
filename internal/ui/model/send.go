@@ -1,9 +1,12 @@
 package model
 
 import (
+	"context"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"lazypost/internal/app"
+	"lazypost/internal/collection"
 	"lazypost/internal/httpclient"
 )
 
@@ -20,15 +23,29 @@ func (m *Model) send() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.setNotice("", false)
-	vars := m.activeVars()
+	if m.cancelSend != nil {
+		m.cancelSend()
+	}
+	m.nextSendID++
+	id := m.nextSendID
+	m.activeSendID = id
+	ctx, cancel := context.WithCancel(context.Background())
+	m.cancelSend = cancel
+	vars := app.CloneVars(m.activeVars())
 	store := app.CloneVars(m.store)
+	executor := m.executor
+	if executor == nil {
+		executor = func(ctx context.Context, sent collection.Request) (*httpclient.Response, error) {
+			return httpclient.ExecuteContext(ctx, sent)
+		}
+	}
 
 	cmd := func() tea.Msg {
-		res, err := app.Send(httpclient.Exec, *req, vars, store)
+		res, err := app.SendContext(ctx, executor, *req, vars, store)
 		if err != nil {
-			return errMsg{err: err, store: res.Store, req: *req}
+			return errMsg{id: id, err: err, store: res.Store, req: *req}
 		}
-		return responseMsg{res: res.Response, store: res.Store, req: *req}
+		return responseMsg{id: id, res: res.Response, store: res.Store, req: *req}
 	}
 	return m, tea.Batch(m.response.StartLoading(), cmd)
 }

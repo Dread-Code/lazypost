@@ -236,7 +236,7 @@ func (m *Model) createEnvironment(name string) (tea.Model, tea.Cmd) {
 	if !m.prepareWrite() {
 		return m, nil
 	}
-	if err := collection.SaveEnvironment(m.dir, name, map[string]string{}); err != nil {
+	if err := collection.CreateEnvironment(m.dir, name, map[string]string{}); err != nil {
 		m.writeNotice("create environment: "+err.Error(), true)
 		return m, nil
 	}

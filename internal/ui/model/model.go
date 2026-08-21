@@ -19,11 +19,13 @@ import (
 )
 
 type responseMsg struct {
+	id    uint64
 	res   *httpclient.Response
 	store map[string]string // post-hook store writes to merge
 	req   collection.Request
 }
 type errMsg struct {
+	id    uint64
 	err   error
 	store map[string]string // store writes even when the send fails
 	req   collection.Request
@@ -127,6 +129,16 @@ type Model struct {
 	helpPrev      pane // pane to restore when the keybindings panel closes
 
 	state session.State
+	// sessionWriter serializes asynchronous snapshots and makes quit a
+	// latest-state barrier shared across Bubble Tea model value copies.
+	sessionWriter *session.Writer
+
+	// send identity prevents an older asynchronous result from replacing a
+	// newer response or mutating the chain store/history.
+	nextSendID   uint64
+	activeSendID uint64
+	cancelSend   func()
+	executor     app.ContextClient
 
 	// version is the build stamp (e.g. "v0.2.0"), shown at the status
 	// bar's far right; empty in plain `go test` builds.
@@ -161,12 +173,24 @@ func WithVersion(v string) Option {
 	return func(m *Model) { m.version = v }
 }
 
+// WithExecutor replaces the HTTP executor for deterministic application and
+// lifecycle tests. Production construction defaults to httpclient execution.
+func WithExecutor(executor app.ContextClient) Option {
+	return func(m *Model) {
+		if executor != nil {
+			m.executor = executor
+		}
+	}
+}
+
 func New(dir string, entries []collection.Entry, envs map[string]map[string]string, envNames []string, st session.State, opts ...Option) Model {
 	m := Model{
-		dir:      dir,
-		envs:     envs,
-		envNames: envNames,
-		state:    st,
+		dir:           dir,
+		envs:          envs,
+		envNames:      envNames,
+		state:         st,
+		sessionWriter: session.NewWriter(),
+		executor:      httpclient.ExecuteContext,
 	}
 	m.sidebar = ui.NewSidebar(entries, dir, 30, 20)
 	m.urlbar = ui.NewURLBar(80)
@@ -212,12 +236,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case responseMsg:
+		if msg.id == 0 || msg.id != m.activeSendID {
+			return m, nil
+		}
+		if m.cancelSend != nil {
+			m.cancelSend()
+		}
+		m.activeSendID = 0
+		m.cancelSend = nil
 		m.response.SetResponse(msg.res)
 		m.store = app.MergeVars(m.store, msg.store)
 		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.res.Summary(), At: time.Now(), Res: msg.res})
 		return m, nil
 
 	case errMsg:
+		if msg.id == 0 || msg.id != m.activeSendID {
+			return m, nil
+		}
+		if m.cancelSend != nil {
+			m.cancelSend()
+		}
+		m.activeSendID = 0
+		m.cancelSend = nil
 		m.response.SetError(msg.err)
 		m.store = app.MergeVars(m.store, msg.store)
 		m.history.Add(app.HistoryEntry{Req: msg.req, Summary: msg.err.Error(), At: time.Now(), Err: msg.err})

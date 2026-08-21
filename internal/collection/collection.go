@@ -136,14 +136,25 @@ func WriteMarker(dir string) error {
 	if err != nil {
 		return err
 	}
-	configDir := filepath.Join(dir, ConfigDir)
+	root, err := collectionRoot(dir)
+	if err != nil {
+		return err
+	}
+	configDir := filepath.Join(root, ConfigDir)
+	if _, err := safeCollectionPath(root, configDir, false); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(configDir, ConfigFile), data, 0o644); err != nil {
+	markerPath, err := safeCollectionPath(root, filepath.Join(configDir, ConfigFile), false)
+	if err != nil {
 		return err
 	}
-	if err := os.Remove(filepath.Join(dir, MarkerFile)); err != nil && !os.IsNotExist(err) {
+	if err := writeAtomic(markerPath, data, 0o644); err != nil {
+		return err
+	}
+	if err := os.Remove(filepath.Join(root, MarkerFile)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
@@ -163,6 +174,176 @@ func MigrateLegacy(root string, legacyPaths ...string) error {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return err
 		}
+	}
+	return nil
+}
+
+// collectionRoot validates root without resolving it to a different display
+// path. Keeping the caller's relative/absolute spelling preserves the paths
+// exposed by the collection tree while validation uses an absolute path.
+func collectionRoot(root string) (string, error) {
+	if strings.TrimSpace(root) == "" {
+		return "", fmt.Errorf("collection root is required")
+	}
+	clean := filepath.Clean(root)
+	abs, err := filepath.Abs(clean)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Lstat(abs)
+	if err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", fmt.Errorf("%w: %s", ErrSymlink, clean)
+		}
+		if !info.IsDir() {
+			return "", fmt.Errorf("collection root is not a directory: %s", clean)
+		}
+		return clean, nil
+	}
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+	return clean, nil
+}
+
+// safeCollectionPath validates a path lexically and rejects existing
+// symlink components so collection writes and deletes cannot follow a path
+// outside root. Missing components are allowed because callers may create
+// them immediately afterward.
+func safeCollectionPath(root, path string, allowRoot bool) (string, error) {
+	root = filepath.Clean(root)
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	if path == "" {
+		return "", fmt.Errorf("collection path is required")
+	}
+	clean := filepath.Clean(path)
+	if !filepath.IsAbs(clean) {
+		candidateAbs, candidateErr := filepath.Abs(clean)
+		if candidateErr != nil {
+			return "", candidateErr
+		}
+		candidateRel, candidateErr := filepath.Rel(rootAbs, candidateAbs)
+		if candidateErr != nil || candidateRel == ".." || strings.HasPrefix(candidateRel, ".."+string(filepath.Separator)) {
+			clean = filepath.Join(root, clean)
+		}
+	}
+	pathAbs, err := filepath.Abs(clean)
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(rootAbs, pathAbs)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%w: %s", ErrOutsideRoot, path)
+	}
+	if !allowRoot && rel == "." {
+		return "", fmt.Errorf("%w: %s", ErrProtected, path)
+	}
+	if err := rejectSymlinkComponents(rootAbs, pathAbs); err != nil {
+		return "", err
+	}
+	return clean, nil
+}
+
+func rejectSymlinkComponents(root, path string) error {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return err
+	}
+	if rel == "." {
+		return nil
+	}
+	current := root
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%w: %s", ErrSymlink, current)
+		}
+	}
+	return nil
+}
+
+func fileMode(path string, fallback fs.FileMode) (fs.FileMode, error) {
+	info, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return fallback, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return 0, fmt.Errorf("%w: %s", ErrSymlink, path)
+	}
+	if info.IsDir() {
+		return 0, fmt.Errorf("path is a directory: %s", path)
+	}
+	return info.Mode().Perm(), nil
+}
+
+func writeTemp(path string, data []byte, mode fs.FileMode) (string, error) {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-")
+	if err != nil {
+		return "", err
+	}
+	tmpPath := tmp.Name()
+	cleanup := func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+	}
+	if err := tmp.Chmod(mode); err != nil {
+		cleanup()
+		return "", err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		cleanup()
+		return "", err
+	}
+	if err := tmp.Sync(); err != nil {
+		cleanup()
+		return "", err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return "", err
+	}
+	return tmpPath, nil
+}
+
+func writeAtomic(path string, data []byte, mode fs.FileMode) error {
+	tmpPath, err := writeTemp(path, data, mode)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpPath)
+	return os.Rename(tmpPath, path)
+}
+
+// writeAtomicNoReplace activates a staged file without replacing an existing
+// destination. A same-directory hard link gives create operations atomic
+// no-clobber behavior on the supported Unix platforms.
+func writeAtomicNoReplace(path string, data []byte, mode fs.FileMode) error {
+	tmpPath, err := writeTemp(path, data, mode)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpPath)
+	if err := os.Link(tmpPath, path); err != nil {
+		if os.IsExist(err) {
+			return fmt.Errorf("%w: %s", ErrConflict, path)
+		}
+		return err
 	}
 	return nil
 }
@@ -214,6 +395,9 @@ func Load(root string) ([]Entry, error) {
 				return filepath.SkipDir
 			}
 			return nil
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%w: %s", ErrSymlink, path)
 		}
 		if d.IsDir() {
 			// Root config/ and environments/ hold collection metadata, not
@@ -272,44 +456,177 @@ func DefaultName(rawURL string) string {
 // Save writes r as YAML. If path is empty a path is derived from the
 // request name inside root. The path written to is returned.
 func Save(root, path string, r *Request) (string, error) {
+	if r == nil {
+		return "", fmt.Errorf("request is required")
+	}
 	if r.Name == "" {
 		return "", fmt.Errorf("request name is required")
 	}
+	rootPath, err := collectionRoot(root)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(rootPath, 0o755); err != nil {
+		return "", err
+	}
 	if path == "" {
-		path = filepath.Join(root, Slug(r.Name)+".yaml")
+		name := Slug(r.Name)
+		if name == "" {
+			return "", fmt.Errorf("%w: request name %q", ErrInvalidName, r.Name)
+		}
+		path = filepath.Join(rootPath, name+".yaml")
+	}
+	path, err = safeCollectionPath(rootPath, path, false)
+	if err != nil {
+		return "", err
 	}
 	// make parent dirs so nested saves (and first-time saves) succeed
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	if path, err = safeCollectionPath(rootPath, path, false); err != nil {
 		return "", err
 	}
 	data, err := yaml.Marshal(r)
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	mode, err := fileMode(path, 0o600)
+	if err != nil {
+		return "", err
+	}
+	if err := writeAtomic(path, data, mode); err != nil {
 		return "", err
 	}
 	return path, nil
 }
 
-// ErrProtected is returned when Delete is asked to remove something that
-// must never be deleted from the UI (the collection root, environments/).
-var ErrProtected = errors.New("refusing to delete a protected path")
+var (
+	// ErrProtected is returned when Delete is asked to remove something that
+	// must never be deleted from the UI (the collection root, environments/).
+	ErrProtected = errors.New("refusing to delete a protected path")
+	// ErrConflict is returned when a create or rename would replace data.
+	ErrConflict = errors.New("collection path already exists")
+	// ErrOutsideRoot is returned when a collection operation escapes its root.
+	ErrOutsideRoot = errors.New("collection path is outside the root")
+	// ErrSymlink is returned when a collection operation would follow a symlink.
+	ErrSymlink = errors.New("symlinks are not supported in collection paths")
+	// ErrInvalidName is returned when a name cannot produce a safe path.
+	ErrInvalidName = errors.New("name does not produce a safe path")
+)
+
+// CreateFolder creates a new directory under parent without replacing an
+// existing path. The returned path is suitable for the collection tree.
+func CreateFolder(root, parent, name string) (string, error) {
+	rootPath, err := collectionRoot(root)
+	if err != nil {
+		return "", err
+	}
+	parent, err = safeCollectionPath(rootPath, parent, true)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Lstat(parent)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("folder parent is not a directory: %s", parent)
+	}
+	slug := Slug(name)
+	if slug == "" {
+		return "", fmt.Errorf("%w: folder name %q", ErrInvalidName, name)
+	}
+	path, err := safeCollectionPath(rootPath, filepath.Join(parent, slug), false)
+	if err != nil {
+		return "", err
+	}
+	if err := os.Mkdir(path, 0o755); err != nil {
+		if os.IsExist(err) {
+			return "", fmt.Errorf("%w: %s", ErrConflict, path)
+		}
+		return "", err
+	}
+	return path, nil
+}
+
+// CreateRequest creates a blank request without replacing an existing file.
+func CreateRequest(root, parent, name string) (*Request, string, error) {
+	rootPath, err := collectionRoot(root)
+	if err != nil {
+		return nil, "", err
+	}
+	parent, err = safeCollectionPath(rootPath, parent, true)
+	if err != nil {
+		return nil, "", err
+	}
+	info, err := os.Lstat(parent)
+	if err != nil {
+		return nil, "", err
+	}
+	if !info.IsDir() {
+		return nil, "", fmt.Errorf("request parent is not a directory: %s", parent)
+	}
+	slug := Slug(name)
+	if slug == "" {
+		return nil, "", fmt.Errorf("%w: request name %q", ErrInvalidName, name)
+	}
+	path, err := safeCollectionPath(rootPath, filepath.Join(parent, slug+".yaml"), false)
+	if err != nil {
+		return nil, "", err
+	}
+	req := &Request{Name: name, Method: "GET"}
+	data, err := yaml.Marshal(req)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := writeAtomicNoReplace(path, data, 0o600); err != nil {
+		return nil, "", err
+	}
+	return req, path, nil
+}
 
 // Rename rewrites the request at oldPath under a new slug path derived
 // from name, then removes the old file. The renamed request is returned
 // with the new path.
 func Rename(root, oldPath, name string) (*Request, string, error) {
+	rootPath, err := collectionRoot(root)
+	if err != nil {
+		return nil, "", err
+	}
+	oldPath, err = safeCollectionPath(rootPath, oldPath, false)
+	if err != nil {
+		return nil, "", err
+	}
 	req, err := LoadFile(oldPath)
 	if err != nil {
 		return nil, "", err
 	}
 	req.Name = name
-	newPath := filepath.Join(filepath.Dir(oldPath), Slug(name)+".yaml")
-	if _, err := Save(root, newPath, req); err != nil {
+	slug := Slug(name)
+	if slug == "" {
+		return nil, "", fmt.Errorf("%w: request name %q", ErrInvalidName, name)
+	}
+	newPath, err := safeCollectionPath(rootPath, filepath.Join(filepath.Dir(oldPath), slug+".yaml"), false)
+	if err != nil {
+		return nil, "", err
+	}
+	if filepath.Clean(newPath) == filepath.Clean(oldPath) {
+		if _, err := Save(rootPath, newPath, req); err != nil {
+			return nil, "", err
+		}
+		return req, newPath, nil
+	}
+	if _, err := os.Lstat(newPath); err == nil {
+		return nil, "", fmt.Errorf("%w: %s", ErrConflict, newPath)
+	} else if !os.IsNotExist(err) {
+		return nil, "", err
+	}
+	if _, err := Save(rootPath, newPath, req); err != nil {
 		return nil, "", err
 	}
 	if err := os.Remove(oldPath); err != nil {
+		_ = os.Remove(newPath)
 		return nil, "", err
 	}
 	return req, newPath, nil
@@ -318,20 +635,30 @@ func Rename(root, oldPath, name string) (*Request, string, error) {
 // Delete removes a request file or a directory subtree (a folder in the
 // collection). The collection root and environments/ are protected.
 func Delete(root, path string) error {
-	clean := filepath.Clean(path)
-	if clean == filepath.Clean(root) {
+	rootPath, err := collectionRoot(root)
+	if err != nil {
+		return err
+	}
+	clean, err := safeCollectionPath(rootPath, path, true)
+	if err != nil {
+		return err
+	}
+	if filepath.Clean(clean) == filepath.Clean(rootPath) {
 		return ErrProtected
 	}
-	rel, err := filepath.Rel(root, path)
+	rel, err := filepath.Rel(rootPath, clean)
 	if err != nil {
 		return err
 	}
 	if rel == environmentsDir || strings.HasPrefix(rel, environmentsDir+string(filepath.Separator)) {
 		return ErrProtected
 	}
-	fi, err := os.Stat(clean)
+	fi, err := os.Lstat(clean)
 	if err != nil {
 		return err
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("%w: %s", ErrSymlink, clean)
 	}
 	if fi.IsDir() {
 		return os.RemoveAll(clean)
@@ -346,8 +673,35 @@ type Environment struct {
 // SaveEnvironment writes (or replaces) an environment file
 // <root>/environments/<slug>.yaml.
 func SaveEnvironment(root, name string, vars map[string]string) error {
-	dir := filepath.Join(root, environmentsDir)
+	return saveEnvironment(root, name, vars, false)
+}
+
+// CreateEnvironment creates an environment without replacing an existing
+// environment file.
+func CreateEnvironment(root, name string, vars map[string]string) error {
+	return saveEnvironment(root, name, vars, true)
+}
+
+func saveEnvironment(root, name string, vars map[string]string, noReplace bool) error {
+	rootPath, err := collectionRoot(root)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(rootPath, 0o755); err != nil {
+		return err
+	}
+	slug := Slug(name)
+	if slug == "" {
+		return fmt.Errorf("%w: environment name %q", ErrInvalidName, name)
+	}
+	dir := filepath.Join(rootPath, environmentsDir)
+	if _, err := safeCollectionPath(rootPath, dir, false); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	if dir, err = safeCollectionPath(rootPath, dir, false); err != nil {
 		return err
 	}
 	if vars == nil {
@@ -357,7 +711,18 @@ func SaveEnvironment(root, name string, vars map[string]string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, Slug(name)+".yaml"), data, 0o644)
+	path, err := safeCollectionPath(rootPath, filepath.Join(dir, slug+".yaml"), false)
+	if err != nil {
+		return err
+	}
+	mode, err := fileMode(path, 0o600)
+	if err != nil {
+		return err
+	}
+	if noReplace {
+		return writeAtomicNoReplace(path, data, mode)
+	}
+	return writeAtomic(path, data, mode)
 }
 
 // LoadEnvironments reads <root>/environments/*.yaml and returns the// variables keyed by environment name plus the sorted list of names.
@@ -376,7 +741,15 @@ func LoadEnvironments(root string) (map[string]map[string]string, []string, erro
 		if item.IsDir() || !isYAML(item.Name()) {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, item.Name()))
+		path := filepath.Join(dir, item.Name())
+		info, err := os.Lstat(path)
+		if err != nil {
+			return nil, nil, err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil, nil, fmt.Errorf("%w: %s", ErrSymlink, path)
+		}
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil, nil, err
 		}

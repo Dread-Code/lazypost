@@ -1,7 +1,8 @@
 # scripting
 
-Each request can carry `pre` and `post` hooks written in sandboxed Lua — no filesystem, no
-network; only `os.time` is exposed. Edit them in the `Scripts` tab of the request editor.
+Each request can carry `pre` and `post` hooks written in sandboxed Lua — no filesystem, network,
+file loading, module loading, or direct terminal output; only `os.time` is exposed. Hooks are
+bounded and inherit request cancellation. Edit them in the `Scripts` tab of the request editor.
 
 ## pre
 

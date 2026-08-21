@@ -1,11 +1,15 @@
 package httpclient
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"lazypost/internal/collection"
 )
@@ -187,5 +191,57 @@ func TestFormattedHeadersLeadsWithExecutedURL(t *testing.T) {
 	// real headers still follow, sorted
 	if !strings.Contains(got, "Content-Type: application/json") {
 		t.Errorf("missing header line, got:\n%s", got)
+	}
+}
+
+func TestExecContextCancellation(t *testing.T) {
+	started := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, err := ExecContext(ctx, collection.Request{Method: "GET", URL: srv.URL}, nil)
+		done <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("request did not reach server")
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err == nil || !errors.Is(err, context.Canceled) {
+			t.Fatalf("ExecContext error = %v, want context.Canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("canceled request did not return")
+	}
+}
+
+func TestExecBoundsResponseBody(t *testing.T) {
+	want := bytes.Repeat([]byte("x"), maxResponseBody+1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(want)
+	}))
+	defer srv.Close()
+
+	res, err := Exec(collection.Request{Method: "GET", URL: srv.URL}, nil)
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if len(res.Body) != maxResponseBody {
+		t.Errorf("body length = %d, want %d", len(res.Body), maxResponseBody)
+	}
+	if !res.BodyTruncated {
+		t.Error("BodyTruncated = false, want true")
+	}
+	if !strings.Contains(res.Summary(), "truncated") {
+		t.Errorf("summary = %q, want truncation marker", res.Summary())
 	}
 }

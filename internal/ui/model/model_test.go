@@ -1,10 +1,12 @@
 package model
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest"
 
 	"lazypost/internal/collection"
+	"lazypost/internal/httpclient"
 	"lazypost/internal/session"
 
 	"lazypost/internal/ui/themes"
@@ -30,6 +33,98 @@ func loadSample(t *testing.T) Model {
 		t.Fatalf("load environments: %v", err)
 	}
 	return New("../../../sample-collections", entries, envs, names, session.State{})
+}
+
+func TestStaleSendResultsAreIgnored(t *testing.T) {
+	m := loadSample(t)
+	m.activeSendID = 2
+	m.store = map[string]string{"current": "yes"}
+	old := &httpclient.Response{Status: "200 OK", StatusCode: 200, Body: []byte("old")}
+
+	updated, _ := m.Update(responseMsg{
+		id:    1,
+		res:   old,
+		store: map[string]string{"stale": "yes"},
+		req:   collection.Request{Name: "old"},
+	})
+	got := updated.(Model)
+	if got.response.StatusLine() != "" {
+		t.Errorf("stale response changed response pane: %q", got.response.StatusLine())
+	}
+	if got.store["stale"] != "" {
+		t.Errorf("stale response changed store: %v", got.store)
+	}
+	if len(got.history.List()) != 0 {
+		t.Errorf("stale response added history: %v", got.history.List())
+	}
+
+	current := &httpclient.Response{Status: "201 Created", StatusCode: 201, Body: []byte("current")}
+	updated, _ = got.Update(responseMsg{
+		id:    2,
+		res:   current,
+		store: map[string]string{"current-result": "yes"},
+		req:   collection.Request{Name: "current"},
+	})
+	got = updated.(Model)
+	if got.activeSendID != 0 || got.response.StatusLine() == "" {
+		t.Fatalf("current response was not applied: id=%d status=%q", got.activeSendID, got.response.StatusLine())
+	}
+	if got.store["current-result"] != "yes" || len(got.history.List()) != 1 {
+		t.Fatalf("current response state = store %v history %d", got.store, len(got.history.List()))
+	}
+}
+
+func TestStartingNewSendCancelsPreviousAndLatestResultWins(t *testing.T) {
+	m := loadSample(t)
+	firstStarted := make(chan struct{})
+	firstCanceled := make(chan struct{})
+	var firstOnce sync.Once
+	m.executor = func(ctx context.Context, req collection.Request) (*httpclient.Response, error) {
+		if req.URL == "https://api.test/first" {
+			close(firstStarted)
+			<-ctx.Done()
+			firstOnce.Do(func() { close(firstCanceled) })
+			return nil, ctx.Err()
+		}
+		return &httpclient.Response{Status: "200 OK", StatusCode: 200, Body: []byte("latest")}, nil
+	}
+	first := &collection.Request{Name: "first", Method: "GET", URL: "https://api.test/first"}
+	m.editor.SetRequest(first, "")
+	m.urlbar.SetRequest(first.Method, first.URL)
+	_, firstCmd := m.send()
+	firstResult := firstCmd()
+	firstBatch, ok := firstResult.(tea.BatchMsg)
+	if !ok || len(firstBatch) != 2 {
+		t.Fatalf("first command = %T %v, want loading + send batch", firstResult, firstBatch)
+	}
+	go firstBatch[1]()
+	select {
+	case <-firstStarted:
+	case <-time.After(time.Second):
+		t.Fatal("first request did not start")
+	}
+
+	second := &collection.Request{Name: "second", Method: "GET", URL: "https://api.test/second"}
+	m.editor.SetRequest(second, "")
+	m.urlbar.SetRequest(second.Method, second.URL)
+	_, secondCmd := m.send()
+	select {
+	case <-firstCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("starting second request did not cancel first")
+	}
+
+	secondResult := secondCmd()
+	secondBatch, ok := secondResult.(tea.BatchMsg)
+	if !ok || len(secondBatch) != 2 {
+		t.Fatalf("second command = %T %v, want loading + send batch", secondResult, secondBatch)
+	}
+	msg := secondBatch[1]()
+	updated, _ := m.Update(msg)
+	got := updated.(Model)
+	if got.activeSendID != 0 || got.response.StatusLine() == "" {
+		t.Fatalf("latest response was not applied: id=%d status=%q", got.activeSendID, got.response.StatusLine())
+	}
 }
 
 // watcher accumulates program output across waitFor calls, since the

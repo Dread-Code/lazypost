@@ -22,7 +22,7 @@ Requests are plain YAML files in a directory tree, so a collection is just a fol
 - **Open any directory** — run lazypost anywhere and the current directory (or `-dir`) becomes a collection, marked with `config/config.yaml`
 - **Collection importers** — migrate from Postman v2.1 JSON and Insomnia v4 JSON / v5 YAML (single files or export directories) with `lazypost import`; workspaces become top-level folders, requests, environments, headers, query params, bodies, and supported auth are converted to lazypost YAML, with `--dry-run` previews, `--strict` warning enforcement, and staged, collision-safe output
 - **Environments** — `{{variable}}` interpolation in URLs, headers, bodies, and auth, resolved from `environments/*.yaml`
-- **Response viewer** — status / time / size summary, theme-colored JSON, headers tab
+- **Response viewer** — status / time / size summary, theme-colored JSON, headers tab, and response retention capped at 16 MiB
 - **Request history** — last 20 sends (request + response) in memory; `ctrl+h` browses, enter restores, `ctrl+r` resends
 - **Keybindings panel** — `?` for a grouped reference of every binding
 - **curl import/export** — paste a `curl` command to import it; `ctrl+g` copies the current request as curl
@@ -140,6 +140,8 @@ version: 1
 
 Open any directory you choose (`-dir` or the current directory) and lazypost initializes it automatically. Existing `.lazypost` markers remain readable for the current session and migrate to `config/config.yaml` on the first write; their legacy name/root fields are discarded. `./sample-collections` / `./collections` are treated as implicit collections without creating a marker.
 
+Collection writes are root-confined and atomic. New requests, folders, environments, and renames refuse path collisions instead of replacing existing data; newly created request and environment files default to owner-only permissions.
+
 ### Import existing collections
 
 `lazypost import` converts Postman and Insomnia exports into a lazypost collection **without any TUI interaction**. Run `lazypost import --help` for the full usage:
@@ -222,7 +224,7 @@ Manage variables in the TUI: `ctrl+/` → **Environments** opens the environment
 
 ## Scripting
 
-Each request can carry `pre` and `post` hooks written in sandboxed Lua (no filesystem, no network — only `os.time` is exposed). Edit them in the **Scripts** tab of the request editor.
+Each request can carry `pre` and `post` hooks written in sandboxed Lua (no filesystem, network, file-loading, module-loading, or direct terminal output — only `os.time` is exposed from the standard `os` table). Hooks are bounded and inherit request cancellation. Edit them in the **Scripts** tab of the request editor.
 
 **Pre** — mutate the request before it's sent; a returned table merges into `{{...}}` interpolation:
 
@@ -253,8 +255,8 @@ Custom themes live in `~/.config/lazypost/themes/<name>.yaml` (or `$XDG_CONFIG_H
 ## Development
 
 ```sh
-gofmt -l . && go vet ./... && go test ./...
-cd lib/codeeditor && go vet ./... && go test ./...   # the standalone editor module has its own go.mod
+gofmt -l . && go vet ./... && go test ./... && go test -race ./...
+cd lib/codeeditor && go vet ./... && go test ./... && go test -race ./...   # the standalone editor module has its own go.mod
 ```
 
 The editor widget lives in [`lib/codeeditor/`](lib/codeeditor) as its own Go module (the first standalone Bubble Tea syntax-highlighted editor with vim modes) — lazypost wires it via a `replace` directive with the chroma + theme highlighters in `internal/ui/widgets/highlighters.go`.
