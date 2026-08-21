@@ -5,9 +5,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 var authTypes = []string{"none", "basic", "bearer", "apikey"}
@@ -24,6 +24,7 @@ type AuthEditor struct {
 	focused  bool
 	width    int
 	height   int
+	styles   themes.Styles
 }
 
 // NewAuthEditor wires five text inputs plus a header/query toggle; only
@@ -35,7 +36,9 @@ func NewAuthEditor() AuthEditor {
 		ti.Prompt = ""
 		return ti
 	}
+	styles := themes.NewStyles(themes.DefaultTheme)
 	a := AuthEditor{
+		styles:   styles,
 		authType: "none",
 		username: newInput("username"),
 		password: newInput("password"),
@@ -46,18 +49,25 @@ func NewAuthEditor() AuthEditor {
 	}
 	a.password.EchoMode = textinput.EchoPassword
 	a.password.EchoCharacter = '•'
-	a.RefreshTheme()
+	a.SetStyles(styles)
 	return a
 }
 
-// RefreshTheme reapplies input styles after a runtime theme change.
-func (a *AuthEditor) RefreshTheme() {
+// SetStyles replaces the rendering snapshot and input styles.
+func (a *AuthEditor) SetStyles(styles themes.Styles) {
+	a.styles = styles
 	for _, ti := range []*textinput.Model{&a.username, &a.password, &a.token, &a.keyName, &a.keyValue} {
-		ti.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-		ti.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-		ti.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
-		ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
+		ti.PromptStyle = lipgloss.NewStyle().Foreground(styles.ColorPrimary)
+		ti.Cursor.Style = lipgloss.NewStyle().Foreground(styles.ColorPrimary)
+		ti.TextStyle = lipgloss.NewStyle().Foreground(styles.InputColor)
+		ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(styles.ColorMuted)
 	}
+}
+
+// RefreshTheme is retained as a compatibility helper for standalone widget
+// callers; the root model uses SetStyles with its local snapshot.
+func (a *AuthEditor) RefreshTheme() {
+	a.SetStyles(themes.NewStyles(themes.DefaultTheme))
 }
 
 func (a *AuthEditor) SetWidth(w int) {
@@ -176,22 +186,22 @@ func (a *AuthEditor) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (a *AuthEditor) View() string {
-	types := themes.TabBar(authTypes, a.authIdx(), max(0, a.width-2), &themes.EditorAccent)
+	types := a.styles.TabBar(authTypes, a.authIdx(), max(0, a.width-2), &a.styles.EditorAccent)
 	rows := []string{
-		themes.HintStyle.Render("type ") + types,
+		a.styles.HintStyle.Render("type ") + types,
 	}
 
-	label := lipgloss.NewStyle().Width(10).Foreground(themes.ColorMuted)
+	label := lipgloss.NewStyle().Width(10).Foreground(a.styles.ColorMuted)
 	cursor := func(active bool) string {
 		if active && a.focused {
-			return lipgloss.NewStyle().Foreground(themes.ColorPrimary).Render("▸ ")
+			return lipgloss.NewStyle().Foreground(a.styles.ColorPrimary).Render("▸ ")
 		}
 		return "  "
 	}
 
 	switch a.authType {
 	case "none":
-		rows = append(rows, themes.HintStyle.Render("no authentication"))
+		rows = append(rows, a.styles.HintStyle.Render("no authentication"))
 	case "basic":
 		rows = append(rows,
 			cursor(a.field == 0)+label.Render("username")+" "+a.username.View(),
@@ -204,12 +214,12 @@ func (a *AuthEditor) View() string {
 	case "apikey":
 		in := a.keyIn
 		if a.authType == "apikey" && a.field == 2 && a.focused {
-			in = lipgloss.NewStyle().Foreground(themes.ColorPrimary).Bold(true).Render(in)
+			in = lipgloss.NewStyle().Foreground(a.styles.ColorPrimary).Bold(true).Render(in)
 		}
 		rows = append(rows,
 			cursor(a.field == 0)+label.Render("name")+" "+a.keyName.View(),
 			cursor(a.field == 1)+label.Render("value")+a.keyValue.View(),
-			cursor(a.field == 2)+label.Render("send in")+in+themes.HintStyle.Render("  (")+themes.KeyHint("space", "to toggle")+")",
+			cursor(a.field == 2)+label.Render("send in")+in+a.styles.HintStyle.Render("  (")+a.styles.KeyHint("space", "to toggle")+")",
 		)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)

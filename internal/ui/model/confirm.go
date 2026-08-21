@@ -7,10 +7,10 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"lazypost/internal/app"
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/app"
+	"github.com/Dread-Code/lazypost/internal/collection"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 // openDeleteConfirm shows the confirm modal for deleting e (a request or

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 func TestCurlLineInterpolates(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 // Namer is a small modal that asks for a name, opened with `a` over a
@@ -21,28 +21,34 @@ type Namer struct {
 	label       string
 	placeholder string
 	envMode     bool
+	styles      themes.Styles
 }
 
 func NewNamer() *Namer {
-	n := &Namer{}
+	styles := themes.NewStyles(themes.DefaultTheme)
+	n := &Namer{styles: styles}
 	n.input = textinput.New()
 	n.input.Prompt = "› "
 	n.input.Placeholder = "e.g. list things"
 	n.input.CharLimit = 80
 	n.input.Width = 40
-	n.input.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-	n.input.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-	n.input.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
-	n.input.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
+	n.SetStyles(styles)
 	return n
 }
 
-// RefreshTheme reapplies styles copied into the text input at construction.
+// SetStyles replaces the rendering snapshot used by the input.
+func (n *Namer) SetStyles(styles themes.Styles) {
+	n.styles = styles
+	n.input.PromptStyle = lipgloss.NewStyle().Foreground(styles.ColorPrimary)
+	n.input.Cursor.Style = lipgloss.NewStyle().Foreground(styles.ColorPrimary)
+	n.input.TextStyle = lipgloss.NewStyle().Foreground(styles.InputColor)
+	n.input.PlaceholderStyle = lipgloss.NewStyle().Foreground(styles.ColorMuted)
+}
+
+// RefreshTheme is retained as a compatibility helper for standalone widget
+// callers; the root model uses SetStyles with its local snapshot.
 func (n *Namer) RefreshTheme() {
-	n.input.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-	n.input.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-	n.input.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
-	n.input.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
+	n.SetStyles(themes.NewStyles(themes.DefaultTheme))
 }
 
 // SetLabel overrides the modal title (e.g. "new variable"). An empty label
@@ -123,6 +129,6 @@ func (n *Namer) View() string {
 	// renderModal), so the content is the input plus the key hint
 	return lipgloss.JoinVertical(lipgloss.Left,
 		n.input.View(),
-		themes.KeyHint("enter", "confirm", "esc", "cancel"),
+		n.styles.KeyHint("enter", "confirm", "esc", "cancel"),
 	)
 }

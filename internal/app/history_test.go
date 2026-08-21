@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 func TestHistoryAddAndOrder(t *testing.T) {

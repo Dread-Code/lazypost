@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Dread-Code/codeeditor"
+	"github.com/Dread-Code/lazypost/lib/codeeditor"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/render"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/render"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 type Section int
@@ -44,28 +44,35 @@ type Editor struct {
 	width       int
 	height      int
 	pendingYank string
+	styles      *themes.Styles
 }
 
 // NewEditor builds the four-section editor. Method and URL are not
 // here — they live in the URLBar ([[ADR-0010]]).
 func NewEditor(width, height int) *Editor {
-	e := &Editor{width: width, height: height}
+	styles := themes.NewStyles(themes.DefaultTheme)
+	return NewEditorWithStyles(width, height, styles)
+}
+
+func NewEditorWithStyles(width, height int, styles themes.Styles) *Editor {
+	e := &Editor{width: width, height: height, styles: &styles}
 
 	e.query = codeeditor.New(0, 0, "tag: news\n# one Name: Value per line", nil)
 
 	e.headers = codeeditor.New(0, 0, "Content-Type: application/json\nAuthorization: Bearer ...", nil)
 
-	e.body = codeeditor.New(0, 0, `{"hello": "world"}`, jsonHighlighter())
+	e.body = codeeditor.New(0, 0, `{"hello": "world"}`, jsonHighlighterWithStyles(e.styles))
 
-	e.pre = codeeditor.New(0, 0, "-- runs before the request", luaHighlighter())
-	e.post = codeeditor.New(0, 0, "-- runs after the response", luaHighlighter())
+	e.pre = codeeditor.New(0, 0, "-- runs before the request", luaHighlighterWithStyles(e.styles))
+	e.post = codeeditor.New(0, 0, "-- runs after the response", luaHighlighterWithStyles(e.styles))
 
 	for _, ed := range []*codeeditor.Editor{e.query, e.headers, e.body, e.pre, e.post} {
-		ed.SetStyleProvider(editorStyles)
+		ed.SetStyleProvider(func() codeeditor.Style { return editorStyles(*e.styles) })
 		ed.SetYank(func(s string) { e.pendingYank = s })
 	}
 
 	e.auth = NewAuthEditor()
+	e.auth.SetStyles(styles)
 	e.resize()
 	return e
 }
@@ -126,13 +133,25 @@ func (e *Editor) FormatBody() {
 	e.body.SetValue(render.FormatJSON(e.body.Value()))
 }
 
-// RefreshTheme invalidates cached syntax output and refreshes auth input
-// styles after a runtime theme change.
-func (e *Editor) RefreshTheme() {
+// SetStyles replaces the rendering snapshot and invalidates cached syntax
+// output after a runtime theme change.
+func (e *Editor) SetStyles(styles themes.Styles) {
+	if e.styles == nil {
+		e.styles = &styles
+	} else {
+		*e.styles = styles
+	}
 	for _, ed := range []*codeeditor.Editor{e.query, e.headers, e.body, e.pre, e.post} {
+		ed.SetStyleProvider(func() codeeditor.Style { return editorStyles(*e.styles) })
 		ed.InvalidateHighlight()
 	}
-	e.auth.RefreshTheme()
+	e.auth.SetStyles(styles)
+}
+
+// RefreshTheme is retained as a compatibility helper for standalone widget
+// callers; the root model uses SetStyles with its local snapshot.
+func (e *Editor) RefreshTheme() {
+	e.SetStyles(themes.NewStyles(themes.DefaultTheme))
 }
 
 // TakeYank returns and clears text produced by a code-editor yank. The root
@@ -225,8 +244,9 @@ func (e *Editor) Update(msg tea.Msg) (*Editor, tea.Cmd) {
 }
 
 func (e *Editor) View() string {
-	tabRow := themes.TabBar(sectionTabs, int(e.section), max(0, e.width-2), &themes.EditorAccent)
-	divider := themes.Rule(max(0, e.width-2))
+	styles := *e.styles
+	tabRow := styles.TabBar(sectionTabs, int(e.section), max(0, e.width-2), &styles.EditorAccent)
+	divider := styles.Rule(max(0, e.width-2))
 
 	var content string
 	switch e.section {
@@ -278,11 +298,11 @@ func (e *Editor) footer() string {
 	var color lipgloss.AdaptiveColor
 	switch e.Mode() {
 	case codeeditor.ModeInsert:
-		color = themes.ColorSuccess
+		color = e.styles.ColorSuccess
 	case codeeditor.ModeNormal:
-		color = themes.ColorPrimary
+		color = e.styles.ColorPrimary
 	case codeeditor.ModeVisualChar, codeeditor.ModeVisualLine:
-		color = themes.ColorWarn
+		color = e.styles.ColorWarn
 	}
 	return lipgloss.NewStyle().Foreground(color).Render(label)
 }
@@ -290,7 +310,7 @@ func (e *Editor) footer() string {
 // scriptsView renders a pre/post toggle row (like the auth type row) with
 // only the focused script's editor below it.
 func (e *Editor) scriptsView() string {
-	toggleRow := themes.HintStyle.Render("hook ") + themes.TabBar([]string{"pre", "post"}, e.field, max(0, e.width-2), &themes.EditorAccent)
+	toggleRow := e.styles.HintStyle.Render("hook ") + e.styles.TabBar([]string{"pre", "post"}, e.field, max(0, e.width-2), &e.styles.EditorAccent)
 
 	var content string
 	if e.field == 1 {

@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 // PaletteItem is one selectable command in the palette.
@@ -23,7 +23,7 @@ type PaletteItem struct {
 
 func (i PaletteItem) FilterValue() string { return i.Title }
 
-type paletteDelegate struct{}
+type paletteDelegate struct{ styles themes.Styles }
 
 func (d paletteDelegate) Height() int  { return 1 }
 func (d paletteDelegate) Spacing() int { return 0 }
@@ -62,7 +62,7 @@ func (d paletteDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 
 	right := ""
 	if it.Shortcut != "" {
-		right = lipgloss.NewStyle().Foreground(themes.ColorMuted).Render(it.Shortcut)
+		right = lipgloss.NewStyle().Foreground(d.styles.ColorMuted).Render(it.Shortcut)
 	}
 	if selected {
 		// the whole row becomes a solid block; every segment flips to the
@@ -72,7 +72,7 @@ func (d paletteDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 			row += strings.Repeat(" ", pad)
 		}
 		row += it.Shortcut
-		row = themes.SelectedRowStyle.Render(padRunes(row, avail))
+		row = d.styles.SelectedRowStyle.Render(padRunes(row, avail))
 		fmt.Fprint(w, row)
 		return
 	}
@@ -92,11 +92,13 @@ type Palette struct {
 	items  []PaletteItem
 	width  int
 	height int
+	styles themes.Styles
 }
 
 func NewPalette(width, height int) *Palette {
-	p := &Palette{width: width, height: height}
-	p.list = list.New(nil, paletteDelegate{}, width, height)
+	styles := themes.NewStyles(themes.DefaultTheme)
+	p := &Palette{width: width, height: height, styles: styles}
+	p.list = list.New(nil, paletteDelegate{styles: styles}, width, height)
 	p.list.SetShowTitle(false)
 	p.list.SetShowFilter(true)
 	p.list.SetShowHelp(false)
@@ -105,24 +107,30 @@ func NewPalette(width, height int) *Palette {
 	p.list.SetFilteringEnabled(true)
 	p.list.DisableQuitKeybindings()
 	p.list.FilterInput.Prompt = "› "
-	p.list.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-	p.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-	p.list.FilterInput.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
-	p.list.FilterInput.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
+	p.SetStyles(styles)
 	// the default TitleBar pads 1 line under the filter; kill it so the
 	// typed query sits flush above the items
 	p.list.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 0, 1)
-	p.list.Styles.NoItems = themes.HintStyle
+	p.list.Styles.NoItems = styles.HintStyle
 	return p
 }
 
-// RefreshTheme reapplies styles copied into the bubbles list at construction.
+// SetStyles replaces the rendering snapshot used by the palette and its
+// bubbles list.
+func (p *Palette) SetStyles(styles themes.Styles) {
+	p.styles = styles
+	p.list.SetDelegate(paletteDelegate{styles: styles})
+	p.list.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(styles.ColorPrimary)
+	p.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(styles.ColorPrimary)
+	p.list.FilterInput.TextStyle = lipgloss.NewStyle().Foreground(styles.InputColor)
+	p.list.FilterInput.PlaceholderStyle = lipgloss.NewStyle().Foreground(styles.ColorMuted)
+	p.list.Styles.NoItems = styles.HintStyle
+}
+
+// RefreshTheme is retained as a compatibility helper for standalone widget
+// callers; the root model uses SetStyles with its local snapshot.
 func (p *Palette) RefreshTheme() {
-	p.list.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-	p.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
-	p.list.FilterInput.TextStyle = lipgloss.NewStyle().Foreground(themes.InputColor)
-	p.list.FilterInput.PlaceholderStyle = lipgloss.NewStyle().Foreground(themes.ColorMuted)
-	p.list.Styles.NoItems = themes.HintStyle
+	p.SetStyles(themes.NewStyles(themes.DefaultTheme))
 }
 
 func (p *Palette) SetItems(items []PaletteItem) {

@@ -3,8 +3,8 @@ package model
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"lazypost/internal/app"
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/app"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 func (m *Model) beginMutation() (uint64, []string, bool) {

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/importer"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/importer"
 )
 
 func TestImportCollectionStagesAndLoads(t *testing.T) {

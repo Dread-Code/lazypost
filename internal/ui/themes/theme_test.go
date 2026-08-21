@@ -157,51 +157,49 @@ func TestValidHex(t *testing.T) {
 	}
 }
 
-func TestThemeApplyRebuildsStyles(t *testing.T) {
-	// styles start as the default (dracula) via init()
+func TestNewStylesBuildsIndependentSnapshots(t *testing.T) {
 	solarized := ThemeByName("solarized")
-	solarized.Apply()
-	if lipgloss.AdaptiveColor(ColorPrimary) != solarized.Primary {
-		t.Error("ColorPrimary not rebuilt by Apply")
+	styles := NewStyles(solarized)
+	if styles.ColorPrimary != solarized.Primary {
+		t.Error("ColorPrimary not built from theme")
 	}
-	if lipgloss.AdaptiveColor(ColorBorder) != solarized.Border {
-		t.Error("ColorBorder not rebuilt by Apply")
+	if styles.ColorBorder != solarized.Border {
+		t.Error("ColorBorder not built from theme")
 	}
-	if lipgloss.AdaptiveColor(ColorAccent) != solarized.Accent {
-		t.Error("ColorAccent not rebuilt by Apply")
+	if styles.ColorAccent != solarized.Accent {
+		t.Error("ColorAccent not built from theme")
 	}
 	// the selection pair must reach the selected-row style
-	if got := SelectedRowStyle.GetBackground(); got != solarized.Selection {
+	if got := styles.SelectedRowStyle.GetBackground(); got != solarized.Selection {
 		t.Errorf("SelectedRowStyle background = %v, want %v", got, solarized.Selection)
 	}
-	if got := SelectedRowStyle.GetForeground(); got != solarized.OnSelection {
+	if got := styles.SelectedRowStyle.GetForeground(); got != solarized.OnSelection {
 		t.Errorf("SelectedRowStyle foreground = %v, want %v", got, solarized.OnSelection)
 	}
-	if ModalStyle.GetBorderTopForeground() != solarized.Primary {
+	if styles.ModalStyle.GetBorderTopForeground() != solarized.Primary {
 		t.Error("ModalStyle should wear the active (primary) border")
 	}
 	// per-section accents: sidebar stays the app identity (primary), the
 	// request editor is information (info), the response is the result
 	// (success)
-	if got := SidebarAccent.Active.GetBorderTopForeground(); got != solarized.Primary {
+	if got := styles.SidebarAccent.Active.GetBorderTopForeground(); got != solarized.Primary {
 		t.Errorf("SidebarAccent border = %v, want primary %v", got, solarized.Primary)
 	}
-	if got := EditorAccent.Active.GetBorderTopForeground(); got != solarized.Info {
+	if got := styles.EditorAccent.Active.GetBorderTopForeground(); got != solarized.Info {
 		t.Errorf("EditorAccent border = %v, want info %v", got, solarized.Info)
 	}
-	if got := ResponseAccent.Active.GetBorderTopForeground(); got != solarized.Success {
+	if got := styles.ResponseAccent.Active.GetBorderTopForeground(); got != solarized.Success {
 		t.Errorf("ResponseAccent border = %v, want success %v", got, solarized.Success)
 	}
-	if EditorAccent.Legend.GetForeground() != solarized.Info {
+	if styles.EditorAccent.Legend.GetForeground() != solarized.Info {
 		t.Error("EditorAccent legend should share the editor hue")
 	}
-	if EditorAccent.ActiveTab.GetForeground() != solarized.Info {
+	if styles.EditorAccent.ActiveTab.GetForeground() != solarized.Info {
 		t.Error("EditorAccent active tab should share the editor hue")
 	}
-	// restore default so later tests render the standard look
-	DefaultTheme.Apply()
-	if lipgloss.AdaptiveColor(ColorPrimary) != DefaultTheme.Primary {
-		t.Error("default not restored")
+	other := NewStyles(DefaultTheme)
+	if other.ColorPrimary == styles.ColorPrimary {
+		t.Error("independent theme snapshots unexpectedly share primary color")
 	}
 }
 
@@ -211,7 +209,8 @@ func TestTabBarFitsNarrowWidths(t *testing.T) {
 	tabs := []string{"Query", "Headers", "Body", "Auth", "Scripts"}
 	for _, active := range []int{0, 2, 4} {
 		for _, maxW := range []int{40, 30, 20} {
-			strip := TabBar(tabs, active, maxW, &EditorAccent)
+			styles := NewStyles(Themes[defaultPresetName])
+			strip := styles.TabBar(tabs, active, maxW, &styles.EditorAccent)
 			if w := lipgloss.Width(strip); w > maxW {
 				t.Errorf("active=%d maxW=%d: strip %d wide: %q", active, maxW, w, strip)
 			}

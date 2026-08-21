@@ -9,10 +9,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/session"
-	"lazypost/internal/ui/model"
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/session"
+	"github.com/Dread-Code/lazypost/internal/ui/model"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 var version = "dev"
@@ -99,8 +99,6 @@ func main() {
 	} else {
 		log.Printf("lazypost: cannot locate config dir: %v", err)
 	}
-	themes.ThemeByName(st.Theme).Apply()
-
 	opts := markerOptions(marker, legacyPaths)
 	opts = append(opts, model.WithVersion(version))
 

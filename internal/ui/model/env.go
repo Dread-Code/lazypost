@@ -9,10 +9,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/ui/widgets"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/ui/widgets"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 // openEnvManager shows the environment manager: a tab bar of environments
@@ -337,8 +337,8 @@ func (m *Model) applyEnvironmentMutation(msg environmentMutationMsg) (tea.Model,
 // environments above the active tab's variables, with an action hint row
 // so the modal's keys are discoverable without ?.
 func (m *Model) envManagerView() string {
-	tabRow := themes.TabBar(m.envNames, m.palette.envTab, max(0, m.width-12), nil)
-	hint := themes.KeyHint("enter", "activate", "ctrl+e", "tab", "a", "add", "r", "edit", "d", "delete", "/", "filter", "esc", "close")
+	tabRow := m.styles.TabBar(m.envNames, m.palette.envTab, max(0, m.width-12), nil)
+	hint := m.styles.KeyHint("enter", "activate", "ctrl+e", "tab", "a", "add", "r", "edit", "d", "delete", "/", "filter", "esc", "close")
 	return lipgloss.JoinVertical(lipgloss.Left, tabRow, m.palette.widget.View(), hint)
 }
 

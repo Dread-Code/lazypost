@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 func TestExec(t *testing.T) {

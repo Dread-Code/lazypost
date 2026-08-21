@@ -6,11 +6,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/Dread-Code/codeeditor"
+	"github.com/Dread-Code/lazypost/lib/codeeditor"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 func TestEditorCarriesHooks(t *testing.T) {
@@ -156,6 +156,7 @@ func TestEditorFooterColors(t *testing.T) {
 	forceTrueColor(t)
 	e := NewEditor(60, 20)
 	e.Focus()
+	styles := themes.NewStyles(themes.DefaultTheme)
 
 	check := func(mode, label string, color lipgloss.AdaptiveColor) {
 		t.Helper()
@@ -166,14 +167,14 @@ func TestEditorFooterColors(t *testing.T) {
 	}
 
 	// Query lands NORMAL on entry
-	check("normal", "—NORMAL—", themes.ColorPrimary)
+	check("normal", "—NORMAL—", styles.ColorPrimary)
 	// i enters insert
 	e.query.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("i")})
-	check("insert", "—INSERT—", themes.ColorSuccess)
+	check("insert", "—INSERT—", styles.ColorSuccess)
 	// esc then v enters visual
 	e.query.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	e.query.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("v")})
-	check("visual", "—VISUAL—", themes.ColorWarn)
+	check("visual", "—VISUAL—", styles.ColorWarn)
 }
 
 func TestEditorScriptsTab(t *testing.T) {

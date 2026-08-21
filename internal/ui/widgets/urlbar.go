@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 var Methods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
@@ -34,13 +34,23 @@ type URLBar struct {
 	url    urlField
 	width  int
 	right  string
+	styles themes.Styles
 }
 
 func NewURLBar(width int) *URLBar {
-	u := &URLBar{method: "GET", width: width}
+	styles := themes.NewStyles(themes.DefaultTheme)
+	u := &URLBar{method: "GET", width: width, styles: styles}
 	u.url = *newURLField("https://api.example.com/endpoint")
+	u.url.setStyles(styles)
 	u.resize()
 	return u
+}
+
+// SetStyles replaces the rendering snapshot used by the URL bar and field.
+func (u *URLBar) SetStyles(styles themes.Styles) {
+	u.styles = styles
+	u.url.setStyles(styles)
+	u.resize()
 }
 
 // SetRight attaches a right-aligned adornment (the env badge); its width
@@ -54,7 +64,7 @@ func (u *URLBar) SetRight(s string) {
 // field's side padding, the right adornment, and the cursor column.
 func (u *URLBar) resize() {
 	// bar = pill + gap + field(padding 2 + width+1) + gap + right
-	urlW := u.width - lipgloss.Width(themes.MethodBadge(u.method)) - 1 - 3 - 2
+	urlW := u.width - lipgloss.Width(u.styles.MethodBadge(u.method)) - 1 - 3 - 2
 	if u.right != "" {
 		urlW -= lipgloss.Width(u.right) + 2
 	}
@@ -96,7 +106,7 @@ func (u *URLBar) Update(msg tea.Msg) (*URLBar, tea.Cmd) {
 // The width is maintained by Resize/Focus/Blur/SetRequest, never here —
 // View must be free of side effects.
 func (u *URLBar) View() string {
-	line := lipgloss.JoinHorizontal(lipgloss.Top, themes.MethodBadge(u.method), " ", u.fieldView())
+	line := lipgloss.JoinHorizontal(lipgloss.Top, u.styles.MethodBadge(u.method), " ", u.fieldView())
 	if u.right != "" {
 		line += "  " + u.right
 	}
@@ -106,7 +116,7 @@ func (u *URLBar) View() string {
 // fieldView wraps the URL input in one background column of breathing
 // room on each side (the input's own cells carry the background too).
 func (u *URLBar) fieldView() string {
-	pad := themes.FieldStyle.Render(" ")
+	pad := u.styles.FieldStyle.Render(" ")
 	return pad + u.url.View() + pad
 }
 

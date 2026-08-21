@@ -5,9 +5,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/ui/widgets"
+	"github.com/Dread-Code/lazypost/internal/ui/widgets"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 // Action is one selectable command: the palette lists all of them, and
@@ -192,13 +192,15 @@ func (m *Model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) applyTheme(theme themes.Theme) {
-	theme.Apply()
-	m.sidebar.RefreshTheme()
-	m.palette.widget.RefreshTheme()
-	m.namer.widget.RefreshTheme()
-	m.historyWidget.RefreshTheme()
-	m.editor.RefreshTheme()
-	m.response.RefreshTheme()
+	m.styles = themes.NewStyles(theme)
+	m.sidebar.SetStyles(m.styles)
+	m.urlbar.SetStyles(m.styles)
+	m.palette.widget.SetStyles(m.styles)
+	m.namer.widget.SetStyles(m.styles)
+	m.confirm.widget.SetStyles(m.styles)
+	m.historyWidget.SetStyles(m.styles)
+	m.editor.SetStyles(m.styles)
+	m.response.SetStyles(m.styles)
 	m.updateEnvBadge()
 }
 

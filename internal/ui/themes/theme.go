@@ -20,9 +20,9 @@ import (
 //go:embed themes/*.yaml
 var presetFS embed.FS
 
-// Theme is a named set of colors. Every style in the app is rebuilt from
-// it by Apply(), so no call site touches colors directly ([[Design -
-// themes]]). The yaml tags mirror the user-theme file shape
+// Theme is a named set of colors. NewStyles compiles it into the immutable
+// rendering snapshot consumed by widgets ([[Design - themes]]). The yaml
+// tags mirror the user-theme file shape
 // (~/.config/lazypost/themes/<name>.yaml); an empty AdaptiveColor pair
 // means "unset, fall back to the default theme".
 type Theme struct {
@@ -296,90 +296,6 @@ func ThemeNames() []string {
 	return append(names, users...)
 }
 
-// Apply rebuilds the package styles from t. This is the single place the
-// global styles are set, so switching themes at runtime just calls it.
-func (t Theme) Apply() {
-	ColorPrimary = t.Primary
-	ColorDim = t.Dim
-	ColorSuccess = t.Success
-	ColorWarn = t.Warn
-	ColorError = t.Error
-	ColorInfo = t.Info
-	ColorAccent = t.Accent
-	ColorMuted = t.Muted
-	ColorBorder = t.Border
-	ColorField = t.Field
-
-	methodColors = map[string]lipgloss.AdaptiveColor{}
-	for k, v := range t.Methods {
-		methodColors[k] = v
-	}
-
-	PaneStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(t.Border)
-
-	ActivePaneStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(t.Primary)
-
-	// Overlays sit on top of the frame and are always "focused", so they
-	// share the active border language.
-	ModalStyle = ActivePaneStyle
-
-	TitleStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Primary)
-	HintStyle = lipgloss.NewStyle().Foreground(t.Muted)
-	ErrorStyle = lipgloss.NewStyle().Foreground(t.Error)
-	NoticeStyle = lipgloss.NewStyle().Foreground(t.Success)
-	KeyStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Key)
-	SectionStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Primary)
-	VersionStyle = lipgloss.NewStyle().Foreground(t.Input)
-	LegendTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Muted)
-	ActiveLegendTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(t.Primary)
-	SelectedRowStyle = lipgloss.NewStyle().
-		Foreground(t.OnSelection).
-		Background(t.Selection)
-
-	TabStyle = lipgloss.NewStyle().
-		Padding(0, 2).
-		Foreground(t.Muted)
-
-	ActiveTabStyle = lipgloss.NewStyle().
-		Padding(0, 2).
-		Foreground(t.Primary).
-		Bold(true).
-		Underline(true)
-
-	// The URL input box: the raised background is part of every cell of
-	// the field (padding + styled input), so it never has holes.
-	FieldStyle = lipgloss.NewStyle().
-		Background(t.Field)
-
-	// URL token styles ([[Design - url bar]]).
-	URLSchemeStyle = lipgloss.NewStyle().Foreground(t.Info)
-	URLUserInfoStyle = lipgloss.NewStyle().Foreground(t.Warn)
-	URLHostStyle = lipgloss.NewStyle().Foreground(t.Primary)
-	URLPortStyle = lipgloss.NewStyle().Foreground(t.Dim)
-	URLPathStyle = lipgloss.NewStyle()
-	URLQueryKeyStyle = lipgloss.NewStyle().Foreground(t.Info)
-	URLQueryValueStyle = lipgloss.NewStyle()
-	URLQuerySepStyle = lipgloss.NewStyle().Foreground(t.Dim)
-	URLFragmentStyle = lipgloss.NewStyle().Foreground(t.Dim).Italic(true)
-	URLVarStyle = lipgloss.NewStyle().Foreground(t.Warn)
-
-	// Per-section accents: one hue per pane for its focused border, legend
-	// title, and active tab. The collection is the app identity (primary),
-	// the request editor is information (info), the response is the result
-	// (success) — modals keep the plain primary accent.
-	SidebarAccent = paneAccent(t.Primary)
-	EditorAccent = paneAccent(t.Info)
-	ResponseAccent = paneAccent(t.Success)
-
-	InputColor = t.Input
-}
-
-// paneAccent bundles the three focused styles of a section around one
-// accent color.
 func paneAccent(accent lipgloss.AdaptiveColor) PaneAccent {
 	return PaneAccent{
 		Active: lipgloss.NewStyle().

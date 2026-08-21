@@ -4,16 +4,16 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/Dread-Code/codeeditor"
+	"github.com/Dread-Code/lazypost/lib/codeeditor"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/httpclient"
-	"lazypost/internal/render"
+	"github.com/Dread-Code/lazypost/internal/httpclient"
+	"github.com/Dread-Code/lazypost/internal/render"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 type respState int
@@ -38,15 +38,17 @@ type Response struct {
 	focused bool
 	width   int
 	height  int
+	styles  themes.Styles
 }
 
 // NewResponse wires a dot spinner plus two viewports (body, headers);
 // only the active tab's viewport is rendered and scrollable.
 func NewResponse(width, height int) *Response {
-	r := &Response{width: width, height: height}
+	styles := themes.NewStyles(themes.DefaultTheme)
+	r := &Response{width: width, height: height, styles: styles}
 	r.spinner = spinner.New()
 	r.spinner.Spinner = spinner.Dot
-	r.spinner.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	r.spinner.Style = lipgloss.NewStyle().Foreground(styles.ColorPrimary)
 	r.body = viewport.New(width, height)
 	r.headers = viewport.New(width, height)
 	r.resize()
@@ -56,7 +58,14 @@ func NewResponse(width, height int) *Response {
 // RefreshTheme rebuilds cached response content with the current theme while
 // preserving viewport offsets.
 func (r *Response) RefreshTheme() {
-	r.spinner.Style = lipgloss.NewStyle().Foreground(themes.ColorPrimary)
+	r.SetStyles(themes.NewStyles(themes.DefaultTheme))
+}
+
+// SetStyles replaces the rendering snapshot and refreshes cached response
+// content without resetting viewport offsets.
+func (r *Response) SetStyles(styles themes.Styles) {
+	r.styles = styles
+	r.spinner.Style = lipgloss.NewStyle().Foreground(styles.ColorPrimary)
 	r.refreshContent()
 }
 
@@ -98,19 +107,19 @@ const maxHighlightBody = 512 << 10 // 512 KiB
 // highlightJSONColors maps JSON token kinds onto the active theme. Styles
 // are built from the package color vars, so a runtime theme switch is
 // picked up on the next response.
-func highlightJSONColors(kind render.Kind, lit string) string {
+func highlightJSONColors(styles themes.Styles, kind render.Kind, lit string) string {
 	var color lipgloss.AdaptiveColor
 	switch kind {
 	case render.KindKey:
-		color = themes.ColorPrimary
+		color = styles.ColorPrimary
 	case render.KindString:
-		color = themes.ColorSuccess
+		color = styles.ColorSuccess
 	case render.KindNumber:
-		color = themes.ColorInfo
+		color = styles.ColorInfo
 	case render.KindLiteral:
-		color = themes.ColorWarn
+		color = styles.ColorWarn
 	default: // KindPunctuation
-		color = themes.ColorMuted
+		color = styles.ColorMuted
 	}
 	return lipgloss.NewStyle().Foreground(color).Render(lit)
 }
@@ -120,9 +129,15 @@ func highlightJSONColors(kind render.Kind, lit string) string {
 // lines can't break the tokenizer), then truncate ANSI-aware so escape
 // sequences are never clipped. The stored body stays raw either way.
 func highlightedBody(res *httpclient.Response, w int) string {
+	return highlightedBodyWithStyles(res, w, themes.NewStyles(themes.DefaultTheme))
+}
+
+func highlightedBodyWithStyles(res *httpclient.Response, w int, styles themes.Styles) string {
 	formatted := res.FormattedBody()
 	if len(res.Body) <= maxHighlightBody && json.Valid([]byte(formatted)) {
-		return truncateLines(render.HighlightJSON(formatted, highlightJSONColors), w)
+		return truncateLines(render.HighlightJSON(formatted, func(kind render.Kind, lit string) string {
+			return highlightJSONColors(styles, kind, lit)
+		}), w)
 	}
 	return truncateLines(formatted, w)
 }
@@ -140,7 +155,7 @@ func (r *Response) refreshContent() {
 		return
 	}
 	w := r.width - 6 // border + viewport scrollbar room
-	r.body.SetContent(highlightedBody(r.res, w))
+	r.body.SetContent(highlightedBodyWithStyles(r.res, w, r.styles))
 	r.headers.SetContent(truncateLines(r.res.FormattedHeaders(), w))
 }
 
@@ -197,11 +212,11 @@ func (r *Response) View() string {
 	var content string
 	switch r.state {
 	case stIdle:
-		content = r.center(themes.HintStyle.Render("press ") + themes.KeyHint("ctrl+r", "to send the request"))
+		content = r.center(r.styles.HintStyle.Render("press ") + r.styles.KeyHint("ctrl+r", "to send the request"))
 	case stLoading:
 		content = r.center(r.spinner.View() + " sending...")
 	case stError:
-		content = r.center(themes.ErrorStyle.Render("error: " + r.err.Error()))
+		content = r.center(r.styles.ErrorStyle.Render("error: " + r.err.Error()))
 	case stDone:
 		if r.tab == 0 {
 			content = r.body.View()
@@ -209,8 +224,8 @@ func (r *Response) View() string {
 			content = r.headers.View()
 		}
 	}
-	divider := themes.Rule(max(0, r.width-4))
-	return lipgloss.JoinVertical(lipgloss.Left, themes.TabBar(respTabs, r.tab, max(0, r.width-4), &themes.ResponseAccent), divider, content)
+	divider := r.styles.Rule(max(0, r.width-4))
+	return lipgloss.JoinVertical(lipgloss.Left, r.styles.TabBar(respTabs, r.tab, max(0, r.width-4), &r.styles.ResponseAccent), divider, content)
 }
 
 // center places the idle/loading/error placeholder in the middle of the
@@ -234,7 +249,7 @@ func (r *Response) StatusLine() string {
 	if r.state != stDone || r.res == nil {
 		return ""
 	}
-	style := lipgloss.NewStyle().Foreground(themes.StatusColor(r.res.StatusCode)).Bold(true)
+	style := lipgloss.NewStyle().Foreground(r.styles.StatusColor(r.res.StatusCode)).Bold(true)
 	return style.Render(r.res.Summary())
 }
 

@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"lazypost/internal/httpclient"
+	"github.com/Dread-Code/lazypost/internal/httpclient"
 )
 
 // forceColorProfile pins the renderer to TrueColor so tests can assert on

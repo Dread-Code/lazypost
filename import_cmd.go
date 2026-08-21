@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"lazypost/internal/app"
-	"lazypost/internal/importer"
+	"github.com/Dread-Code/lazypost/internal/app"
+	"github.com/Dread-Code/lazypost/internal/importer"
 )
 
 func runImport(args []string) error {

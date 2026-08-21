@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"lazypost/internal/session"
+	"github.com/Dread-Code/lazypost/internal/session"
 )
 
 // restore applies persisted session state: active environment, collapsed

@@ -8,11 +8,11 @@ import (
 	"context"
 	"fmt"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/curl"
-	"lazypost/internal/httpclient"
-	"lazypost/internal/render"
-	"lazypost/internal/script"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/curl"
+	"github.com/Dread-Code/lazypost/internal/httpclient"
+	"github.com/Dread-Code/lazypost/internal/render"
+	"github.com/Dread-Code/lazypost/internal/script"
 )
 
 // Client is the legacy execution seam. It receives the request after pre-hook

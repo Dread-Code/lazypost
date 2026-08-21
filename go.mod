@@ -1,9 +1,8 @@
-module lazypost
+module github.com/Dread-Code/lazypost
 
 go 1.25.0
 
 require (
-	github.com/Dread-Code/codeeditor v0.0.0
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
@@ -15,8 +14,6 @@ require (
 	github.com/yuin/gopher-lua v1.1.2
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-replace github.com/Dread-Code/codeeditor => ./lib/codeeditor
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect

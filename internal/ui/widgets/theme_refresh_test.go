@@ -4,14 +4,12 @@ import (
 	"net/http"
 	"testing"
 
-	"lazypost/internal/httpclient"
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/httpclient"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 func TestWidgetsRefreshCopiedThemeStyles(t *testing.T) {
 	forceTrueColor(t)
-	t.Cleanup(func() { themes.DefaultTheme.Apply() })
-	themes.DefaultTheme.Apply()
 
 	palette := NewPalette(40, 10)
 	namer := NewNamer()
@@ -30,13 +28,12 @@ func TestWidgetsRefreshCopiedThemeStyles(t *testing.T) {
 	beforeResponse := response.body.View()
 
 	solarized := themes.ThemeByName("solarized")
-	solarized.Apply()
-	palette.RefreshTheme()
-	namer.RefreshTheme()
-	auth.RefreshTheme()
-	response.RefreshTheme()
-	sidebar.RefreshTheme()
-	history.RefreshTheme()
+	palette.SetStyles(themes.NewStyles(solarized))
+	namer.SetStyles(themes.NewStyles(solarized))
+	auth.SetStyles(themes.NewStyles(solarized))
+	response.SetStyles(themes.NewStyles(solarized))
+	sidebar.SetStyles(themes.NewStyles(solarized))
+	history.SetStyles(themes.NewStyles(solarized))
 
 	if got := palette.list.FilterInput.TextStyle.GetForeground(); got != solarized.Input {
 		t.Errorf("palette input foreground = %v, want %v", got, solarized.Input)

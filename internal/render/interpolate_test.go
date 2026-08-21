@@ -3,7 +3,7 @@ package render
 import (
 	"testing"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 func TestApply(t *testing.T) {

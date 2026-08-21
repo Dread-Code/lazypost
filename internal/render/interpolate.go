@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 // pattern matches {{name}} with optional inner whitespace, e.g. {{ host }}.

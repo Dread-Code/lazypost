@@ -6,11 +6,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/Dread-Code/codeeditor"
+	"github.com/Dread-Code/lazypost/lib/codeeditor"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 	"github.com/muesli/termenv"
-	"lazypost/internal/ui/themes"
 )
 
 func forceTrueColor(t *testing.T) {
@@ -108,7 +108,7 @@ func TestLuaCursorLineAfterCommentNotCommented(t *testing.T) {
 	out := e.View()
 	// "eq.headers" is an identifier: it renders uncolored. If the comment
 	// swallowed the cursor line, it would be wrapped in the muted style.
-	commentStyled := lipgloss.NewStyle().Foreground(themes.ColorMuted).Render(`eq.headers`)
+	commentStyled := lipgloss.NewStyle().Foreground(themes.NewStyles(themes.DefaultTheme).ColorMuted).Render(`eq.headers`)
 	if strings.Contains(out, commentStyled) {
 		t.Errorf("cursor line after a comment is comment-colored:\n%s", out)
 	}

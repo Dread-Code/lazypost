@@ -11,9 +11,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 type item struct {
@@ -22,7 +22,7 @@ type item struct {
 
 func (i item) FilterValue() string { return i.entry.Name }
 
-type delegate struct{}
+type delegate struct{ styles themes.Styles }
 
 func (d delegate) Height() int  { return 1 }
 func (d delegate) Spacing() int { return 0 }
@@ -52,14 +52,14 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 		name := themes.TruncateRunes(e.Name, avail)
 		if e.Depth < 0 {
 			if selected {
-				line = lipgloss.NewStyle().Bold(true).Render(name)
+				line = d.styles.TitleStyle.Bold(true).Render(name)
 			} else {
-				line = lipgloss.NewStyle().Bold(true).Foreground(themes.ColorPrimary).Render(name)
+				line = d.styles.TitleStyle.Bold(true).Foreground(d.styles.ColorPrimary).Render(name)
 			}
 		} else if selected {
-			line = lipgloss.NewStyle().Bold(true).Render(name + "/")
+			line = d.styles.TitleStyle.Bold(true).Render(name + "/")
 		} else {
-			line = lipgloss.NewStyle().Bold(true).Foreground(themes.ColorMuted).Render(name + "/")
+			line = d.styles.TitleStyle.Bold(true).Foreground(d.styles.ColorMuted).Render(name + "/")
 		}
 	default:
 		// method badge(6) + space(1)
@@ -73,7 +73,7 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 			// selection background; keep the row one solid unit
 			method = lipgloss.NewStyle().Bold(true).Render(method)
 		} else {
-			method = themes.MethodStyle(e.Req.Method).Render(method)
+			method = d.styles.MethodStyle(e.Req.Method).Render(method)
 		}
 		name := themes.TruncateRunes(e.Name, nameW)
 		line = method + " " + name
@@ -92,7 +92,7 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 	// all sit on the selection background so the fill reads as one unit.
 	row := cursor + indent + line
 	if selected {
-		row = themes.SelectedRowStyle.Render(padRunes(row, m.Width()))
+		row = d.styles.SelectedRowStyle.Render(padRunes(row, m.Width()))
 	}
 	fmt.Fprint(w, row)
 }
@@ -118,6 +118,7 @@ type Sidebar struct {
 	entries   []collection.Entry
 	collapsed map[string]bool
 	root      collection.Entry
+	styles    themes.Styles
 }
 
 // NewSidebar builds a dumb tree view: filtering, help, pagination, status
@@ -126,14 +127,16 @@ type Sidebar struct {
 // of collapsed paths starts empty. The collection root is a synthetic top
 // entry whose enter collapses/expands every directory at once.
 func NewSidebar(entries []collection.Entry, root string, width, height int) *Sidebar {
+	styles := themes.NewStyles(themes.DefaultTheme)
 	s := &Sidebar{
 		entries:   entries,
 		collapsed: make(map[string]bool),
+		styles:    styles,
 		root: collection.Entry{
 			Kind: collection.Dir, Name: filepath.Base(root), Depth: -1, Path: root,
 		},
 	}
-	s.list = list.New(s.items(), delegate{}, width, height)
+	s.list = list.New(s.items(), delegate{styles: styles}, width, height)
 	s.list.SetShowTitle(false)
 	s.list.SetShowFilter(false)
 	s.list.SetShowHelp(false)
@@ -141,13 +144,22 @@ func NewSidebar(entries []collection.Entry, root string, width, height int) *Sid
 	s.list.SetShowStatusBar(false)
 	s.list.SetFilteringEnabled(false)
 	s.list.DisableQuitKeybindings()
-	s.list.Styles.NoItems = themes.HintStyle
+	s.list.Styles.NoItems = styles.HintStyle
 	return s
 }
 
-// RefreshTheme reapplies list styles copied during construction.
+// SetStyles replaces the rendering snapshot used by the sidebar and its
+// list delegate.
+func (s *Sidebar) SetStyles(styles themes.Styles) {
+	s.styles = styles
+	s.list.SetDelegate(delegate{styles: styles})
+	s.list.Styles.NoItems = styles.HintStyle
+}
+
+// RefreshTheme is retained as a compatibility helper for standalone widget
+// callers; the root model uses SetStyles with its local snapshot.
 func (s *Sidebar) RefreshTheme() {
-	s.list.Styles.NoItems = themes.HintStyle
+	s.SetStyles(themes.NewStyles(themes.DefaultTheme))
 }
 
 // items returns the visible entries as list items: the collection root

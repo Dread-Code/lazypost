@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Dread-Code/codeeditor"
+	"github.com/Dread-Code/lazypost/lib/codeeditor"
 )
 
 // BenchmarkRenderJSONBody measures the real chroma JSON pipeline per

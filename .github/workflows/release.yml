@@ -16,9 +16,18 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - run: go mod tidy && test -z "$(git diff -- go.mod go.sum)"
+      - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./... -count=1
+      - run: go test ./... -race -count=1
       - run: ./scripts/release.sh "$GITHUB_REF_NAME"
+      - name: Validate release artifacts
+        run: |
+          for asset in lazypost-darwin-arm64 lazypost-darwin-amd64 lazypost-linux-arm64 lazypost-linux-amd64; do
+            test -x "dist/$asset"
+          done
+          test "$(wc -l < dist/checksums.txt | tr -d ' ')" -eq 4
       - name: Create GitHub release
         run: gh release create "$GITHUB_REF_NAME" dist/* --title "lazypost $GITHUB_REF_NAME" --generate-notes
         env:

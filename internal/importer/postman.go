@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 type postmanCollection struct {

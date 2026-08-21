@@ -13,8 +13,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/session"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/session"
 )
 
 func TestSendRequestEndToEnd(t *testing.T) {

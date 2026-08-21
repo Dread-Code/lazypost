@@ -7,8 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"lazypost/internal/app"
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/app"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 func newReq(name, method, url string) collection.Request {

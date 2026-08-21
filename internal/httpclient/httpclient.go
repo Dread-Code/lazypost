@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/render"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/render"
 )
 
 type Response struct {

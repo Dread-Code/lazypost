@@ -10,13 +10,13 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"lazypost/internal/app"
-	"lazypost/internal/collection"
-	"lazypost/internal/httpclient"
-	"lazypost/internal/session"
-	"lazypost/internal/ui/widgets"
+	"github.com/Dread-Code/lazypost/internal/app"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/httpclient"
+	"github.com/Dread-Code/lazypost/internal/session"
+	"github.com/Dread-Code/lazypost/internal/ui/widgets"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 type responseMsg struct {
@@ -176,7 +176,8 @@ type Model struct {
 	historyPrev   pane // pane to restore when the history overlay closes
 	helpPrev      pane // pane to restore when the keybindings panel closes
 
-	state session.State
+	state  session.State
+	styles themes.Styles
 	// sessionWriter serializes asynchronous snapshots and makes quit a
 	// latest-state barrier shared across Bubble Tea model value copies.
 	sessionWriter *session.Writer
@@ -236,23 +237,32 @@ func WithExecutor(executor app.ContextClient) Option {
 }
 
 func New(dir string, entries []collection.Entry, envs map[string]map[string]string, envNames []string, st session.State, opts ...Option) Model {
+	styles := themes.NewStyles(themes.ThemeByName(st.Theme))
 	m := Model{
 		dir:           dir,
 		envs:          envs,
 		envNames:      envNames,
 		state:         st,
+		styles:        styles,
 		sessionWriter: session.NewWriter(),
 		executor:      httpclient.ExecuteContext,
 	}
 	m.sidebar = ui.NewSidebar(entries, dir, 30, 20)
+	m.sidebar.SetStyles(styles)
 	m.urlbar = ui.NewURLBar(80)
-	m.editor = ui.NewEditor(60, 15)
+	m.urlbar.SetStyles(styles)
+	m.editor = ui.NewEditorWithStyles(60, 15, styles)
 	m.response = ui.NewResponse(60, 15)
+	m.response.SetStyles(styles)
 	m.palette.widget = ui.NewPalette(40, 10)
+	m.palette.widget.SetStyles(styles)
 	m.namer.widget = ui.NewNamer()
+	m.namer.widget.SetStyles(styles)
 	m.confirm.widget = ui.NewConfirm()
+	m.confirm.widget.SetStyles(styles)
 	m.history = app.NewHistory(historyCap)
 	m.historyWidget = ui.NewHistory(40, 10)
+	m.historyWidget.SetStyles(styles)
 	m.focus = pSidebar
 	m.restore(st)
 	m.updateEnvBadge()
@@ -266,9 +276,9 @@ func New(dir string, entries []collection.Entry, envs map[string]map[string]stri
 // active environment (the single place the env label is rendered).
 func (m *Model) updateEnvBadge() {
 	if name := m.activeEnvName(); name != "" {
-		m.urlbar.SetRight(themes.EnvBadge("env: " + name))
+		m.urlbar.SetRight(m.styles.EnvBadge("env: " + name))
 	} else {
-		m.urlbar.SetRight(themes.HintStyle.Render("env: none"))
+		m.urlbar.SetRight(m.styles.HintStyle.Render("env: none"))
 	}
 }
 

@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 // urlField is a minimal single-line URL editor with per-token syntax
@@ -25,14 +25,17 @@ type urlField struct {
 	width       int
 	focused     bool
 	placeholder string
+	styles      themes.Styles
 }
 
 // urlCharLimit caps pasted/typed input like the old textinput CharLimit.
 const urlCharLimit = 2048
 
 func newURLField(placeholder string) *urlField {
-	return &urlField{placeholder: placeholder}
+	return &urlField{placeholder: placeholder, styles: themes.NewStyles(themes.DefaultTheme)}
 }
+
+func (f *urlField) setStyles(styles themes.Styles) { f.styles = styles }
 
 func (f *urlField) Value() string { return f.value }
 
@@ -224,7 +227,7 @@ func (f *urlField) View() string {
 	if f.value == "" {
 		return f.placeholderView()
 	}
-	tokens := tokenizeURL(f.value)
+	tokens := tokenizeURLWithStyles(f.value, f.styles)
 	refs := make([]runeRef, 0, len(f.value))
 	for _, t := range tokens {
 		for _, r := range t.text {
@@ -242,7 +245,7 @@ func (f *urlField) View() string {
 		if i < total {
 			ch = refs[i].r
 		}
-		style := refs[i].style.Background(themes.ColorField)
+		style := refs[i].style.Background(f.styles.ColorField)
 		if f.focused && i == f.cursor {
 			style = style.Reverse(true)
 		}
@@ -250,9 +253,9 @@ func (f *urlField) View() string {
 	}
 	for i := window; i < f.offset+f.width+1; i++ {
 		if f.focused && i == f.cursor {
-			b.WriteString(lipgloss.NewStyle().Background(themes.ColorField).Reverse(true).Render(" "))
+			b.WriteString(lipgloss.NewStyle().Background(f.styles.ColorField).Reverse(true).Render(" "))
 		} else {
-			b.WriteString(lipgloss.NewStyle().Background(themes.ColorField).Render(" "))
+			b.WriteString(lipgloss.NewStyle().Background(f.styles.ColorField).Render(" "))
 		}
 	}
 	return b.String()
@@ -266,7 +269,7 @@ type runeRef struct {
 
 func (f *urlField) placeholderView() string {
 	w := f.width + 1
-	bg := lipgloss.NewStyle().Background(themes.ColorField)
+	bg := lipgloss.NewStyle().Background(f.styles.ColorField)
 	var b strings.Builder
 	if f.focused {
 		b.WriteString(bg.Reverse(true).Render(" "))
@@ -291,12 +294,16 @@ type urlToken struct {
 // placeholders anywhere in warn. The layout follows common URL parsing
 // (userinfo ends at the last @, port at the last : of the authority).
 func tokenizeURL(s string) []urlToken {
+	return tokenizeURLWithStyles(s, themes.NewStyles(themes.DefaultTheme))
+}
+
+func tokenizeURLWithStyles(s string, styles themes.Styles) []urlToken {
 	var out []urlToken
 	rest := s
 
 	// scheme://
 	if i := strings.Index(rest, "://"); i > 0 {
-		out = append(out, urlToken{rest[:i+3], themes.URLSchemeStyle})
+		out = append(out, urlToken{rest[:i+3], styles.URLSchemeStyle})
 		rest = rest[i+3:]
 	}
 
@@ -309,37 +316,37 @@ func tokenizeURL(s string) []urlToken {
 	rest = rest[authEnd:]
 
 	if i := strings.LastIndexByte(auth, '@'); i >= 0 {
-		out = append(out, urlToken{auth[:i+1], themes.URLUserInfoStyle})
+		out = append(out, urlToken{auth[:i+1], styles.URLUserInfoStyle})
 		auth = auth[i+1:]
 	}
 	if i := strings.LastIndexByte(auth, ':'); i >= 0 {
-		out = append(out, urlToken{auth[:i], themes.URLHostStyle})
-		out = append(out, urlToken{auth[i:], themes.URLPortStyle})
+		out = append(out, urlToken{auth[:i], styles.URLHostStyle})
+		out = append(out, urlToken{auth[i:], styles.URLPortStyle})
 	} else {
-		out = append(out, urlToken{auth, themes.URLHostStyle})
+		out = append(out, urlToken{auth, styles.URLHostStyle})
 	}
 
 	// path + query + fragment
 	if i := strings.IndexByte(rest, '?'); i >= 0 {
-		out = append(out, urlToken{rest[:i], themes.URLPathStyle})
+		out = append(out, urlToken{rest[:i], styles.URLPathStyle})
 		rest = rest[i:]
 		if j := strings.IndexByte(rest, '#'); j >= 0 {
-			out = append(out, tokenizeQuery(rest[:j])...)
-			out = append(out, urlToken{rest[j:], themes.URLFragmentStyle})
+			out = append(out, tokenizeQueryWithStyles(rest[:j], styles)...)
+			out = append(out, urlToken{rest[j:], styles.URLFragmentStyle})
 		} else {
-			out = append(out, tokenizeQuery(rest)...)
+			out = append(out, tokenizeQueryWithStyles(rest, styles)...)
 		}
 	} else if i := strings.IndexByte(rest, '#'); i >= 0 {
-		out = append(out, urlToken{rest[:i], themes.URLPathStyle})
-		out = append(out, urlToken{rest[i:], themes.URLFragmentStyle})
+		out = append(out, urlToken{rest[:i], styles.URLPathStyle})
+		out = append(out, urlToken{rest[i:], styles.URLFragmentStyle})
 	} else {
-		out = append(out, urlToken{rest, themes.URLPathStyle})
+		out = append(out, urlToken{rest, styles.URLPathStyle})
 	}
 
 	// {{var}} placeholders pop in warn wherever they appear
 	var withVars []urlToken
 	for _, t := range out {
-		withVars = append(withVars, splitVars(t)...)
+		withVars = append(withVars, splitVarsWithStyles(t, styles)...)
 	}
 	return withVars
 }
@@ -347,29 +354,33 @@ func tokenizeURL(s string) []urlToken {
 // tokenizeQuery styles "?key=value&key2=value2": separators dim, keys in
 // info, values at the default foreground.
 func tokenizeQuery(s string) []urlToken {
-	out := []urlToken{{"?", themes.URLQuerySepStyle}}
+	return tokenizeQueryWithStyles(s, themes.NewStyles(themes.DefaultTheme))
+}
+
+func tokenizeQueryWithStyles(s string, styles themes.Styles) []urlToken {
+	out := []urlToken{{"?", styles.URLQuerySepStyle}}
 	for i := 1; i < len(s); {
 		j := i
 		for j < len(s) && s[j] != '=' && s[j] != '&' {
 			j++
 		}
 		if j > i {
-			out = append(out, urlToken{s[i:j], themes.URLQueryKeyStyle})
+			out = append(out, urlToken{s[i:j], styles.URLQueryKeyStyle})
 		}
 		if j < len(s) && s[j] == '=' {
-			out = append(out, urlToken{"=", themes.URLQuerySepStyle})
+			out = append(out, urlToken{"=", styles.URLQuerySepStyle})
 			j++
 			k := j
 			for k < len(s) && s[k] != '&' {
 				k++
 			}
 			if k > j {
-				out = append(out, urlToken{s[j:k], themes.URLQueryValueStyle})
+				out = append(out, urlToken{s[j:k], styles.URLQueryValueStyle})
 			}
 			j = k
 		}
 		if j < len(s) && s[j] == '&' {
-			out = append(out, urlToken{"&", themes.URLQuerySepStyle})
+			out = append(out, urlToken{"&", styles.URLQuerySepStyle})
 			j++
 		}
 		i = j
@@ -379,6 +390,10 @@ func tokenizeQuery(s string) []urlToken {
 
 // splitVars splits one token's text on {{…}} runs, restyling them in warn.
 func splitVars(t urlToken) []urlToken {
+	return splitVarsWithStyles(t, themes.NewStyles(themes.DefaultTheme))
+}
+
+func splitVarsWithStyles(t urlToken, styles themes.Styles) []urlToken {
 	if !strings.Contains(t.text, "{{") {
 		return []urlToken{t}
 	}
@@ -394,11 +409,11 @@ func splitVars(t urlToken) []urlToken {
 		}
 		j := strings.Index(rest[i+2:], "}}")
 		if j < 0 { // unclosed brace: treat the tail as a var
-			out = append(out, urlToken{rest[i:], themes.URLVarStyle})
+			out = append(out, urlToken{rest[i:], styles.URLVarStyle})
 			return out
 		}
 		end := i + 2 + j + 2
-		out = append(out, urlToken{rest[i:end], themes.URLVarStyle})
+		out = append(out, urlToken{rest[i:end], styles.URLVarStyle})
 		rest = rest[end:]
 	}
 	if rest != "" {

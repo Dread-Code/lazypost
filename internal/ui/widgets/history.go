@@ -11,9 +11,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/app"
+	"github.com/Dread-Code/lazypost/internal/app"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 // HistoryItem is one past send shown in the history overlay.
@@ -37,7 +37,7 @@ func (i HistoryItem) HistoryTitle() string {
 	return i.Req.Req.Method
 }
 
-type historyDelegate struct{}
+type historyDelegate struct{ styles themes.Styles }
 
 func (d historyDelegate) Height() int  { return 1 }
 func (d historyDelegate) Spacing() int { return 0 }
@@ -63,15 +63,15 @@ func (d historyDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 		titleW = 4
 	}
 	title := themes.TruncateRunes(it.HistoryTitle(), titleW)
-	summary := lipgloss.NewStyle().Foreground(themes.ColorMuted).Render(it.Summary)
+	summary := lipgloss.NewStyle().Foreground(d.styles.ColorMuted).Render(it.Summary)
 	if !selected {
 		// a failed send wears its error color in the summary; a success
 		// wears the success color so the list scans by outcome
 		switch {
 		case it.Req.Err != nil:
-			summary = themes.ErrorStyle.Render(it.Summary)
+			summary = d.styles.ErrorStyle.Render(it.Summary)
 		case it.Req.Res != nil:
-			summary = lipgloss.NewStyle().Foreground(themes.StatusColor(it.Req.Res.StatusCode)).Render(it.Summary)
+			summary = lipgloss.NewStyle().Foreground(d.styles.StatusColor(it.Req.Res.StatusCode)).Render(it.Summary)
 		}
 	}
 	pad := avail - lipgloss.Width(title) - lipgloss.Width(summary)
@@ -81,7 +81,7 @@ func (d historyDelegate) Render(w io.Writer, m list.Model, index int, li list.It
 	line := "  " + title + strings.Repeat(" ", pad) + summary
 	if selected {
 		line = "▸ " + title + strings.Repeat(" ", pad) + summary
-		line = themes.SelectedRowStyle.Render(padRunes(line, avail))
+		line = d.styles.SelectedRowStyle.Render(padRunes(line, avail))
 	}
 	fmt.Fprint(w, line)
 }
@@ -93,24 +93,34 @@ type History struct {
 	list   list.Model
 	width  int
 	height int
+	styles themes.Styles
 }
 
 func NewHistory(width, height int) *History {
-	h := &History{width: width, height: height}
-	h.list = list.New(nil, historyDelegate{}, width, height)
+	styles := themes.NewStyles(themes.DefaultTheme)
+	h := &History{width: width, height: height, styles: styles}
+	h.list = list.New(nil, historyDelegate{styles: styles}, width, height)
 	h.list.SetShowTitle(false) // the title lives on the modal's border legend
 	h.list.SetShowFilter(false)
 	h.list.SetShowHelp(false)
 	h.list.SetShowPagination(false)
 	h.list.SetShowStatusBar(false)
 	h.list.DisableQuitKeybindings()
-	h.list.Styles.NoItems = themes.HintStyle
+	h.list.Styles.NoItems = styles.HintStyle
 	return h
 }
 
-// RefreshTheme reapplies list styles copied during construction.
+// SetStyles replaces the rendering snapshot used by the history list.
+func (h *History) SetStyles(styles themes.Styles) {
+	h.styles = styles
+	h.list.SetDelegate(historyDelegate{styles: styles})
+	h.list.Styles.NoItems = styles.HintStyle
+}
+
+// RefreshTheme is retained as a compatibility helper for standalone widget
+// callers; the root model uses SetStyles with its local snapshot.
 func (h *History) RefreshTheme() {
-	h.list.Styles.NoItems = themes.HintStyle
+	h.SetStyles(themes.NewStyles(themes.DefaultTheme))
 }
 
 func (h *History) SetItems(entries []app.HistoryEntry) {
@@ -166,7 +176,7 @@ func (h *History) CursorDown() { h.list.CursorDown() }
 
 func (h *History) View() string {
 	if len(h.list.VisibleItems()) == 0 {
-		return themes.HintStyle.Render("no requests sent yet")
+		return h.styles.HintStyle.Render("no requests sent yet")
 	}
 	return h.list.View()
 }

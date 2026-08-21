@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/importer"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/importer"
 )
 
 type ImportOptions struct {

@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 // normalizeURLQuery makes Request.Query the canonical representation for

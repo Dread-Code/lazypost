@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 func seed(t *testing.T, root string, req *collection.Request) string {

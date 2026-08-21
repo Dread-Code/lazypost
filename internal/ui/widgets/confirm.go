@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 // Confirm is a small yes/no modal, opened before destructive actions like
@@ -14,12 +14,20 @@ import (
 // to it while open. It is stateless between Ask calls — the model owns
 // the answer, so it has no Update.
 type Confirm struct {
-	label string
+	label  string
+	styles themes.Styles
 }
 
 func NewConfirm() *Confirm {
-	return &Confirm{}
+	return &Confirm{styles: themes.NewStyles(themes.DefaultTheme)}
 }
+
+// SetStyles replaces the rendering snapshot used by the confirmation hints.
+func (c *Confirm) SetStyles(styles themes.Styles) { c.styles = styles }
+
+// RefreshTheme is retained as a compatibility helper for standalone widget
+// callers; the root model uses SetStyles with its local snapshot.
+func (c *Confirm) RefreshTheme() { c.SetStyles(themes.NewStyles(themes.DefaultTheme)) }
 
 // Ask sets the question shown to the user.
 func (c *Confirm) Ask(label string) {
@@ -33,8 +41,8 @@ func (c *Confirm) View() string {
 	// the question lives on the modal's border title (model/view.go
 	// renderModal), so the content is just the hint
 	return lipgloss.JoinVertical(lipgloss.Left,
-		themes.KeyHint("y", "yes", "n", "no"),
-		themes.KeyHint("enter", "confirms", "esc", "cancels"),
+		c.styles.KeyHint("y", "yes", "n", "no"),
+		c.styles.KeyHint("enter", "confirms", "esc", "cancels"),
 	)
 }
 

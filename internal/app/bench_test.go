@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/httpclient"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/httpclient"
 )
 
 // BenchmarkSend measures the send pipeline with hooks, interpolation,

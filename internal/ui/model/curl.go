@@ -7,9 +7,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"lazypost/internal/app"
-	"lazypost/internal/clipboard"
-	"lazypost/internal/curl"
+	"github.com/Dread-Code/lazypost/internal/app"
+	"github.com/Dread-Code/lazypost/internal/clipboard"
+	"github.com/Dread-Code/lazypost/internal/curl"
 )
 
 // importCurl parses a pasted curl command into the bar and editor,

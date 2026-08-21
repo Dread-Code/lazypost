@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 func TestPreReturnsVars(t *testing.T) {

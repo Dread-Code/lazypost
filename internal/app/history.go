@@ -3,8 +3,8 @@ package app
 import (
 	"time"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/httpclient"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/httpclient"
 )
 
 // HistoryEntry is one send kept for inspection or resend: the full request

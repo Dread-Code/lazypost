@@ -37,7 +37,7 @@ One command (checksum-verified; installs to `~/.local/bin`, override with `PREFI
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Dread-Code/lazypost/main/install.sh | sh
 # pin a version, or pick an install directory:
-curl -fsSL https://raw.githubusercontent.com/Dread-Code/lazypost/main/install.sh | sh -s -- v0.1.0
+curl -fsSL https://raw.githubusercontent.com/Dread-Code/lazypost/main/install.sh | sh -s -- v0.4.0
 PREFIX=/usr/local sh install.sh
 ```
 
@@ -257,12 +257,12 @@ Custom themes live in `~/.config/lazypost/themes/<name>.yaml` (or `$XDG_CONFIG_H
 
 ```sh
 gofmt -l . && go vet ./... && go test ./... && go test -race ./...
-cd lib/codeeditor && go vet ./... && go test ./... && go test -race ./...   # the standalone editor module has its own go.mod
+go vet ./lib/codeeditor && go test ./lib/codeeditor && go test -race ./lib/codeeditor
 ```
 
-The editor widget lives in [`lib/codeeditor/`](lib/codeeditor) as its own Go module (the first standalone Bubble Tea syntax-highlighted editor with vim modes) — lazypost wires it via a `replace` directive with the chroma + theme highlighters in `internal/ui/widgets/highlighters.go`.
+The editor widget lives in [`lib/codeeditor/`](lib/codeeditor) as a package in the root Go module — lazypost wires it to the chroma + theme highlighters in `internal/ui/widgets/highlighters.go`.
 
-CI (`.github/workflows/ci.yml`) runs the same checks plus `go mod tidy` and `go build` on every push to `main` and pull request (including the `lib/codeeditor` submodule); a green `test` check is required on `main`.
+CI (`.github/workflows/ci.yml`) runs the same checks plus `go mod tidy`, `go build`, and race tests on every push to `main` and pull request, including `lib/codeeditor` in the root module; a green `test` check is required on `main`.
 
 ## Roadmap
 

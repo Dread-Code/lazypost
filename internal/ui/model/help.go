@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 // openHelp shows the keybindings reference (?) as a read-only overlay.
@@ -84,6 +84,10 @@ func helpSections() []helpSection {
 // for two columns it falls back to one column (rows instead of pairs).
 // The panel hugs its content, so it never overflows horizontally.
 func helpContent(maxW int) string {
+	return helpContentWithStyles(themes.NewStyles(themes.DefaultTheme), maxW)
+}
+
+func helpContentWithStyles(styles themes.Styles, maxW int) string {
 	layout := helpLayoutFor(helpSections())
 	if layout.width > maxW {
 		layout = helpLayoutSingle(helpSections())
@@ -93,19 +97,19 @@ func helpContent(maxW int) string {
 	for _, s := range helpSections() {
 		// section headers are dash runs, so they double as separators —
 		// no blank lines needed, keeping the panel short on small screens
-		fmt.Fprintln(&b, themes.SectionLine(s.title, layout.width))
+		fmt.Fprintln(&b, styles.SectionLine(s.title, layout.width))
 		if layout.single {
 			for _, r := range s.rows {
 				if r.k1 == "" {
 					continue
 				}
-				fmt.Fprintln(&b, "  "+themes.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+r.a1)
+				fmt.Fprintln(&b, "  "+styles.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+r.a1)
 			}
 			continue
 		}
 		for _, r := range s.rows {
-			fmt.Fprintln(&b, "  "+themes.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+pad(r.a1, layout.actW)+
-				"    "+themes.KeyStyle.Render(pad(r.k2, layout.keyW2))+"  "+pad(r.a2, layout.actW2))
+			fmt.Fprintln(&b, "  "+styles.KeyStyle.Render(pad(r.k1, layout.keyW))+"  "+pad(r.a1, layout.actW)+
+				"    "+styles.KeyStyle.Render(pad(r.k2, layout.keyW2))+"  "+pad(r.a2, layout.actW2))
 		}
 	}
 	return strings.TrimSuffix(b.String(), "\n")

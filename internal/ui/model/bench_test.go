@@ -3,8 +3,8 @@ package model
 import (
 	"testing"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/session"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/session"
 )
 
 // BenchmarkNewModel measures model construction on the real sample

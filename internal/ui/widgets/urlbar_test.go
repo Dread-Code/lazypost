@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"lazypost/internal/ui/themes"
+	"github.com/Dread-Code/lazypost/internal/ui/themes"
 )
 
 func TestURLBarFocusMovesCursorToEnd(t *testing.T) {
@@ -71,7 +71,7 @@ func TestURLBarBlank(t *testing.T) {
 func TestURLBarFitsTerminalWidth(t *testing.T) {
 	u := NewURLBar(80)
 	u.SetRequest("GET", "https://api.test/things/{{id}}?page=2&limit=10#top")
-	u.SetRight(themes.EnvBadge("env: dev"))
+	u.SetRight(themes.NewStyles(themes.DefaultTheme).EnvBadge("env: dev"))
 	u.Focus()
 
 	for _, s := range []string{

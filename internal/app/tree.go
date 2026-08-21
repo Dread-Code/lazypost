@@ -1,7 +1,7 @@
 package app
 
 import (
-	"lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/collection"
 )
 
 // Collection operations: each mutates the collection tree on disk and

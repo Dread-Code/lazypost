@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"lazypost/internal/collection"
-	"lazypost/internal/session"
-	"lazypost/internal/ui/model"
+	"github.com/Dread-Code/lazypost/internal/collection"
+	"github.com/Dread-Code/lazypost/internal/session"
+	"github.com/Dread-Code/lazypost/internal/ui/model"
 )
 
 func TestResolveRootExplicitWins(t *testing.T) {
